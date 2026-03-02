@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<odoo>
+
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.pan_ai_pro</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="ai_app.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='google_provider']" position="after">
+                <setting id="anthropic_provider" string="Use your own Anthropic account" help="Provide your API key to connect with your account" groups="base.group_system">
+                    <field name="x_anthropic_key_enabled" />
+                    <group invisible="not x_anthropic_key_enabled">
+                        <div class="flex-grow-1">
+                            <field name="x_anthropic_key" placeholder="Key" password="True" nolabel="1" class="w-100"/>
+                        </div>
+                    </group>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
