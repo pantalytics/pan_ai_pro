@@ -27,6 +27,7 @@ Odoo 19 ships with OpenAI and Google Gemini as AI providers. This module adds **
 | **Tool Calling** | Claude calls Odoo server actions to search, create, and update records |
 | **Web Search** | Per-agent toggle for real-time web search (Anthropic server-side) |
 | **RAG / Sources** | Attach PDFs, knowledge articles, websites — Claude uses them as context |
+| **AI Fields** | Use Claude for Studio AI fields — configurable agent with model, temperature, and web search |
 | **Structured Output** | JSON schema support for machine-readable responses |
 | **File Support** | Images, PDFs, and text files processed natively by Claude |
 
@@ -74,6 +75,18 @@ Then install from **Apps** → search "Pan AI Pro".
 4. Create or edit an AI Agent → select a Claude model
 
 > **Environment variable alternative:** Set `ODOO_AI_CLAUDE_TOKEN` to skip the UI — useful for Odoo.sh and Docker deployments.
+
+---
+
+## AI Fields (Studio)
+
+Odoo Studio's **AI Fields** feature normally only works with OpenAI. This module lets you use any configured AI agent — including Claude — for AI field computation.
+
+1. Go to **Settings → AI**
+2. Select an agent in the **AI Fields Agent** dropdown
+3. AI fields will use that agent's model, temperature, and web search settings
+
+> Requires the `ai_fields` module (installed with Odoo Studio). If Studio is not installed, this feature is simply skipped.
 
 ---
 

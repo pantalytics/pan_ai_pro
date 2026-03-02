@@ -17,6 +17,14 @@ class ResConfigSettings(models.TransientModel):
         readonly=False,
         groups='base.group_system',
     )
+    x_ai_fields_agent_id = fields.Many2one(
+        'ai.agent',
+        string="AI Fields Agent",
+        config_parameter='x_ai.ai_fields_agent_id',
+        groups='base.group_system',
+        help="AI agent used to compute AI field values. "
+             "The agent's model, temperature, and web search settings are used.",
+    )
 
     def _compute_x_anthropic_key_enabled(self):
         for record in self:

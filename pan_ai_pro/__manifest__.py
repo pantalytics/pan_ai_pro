@@ -18,6 +18,15 @@
         'views/ai_agent_views.xml',
     ],
 
+    'assets': {
+        'web.assets_backend': [
+            'pan_ai_pro/static/src/**/*.xml',
+        ],
+        'web_studio.studio_assets_minimal': [
+            'pan_ai_pro/static/src/**/*.js',
+        ],
+    },
+
     'images': [
         'static/description/banner.png',
     ],

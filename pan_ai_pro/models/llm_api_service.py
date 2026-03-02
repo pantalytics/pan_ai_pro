@@ -231,17 +231,25 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
     next_inputs = list(inputs or ())
 
     content_blocks = llm_response.get("content") or []
-    has_tool_calls = any(block.get("type") == "tool_use" for block in content_blocks)
+    # json_response is our schema emulation tool — not a real tool call
+    has_tool_calls = any(
+        block.get("type") == "tool_use" and block.get("name") != "json_response"
+        for block in content_blocks
+    )
 
     text_parts = []
     for block in content_blocks:
         block_type = block.get("type")
         if block_type == "tool_use":
-            to_call.append((block["name"], block["id"], block.get("input", {})))
+            if block["name"] == "json_response":
+                # Schema response — return as text, not as tool call
+                text_parts.append(json.dumps(block.get("input", {})))
+            else:
+                to_call.append((block["name"], block["id"], block.get("input", {})))
         elif block_type in ("server_tool_use", "web_search_tool_result"):
             # Server-side tool blocks — handled by Anthropic, just preserve
             pass
-        elif block_type == "text" and not has_tool_calls:
+        elif block_type == "text":
             if text := block.get("text", "").strip():
                 text_parts.append(text)
 

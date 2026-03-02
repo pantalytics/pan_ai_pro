@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates>
+    <t t-inherit="web_studio.ViewEditor.InteractiveEditorProperties.Field" t-inherit-mode="extension">
+        <xpath expr="//TechnicalName" position="before">
+            <div t-if="agentState and agentState.loaded and ('ai' in this.props.node.field) and (!!this.props.node.field.ai or this.props.node.field.ai === '')" class="o_web_studio_property my-2 d-flex flex-column">
+                <label>AI Agent</label>
+                <SelectMenu
+                    choices="aiAgentChoices"
+                    value="currentAiAgentId"
+                    onSelect.bind="onChangeAiAgent"
+                />
+            </div>
+        </xpath>
+    </t>
+</templates>

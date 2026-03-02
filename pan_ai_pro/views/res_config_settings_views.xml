@@ -15,6 +15,9 @@
                         </div>
                     </group>
                 </setting>
+                <setting id="ai_fields_agent" string="AI Fields Agent" help="Select the AI agent used to compute AI field values" groups="base.group_system">
+                    <field name="x_ai_fields_agent_id" nolabel="1"/>
+                </setting>
             </xpath>
         </field>
     </record>
