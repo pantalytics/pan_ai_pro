@@ -1,173 +1,262 @@
+<!-- Hero -->
 <section class="oe_container">
-    <div class="oe_row oe_spaced">
-        <div class="text-center">
-            <h2 class="oe_slogan" style="color:#7C3AED;">Claude for Odoo</h2>
-            <h3 class="oe_slogan">Use Anthropic Claude as your Odoo 19 AI provider — agents, tool calling, RAG, and web search all work out of the box.</h3>
-        </div>
-    </div>
-</section>
-
-<section class="oe_container">
-    <div class="oe_row oe_spaced">
-        <h2>Why Claude?</h2>
-        <p>
-            Odoo 19 ships with OpenAI and Google Gemini. This module adds <strong>Anthropic Claude</strong> as a third provider.
-            Same UI, same agents, same tools — just pick a Claude model from the dropdown.
-        </p>
-        <div class="row">
-            <div class="col-12 col-md-4">
-                <div class="text-center p-3">
-                    <h4>Opus 4.6</h4>
-                    <p>Most capable model for complex reasoning and analysis</p>
-                </div>
-            </div>
-            <div class="col-12 col-md-4">
-                <div class="text-center p-3">
-                    <h4>Sonnet 4.6</h4>
-                    <p>Best balance of speed and intelligence for daily work</p>
-                </div>
-            </div>
-            <div class="col-12 col-md-4">
-                <div class="text-center p-3">
-                    <h4>Haiku 4.5</h4>
-                    <p>Fast and cost-effective for high-volume tasks</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="oe_container oe_dark">
-    <div class="oe_row oe_spaced">
-        <h2>Features</h2>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Feature</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>Full AI Agent Support</strong></td>
-                    <td>Claude works with Odoo's agent system — topics, tools, system prompts, RAG sources</td>
-                </tr>
-                <tr>
-                    <td><strong>Tool Calling</strong></td>
-                    <td>Claude can call Odoo server actions — search records, create leads, update data</td>
-                </tr>
-                <tr>
-                    <td><strong>Web Search</strong></td>
-                    <td>Per-agent toggle to let Claude search the web for current information (Anthropic server-side)</td>
-                </tr>
-                <tr>
-                    <td><strong>RAG / Sources</strong></td>
-                    <td>Attach knowledge articles, PDFs, and websites — Claude uses them as context</td>
-                </tr>
-                <tr>
-                    <td><strong>Structured Output</strong></td>
-                    <td>JSON schema support for consistent, machine-readable responses</td>
-                </tr>
-                <tr>
-                    <td><strong>File Support</strong></td>
-                    <td>Upload images, PDFs, and text files — Claude processes them natively</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</section>
-
-<section class="oe_container">
-    <div class="oe_row oe_spaced">
-        <h2>Setup in 3 Steps</h2>
-        <div class="row">
-            <div class="col-12 col-md-4 p-3">
-                <h4>1. Install</h4>
-                <p>Install Pan AI Pro from the Apps menu. Requires the built-in AI module (Enterprise).</p>
-            </div>
-            <div class="col-12 col-md-4 p-3">
-                <h4>2. Configure</h4>
-                <p>Go to <strong>Settings &rarr; AI</strong>, enable "Use your own Anthropic account", and paste your API key.</p>
-            </div>
-            <div class="col-12 col-md-4 p-3">
-                <h4>3. Use</h4>
-                <p>Create or edit an AI Agent &rarr; select a Claude model from the dropdown. Done.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="oe_container oe_dark">
-    <div class="oe_row oe_spaced">
-        <h2>Web Search</h2>
-        <p>
-            Enable the <strong>Web Search</strong> toggle on any Claude agent to let it search the web for real-time information.
-            Powered by Anthropic's native search capability — no external services to configure.
-        </p>
-        <p>
-            Location-aware results are provided automatically using your company's address settings.
-        </p>
-    </div>
-</section>
-
-<section class="oe_container">
-    <div class="oe_row oe_spaced">
-        <h2>How It Works</h2>
-        <p>
-            This module extends the standard Odoo 19 AI infrastructure. It registers Anthropic as a provider
-            alongside OpenAI and Google — no custom AI framework, no separate configuration.
-        </p>
-        <p>
-            All existing Odoo AI features work automatically with Claude: Ask AI, text improvement,
-            chatter AI, AI server actions, and more.
-        </p>
-    </div>
-</section>
-
-<section class="oe_container oe_dark">
-    <div class="oe_row oe_spaced">
-        <h2>Requirements</h2>
-        <ul>
-            <li>Odoo 19 Enterprise with the AI module (<code>ai_app</code>) installed</li>
-            <li>Anthropic API key from <a href="https://console.anthropic.com/">console.anthropic.com</a></li>
-            <li>No additional Python packages required</li>
-        </ul>
-    </div>
-</section>
-
-<section class="oe_container">
-    <div class="oe_row oe_spaced">
-        <h2>Security</h2>
-        <table class="table">
-            <tbody>
-                <tr>
-                    <td><strong>API key storage</strong></td>
-                    <td>Standard Odoo <code>ir.config_parameter</code> — same as OpenAI/Google keys</td>
-                </tr>
-                <tr>
-                    <td><strong>Access control</strong></td>
-                    <td>System administrator only (<code>base.group_system</code>)</td>
-                </tr>
-                <tr>
-                    <td><strong>Environment variable</strong></td>
-                    <td><code>ODOO_AI_CLAUDE_TOKEN</code> — optional override, no key in database</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</section>
-
-<section class="oe_container">
-    <div class="oe_row oe_spaced">
-        <div class="text-center">
-            <h2>Open Source</h2>
-            <p>
-                Licensed under <strong>LGPL-3</strong>. Built by
-                <a href="https://github.com/pantalytics">Pantalytics</a>.
+    <div class="oe_row oe_spaced" style="padding: 60px 0 40px;">
+        <div class="oe_span12 text-center">
+            <h2 style="font-size: 42px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; letter-spacing: -0.5px;">
+                Pan AI Pro
+            </h2>
+            <p style="font-size: 20px; color: #555; font-weight: 300; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+                Use Claude (Anthropic) as your Odoo 19 AI provider.
+                Agents, tool calling, RAG, and web search &mdash; all out of the box.
             </p>
-            <p>
-                <a href="https://github.com/pantalytics/pan_ai_pro">View on GitHub</a>
+        </div>
+    </div>
+</section>
+
+<!-- Models -->
+<section class="oe_container">
+    <div class="oe_row oe_spaced" style="padding: 40px 0;">
+        <div class="oe_span12 text-center">
+            <p style="font-size: 14px; font-weight: 600; color: #875A7B; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
+                Models
             </p>
+            <h3 style="font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 40px;">
+                The full Claude lineup. Inside Odoo.
+            </h3>
+        </div>
+        <div class="oe_span4 text-center" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Claude Opus 4.6</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Most capable. Complex reasoning, analysis, and long-form content.</p>
+            </div>
+        </div>
+        <div class="oe_span4 text-center" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Claude Sonnet 4.6</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Best daily driver. Fast, smart, cost-effective for production use.</p>
+            </div>
+        </div>
+        <div class="oe_span4 text-center" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Claude Haiku 4.5</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Lightweight and fast. Ideal for high-volume automations.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced" style="padding: 40px 0;">
+        <div class="oe_span12 text-center">
+            <p style="font-size: 14px; font-weight: 600; color: #875A7B; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
+                Features
+            </p>
+            <h3 style="font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 40px;">
+                Everything Odoo AI does. Now with Claude.
+            </h3>
+        </div>
+        <div class="oe_span6" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">AI Agents</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Claude works with Odoo's full agent system &mdash; topics, tools, system prompts, and RAG sources.</p>
+            </div>
+        </div>
+        <div class="oe_span6" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Tool Calling</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Claude calls Odoo server actions to search records, create leads, and update data.</p>
+            </div>
+        </div>
+        <div class="oe_span6" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Web Search</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Per-agent toggle for real-time web search. Powered by Anthropic's native search capability.</p>
+            </div>
+        </div>
+        <div class="oe_span6" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">RAG / Sources</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Attach PDFs, knowledge articles, and websites. Claude uses them as context.</p>
+            </div>
+        </div>
+        <div class="oe_span6" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Structured Output</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">JSON schema support for consistent, machine-readable responses.</p>
+            </div>
+        </div>
+        <div class="oe_span6" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">File Support</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Upload images, PDFs, and text files. Claude processes them natively.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Comparison -->
+<section class="oe_container">
+    <div class="oe_row oe_spaced" style="padding: 40px 0;">
+        <div class="oe_span12 text-center">
+            <p style="font-size: 14px; font-weight: 600; color: #875A7B; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
+                Comparison
+            </p>
+            <h3 style="font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 40px;">
+                Why add Claude?
+            </h3>
+        </div>
+        <div class="oe_span12">
+            <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #e0e0e0;">
+                        <th style="text-align: left; padding: 14px 16px; color: #999; font-weight: 500;"></th>
+                        <th style="text-align: center; padding: 14px 16px; color: #999; font-weight: 500;">Tool Calling</th>
+                        <th style="text-align: center; padding: 14px 16px; color: #999; font-weight: 500;">Web Search</th>
+                        <th style="text-align: center; padding: 14px 16px; color: #999; font-weight: 500;">RAG</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid #f0f0f0;">
+                        <td style="padding: 14px 16px; color: #333;">OpenAI (built-in)</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71;">&#10003;</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71;">&#10003;</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71;">&#10003;</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #f0f0f0;">
+                        <td style="padding: 14px 16px; color: #333;">Google Gemini (built-in)</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71;">&#10003;</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71;">&#10003;</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71;">&#10003;</td>
+                    </tr>
+                    <tr style="background: #f8f5fa;">
+                        <td style="padding: 14px 16px; color: #1a1a2e; font-weight: 600;">Claude (Pan AI Pro)</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71; font-weight: 500;">&#10003;</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71; font-weight: 500;">&#10003;</td>
+                        <td style="text-align: center; padding: 14px 16px; color: #2ecc71; font-weight: 500;">&#10003;</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="color: #999; font-size: 14px; margin-top: 16px; text-align: center;">
+                Same features, different model. Choose the best provider for each use case.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Security -->
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced" style="padding: 40px 0;">
+        <div class="oe_span12 text-center">
+            <p style="font-size: 14px; font-weight: 600; color: #875A7B; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
+                Security
+            </p>
+            <h3 style="font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 40px;">
+                Your key. Your data. Standard Odoo security.
+            </h3>
+        </div>
+        <div class="oe_span4 text-center" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <div style="font-size: 32px; color: #875A7B; margin-bottom: 12px;"><i class="fa fa-key"></i></div>
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">BYOK</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Bring your own Anthropic API key. No third parties.</p>
+            </div>
+        </div>
+        <div class="oe_span4 text-center" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <div style="font-size: 32px; color: #875A7B; margin-bottom: 12px;"><i class="fa fa-lock"></i></div>
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Admin Only</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">API key restricted to system administrators.</p>
+            </div>
+        </div>
+        <div class="oe_span4 text-center" style="margin-bottom: 30px;">
+            <div style="padding: 24px;">
+                <div style="font-size: 32px; color: #875A7B; margin-bottom: 12px;"><i class="fa fa-server"></i></div>
+                <h4 style="font-size: 17px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Direct Connection</h4>
+                <p style="color: #666; line-height: 1.6; margin: 0;">Your Odoo talks directly to Anthropic. Nothing in between.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Setup -->
+<section class="oe_container">
+    <div class="oe_row oe_spaced" style="padding: 40px 0;">
+        <div class="oe_span12 text-center">
+            <p style="font-size: 14px; font-weight: 600; color: #875A7B; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
+                Setup
+            </p>
+            <h3 style="font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 40px;">
+                Up and running in 3 steps.
+            </h3>
+        </div>
+        <div class="oe_span12">
+            <div style="max-width: 560px; margin: 0 auto;">
+                <div style="display: flex; align-items: baseline; margin-bottom: 20px;">
+                    <span style="font-size: 24px; font-weight: 700; color: #875A7B; margin-right: 16px; min-width: 32px;">1</span>
+                    <div>
+                        <strong style="color: #1a1a2e;">Install the module</strong>
+                        <p style="color: #666; margin: 4px 0 0;">Apps &rarr; search "Pan AI Pro" &rarr; Install</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: baseline; margin-bottom: 20px;">
+                    <span style="font-size: 24px; font-weight: 700; color: #875A7B; margin-right: 16px; min-width: 32px;">2</span>
+                    <div>
+                        <strong style="color: #1a1a2e;">Add your API key</strong>
+                        <p style="color: #666; margin: 4px 0 0;">Settings &rarr; AI &rarr; "Use your own Anthropic account"</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: baseline; margin-bottom: 20px;">
+                    <span style="font-size: 24px; font-weight: 700; color: #875A7B; margin-right: 16px; min-width: 32px;">3</span>
+                    <div>
+                        <strong style="color: #1a1a2e;">Select a Claude model</strong>
+                        <p style="color: #666; margin: 4px 0 0;">Create or edit an AI Agent &rarr; pick Claude from the dropdown</p>
+                    </div>
+                </div>
+                <p style="color: #999; font-size: 14px; margin-top: 24px; text-align: center;">
+                    Or set the <code style="color: #875A7B;">ODOO_AI_CLAUDE_TOKEN</code> environment variable for headless deployments.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="oe_container" style="background: linear-gradient(135deg, #f8f5fa 0%, #ede7f0 100%);">
+    <div class="oe_row oe_spaced" style="padding: 50px 0;">
+        <div class="oe_span12 text-center">
+            <h3 style="font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px;">
+                Open Source
+            </h3>
+            <p style="font-size: 18px; color: #555; font-weight: 300; max-width: 520px; margin: 0 auto 30px; line-height: 1.6;">
+                Free to use, modify, and distribute under LGPL-3.
+            </p>
+            <a href="https://github.com/pantalytics/pan_ai_pro" target="_blank" style="display: inline-block; padding: 12px 32px; background: #1a1a2e; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">
+                View on GitHub
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced" style="padding: 40px 0;">
+        <div class="oe_span12 text-center">
+            <p style="font-size: 14px; color: #999; margin-bottom: 4px;">
+                Odoo 19 &middot; Anthropic Messages API &middot; LGPL-3
+            </p>
+            <p style="font-size: 14px; color: #999; margin-bottom: 20px;">
+                Requires: <code style="color: #875A7B;">ai_app</code> (Odoo Enterprise)
+            </p>
+            <div style="border-top: 1px solid #e0e0e0; padding-top: 20px; margin-top: 10px;">
+                <p style="font-size: 15px; color: #333; margin: 0;">
+                    <strong>Pantalytics</strong>
+                </p>
+                <p style="font-size: 14px; color: #999; margin: 4px 0 0;">
+                    rutger@pantalytics.com &middot;
+                    <a href="https://github.com/pantalytics" style="color: #875A7B;">github.com/pantalytics</a>
+                </p>
+            </div>
         </div>
     </div>
 </section>
