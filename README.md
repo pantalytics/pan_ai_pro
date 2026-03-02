@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/description/icon.png" alt="Pan AI Pro" width="128" />
+  <img src="pan_ai_pro/static/description/icon.png" alt="Pan AI Pro" width="128" />
 </p>
 
 <h1 align="center">Pan AI Pro</h1>
