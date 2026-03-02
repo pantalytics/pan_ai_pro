@@ -27,10 +27,6 @@ Supported Models
     'depends': [
         'ai_app',
     ],
-    'external_dependencies': {
-        'python': ['anthropic'],
-    },
-
     'data': [
         'views/res_config_settings_views.xml',
     ],
