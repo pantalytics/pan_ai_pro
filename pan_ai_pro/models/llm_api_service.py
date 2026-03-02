@@ -124,26 +124,16 @@ def _request_llm_anthropic(
     https://docs.anthropic.com/en/api/messages
     https://docs.anthropic.com/en/docs/build-with-claude/tool-use
 
-    When both schema and web_grounding are set, uses a two-step approach:
-    1. Web search call (no schema) — lets the model search freely
-    2. Structure call (schema, no web search) — formats the result as JSON
-
-    This is needed because Anthropic's tool_choice cannot simultaneously
-    force json_response AND allow web search to run first.
+    When both schema and web_grounding are set, uses an agentic approach:
+    tool_choice is set to auto so the model can web-search freely. If the
+    model doesn't call json_response in the first turn, we follow up in the
+    same conversation to force it — preserving the full web search context.
 
     Returns:
     - list of response text strings
     - list of tool calls [(tool_name, call_id, {arguments})]
     - list of inputs to include in next call
     """
-    # Two-step approach: web search + structured output
-    if schema and web_grounding:
-        return self._request_llm_anthropic_two_step(
-            llm_model, system_prompts, user_prompts, tools=tools,
-            files=files, schema=schema, temperature=temperature,
-            inputs=inputs,
-        )
-
     # Build messages list
     messages = list(inputs) if inputs else []
 
@@ -195,16 +185,21 @@ def _request_llm_anthropic(
             "input_schema": tool_parameter_schema,
         } for tool_name, (tool_description, __, __, tool_parameter_schema) in tools.items()]
 
-    # Structured output via tool_choice (only when no web_grounding)
+    # Structured output via json_response tool
     if schema:
         body["tools"] = body.get("tools", []) + [{
             "name": "json_response",
             "description": "Respond with structured JSON. You MUST call this tool with your final answer.",
             "input_schema": schema,
         }]
-        body["tool_choice"] = {"type": "tool", "name": "json_response"}
+        if web_grounding:
+            # Auto: let the model search first, then call json_response
+            body["tool_choice"] = {"type": "auto"}
+        else:
+            # Force json_response directly when no web search needed
+            body["tool_choice"] = {"type": "tool", "name": "json_response"}
 
-    # Web search — Anthropic server-side tool (only when no schema)
+    # Web search — Anthropic server-side tool
     if web_grounding:
         search_tool = {
             'type': 'web_search_20250305',
@@ -227,80 +222,67 @@ def _request_llm_anthropic(
     }
 
     with api_call_logging(messages, tools) as record_response:
-        response, to_call, next_inputs = self._request_llm_anthropic_helper(body, headers, inputs)
+        if schema and web_grounding:
+            # Agentic loop: model searches freely, then we ensure json_response
+            response, to_call, next_inputs = self._request_llm_anthropic_web_schema(
+                body, headers, inputs)
+        else:
+            response, to_call, next_inputs = self._request_llm_anthropic_helper(
+                body, headers, inputs)
         if record_response:
             record_response(to_call, response)
         return response, to_call, next_inputs
 
 
-def _request_llm_anthropic_two_step(
-    self, llm_model, system_prompts, user_prompts, tools=None,
-    files=None, schema=None, temperature=0.2, inputs=(),
-):
-    """Two-step web search + structured output.
+def _request_llm_anthropic_web_schema(self, body, headers, inputs=()):
+    """Agentic loop for web search + structured output.
 
-    Step 1: Call with web_grounding=True, no schema → free-form web-grounded text
-    Step 2: Call with schema, no web_grounding → structure the text into JSON
+    First call uses tool_choice: auto — model can web-search and optionally
+    call json_response in the same turn. If it doesn't call json_response,
+    we continue the conversation with a follow-up that forces it.
 
-    This avoids the tool_choice conflict where forcing json_response prevents
-    the model from doing web search first.
+    This preserves the full web search context (server_tool_use and
+    web_search_tool_result blocks) in the conversation history.
     """
-    _logger.info("[AI Pro] Two-step: starting web search call")
-
-    # Step 1: Web search — get free-form text with web grounding
-    search_response, __, __ = self._request_llm_anthropic(
-        llm_model=llm_model,
-        system_prompts=system_prompts,
-        user_prompts=user_prompts,
-        tools=tools,
-        files=files,
-        schema=None,
-        temperature=temperature,
-        inputs=inputs,
-        web_grounding=True,
+    # Turn 1: auto — model searches and maybe calls json_response
+    llm_response = self._request(
+        method="post",
+        endpoint="/messages",
+        headers=headers,
+        body=body,
+        timeout=120,
     )
 
-    if not search_response or not search_response[0].strip():
-        _logger.warning("[AI Pro] Two-step: web search returned empty response")
-        # Fallback: try without web search
-        return self._request_llm_anthropic(
-            llm_model=llm_model,
-            system_prompts=system_prompts,
-            user_prompts=user_prompts,
-            tools=tools,
-            files=files,
-            schema=schema,
-            temperature=temperature,
-            inputs=inputs,
-            web_grounding=False,
-        )
+    content_blocks = llm_response.get("content") or []
 
-    search_text = search_response[0]
-    _logger.info("[AI Pro] Two-step: web search done (%d chars), structuring response", len(search_text))
-
-    # Step 2: Structure — pass web search result as context, force schema
-    structure_prompt = (
-        "Based on the following research results, provide your answer.\n\n"
-        "# Research Results\n"
-        f"{search_text}"
+    # Check if json_response was called in this turn
+    json_block = next(
+        (b for b in content_blocks
+         if b.get("type") == "tool_use" and b.get("name") == "json_response"),
+        None,
     )
-    # Prepend the original user prompts for context
-    if user_prompts:
-        structure_prompt = (
-            "# Original Request\n"
-            + "\n".join(user_prompts)
-            + "\n\n"
-            + structure_prompt
-        )
 
-    return self._request_llm_anthropic(
-        llm_model=llm_model,
-        system_prompts=system_prompts,
-        user_prompts=[structure_prompt],
-        schema=schema,
-        temperature=temperature,
-        web_grounding=False,
-    )
+    if json_block:
+        # Model did web search AND called json_response — done
+        _logger.info("[AI Pro] Web search + json_response in single turn")
+        response = [json.dumps(json_block.get("input", {}))]
+        return response, [], list(inputs or ())
+
+    # Model searched but returned text without json_response — follow up
+    _logger.info("[AI Pro] Web search done, following up for structured response")
+
+    body["messages"].append({"role": "assistant", "content": content_blocks})
+    body["messages"].append({
+        "role": "user",
+        "content": [{"type": "text", "text": (
+            "Now provide your final answer using the json_response tool."
+        )}],
+    })
+    # Force json_response, drop web search tool (no longer needed)
+    body["tools"] = [t for t in body["tools"] if t.get("type") != "web_search_20250305"]
+    body["tool_choice"] = {"type": "tool", "name": "json_response"}
+
+    return self._request_llm_anthropic_helper(body, headers, ())
 
 
 def _request_llm_anthropic_helper(self, body, headers, inputs=()):
@@ -353,7 +335,7 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
 
 
 LLMApiService._request_llm_anthropic = _request_llm_anthropic
-LLMApiService._request_llm_anthropic_two_step = _request_llm_anthropic_two_step
+LLMApiService._request_llm_anthropic_web_schema = _request_llm_anthropic_web_schema
 LLMApiService._request_llm_anthropic_helper = _request_llm_anthropic_helper
 
 _logger.info("[AI Pro] Patched LLMApiService with Anthropic support")

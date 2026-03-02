@@ -21,9 +21,11 @@
     'assets': {
         'web.assets_backend': [
             'pan_ai_pro/static/src/**/*.xml',
+            'pan_ai_pro/static/src/ai_field_async_patch.js',
         ],
         'web_studio.studio_assets_minimal': [
-            'pan_ai_pro/static/src/**/*.js',
+            'pan_ai_pro/static/src/field_properties_patch.js',
+            'pan_ai_pro/static/src/ai_field_dialog_patch.js',
         ],
     },
 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates>
+    <t t-inherit="ai_fields.ComputeAiFieldBtn" t-inherit-mode="extension">
+        <xpath expr="//button" position="attributes">
+            <attribute name="t-att-disabled">isAiComputing</attribute>
+        </xpath>
+        <xpath expr="//img" position="replace">
+            <span t-if="isAiComputing" class="spinner-border spinner-border-sm"
+                  style="width:20px;height:20px;"/>
+            <img t-else="" src="/ai/static/description/icon.png" width="20" alt="ai icon"/>
+        </xpath>
+    </t>
+</templates>
