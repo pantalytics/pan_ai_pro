@@ -228,12 +228,12 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
     )
 
     to_call = []
-    response = []
     next_inputs = list(inputs or ())
 
     content_blocks = llm_response.get("content") or []
     has_tool_calls = any(block.get("type") == "tool_use" for block in content_blocks)
 
+    text_parts = []
     for block in content_blocks:
         block_type = block.get("type")
         if block_type == "tool_use":
@@ -242,8 +242,11 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
             # Server-side tool blocks — handled by Anthropic, just preserve
             pass
         elif block_type == "text" and not has_tool_calls:
-            if text := block.get("text"):
-                response.append(text)
+            if text := block.get("text", "").strip():
+                text_parts.append(text)
+
+    # Join all text blocks into a single response to avoid multiple messages
+    response = ["\n\n".join(text_parts)] if text_parts else []
 
     # If there were tool calls or a paused turn, add assistant response to inputs
     stop_reason = llm_response.get("stop_reason")
