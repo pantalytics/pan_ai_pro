@@ -124,11 +124,26 @@ def _request_llm_anthropic(
     https://docs.anthropic.com/en/api/messages
     https://docs.anthropic.com/en/docs/build-with-claude/tool-use
 
+    When both schema and web_grounding are set, uses a two-step approach:
+    1. Web search call (no schema) — lets the model search freely
+    2. Structure call (schema, no web search) — formats the result as JSON
+
+    This is needed because Anthropic's tool_choice cannot simultaneously
+    force json_response AND allow web search to run first.
+
     Returns:
     - list of response text strings
     - list of tool calls [(tool_name, call_id, {arguments})]
     - list of inputs to include in next call
     """
+    # Two-step approach: web search + structured output
+    if schema and web_grounding:
+        return self._request_llm_anthropic_two_step(
+            llm_model, system_prompts, user_prompts, tools=tools,
+            files=files, schema=schema, temperature=temperature,
+            inputs=inputs,
+        )
+
     # Build messages list
     messages = list(inputs) if inputs else []
 
@@ -180,16 +195,16 @@ def _request_llm_anthropic(
             "input_schema": tool_parameter_schema,
         } for tool_name, (tool_description, __, __, tool_parameter_schema) in tools.items()]
 
-    # Structured output via tool_choice
+    # Structured output via tool_choice (only when no web_grounding)
     if schema:
         body["tools"] = body.get("tools", []) + [{
             "name": "json_response",
-            "description": "Respond with structured JSON",
+            "description": "Respond with structured JSON. You MUST call this tool with your final answer.",
             "input_schema": schema,
         }]
         body["tool_choice"] = {"type": "tool", "name": "json_response"}
 
-    # Web search — Anthropic server-side tool
+    # Web search — Anthropic server-side tool (only when no schema)
     if web_grounding:
         search_tool = {
             'type': 'web_search_20250305',
@@ -216,6 +231,76 @@ def _request_llm_anthropic(
         if record_response:
             record_response(to_call, response)
         return response, to_call, next_inputs
+
+
+def _request_llm_anthropic_two_step(
+    self, llm_model, system_prompts, user_prompts, tools=None,
+    files=None, schema=None, temperature=0.2, inputs=(),
+):
+    """Two-step web search + structured output.
+
+    Step 1: Call with web_grounding=True, no schema → free-form web-grounded text
+    Step 2: Call with schema, no web_grounding → structure the text into JSON
+
+    This avoids the tool_choice conflict where forcing json_response prevents
+    the model from doing web search first.
+    """
+    _logger.info("[AI Pro] Two-step: starting web search call")
+
+    # Step 1: Web search — get free-form text with web grounding
+    search_response, __, __ = self._request_llm_anthropic(
+        llm_model=llm_model,
+        system_prompts=system_prompts,
+        user_prompts=user_prompts,
+        tools=tools,
+        files=files,
+        schema=None,
+        temperature=temperature,
+        inputs=inputs,
+        web_grounding=True,
+    )
+
+    if not search_response or not search_response[0].strip():
+        _logger.warning("[AI Pro] Two-step: web search returned empty response")
+        # Fallback: try without web search
+        return self._request_llm_anthropic(
+            llm_model=llm_model,
+            system_prompts=system_prompts,
+            user_prompts=user_prompts,
+            tools=tools,
+            files=files,
+            schema=schema,
+            temperature=temperature,
+            inputs=inputs,
+            web_grounding=False,
+        )
+
+    search_text = search_response[0]
+    _logger.info("[AI Pro] Two-step: web search done (%d chars), structuring response", len(search_text))
+
+    # Step 2: Structure — pass web search result as context, force schema
+    structure_prompt = (
+        "Based on the following research results, provide your answer.\n\n"
+        "# Research Results\n"
+        f"{search_text}"
+    )
+    # Prepend the original user prompts for context
+    if user_prompts:
+        structure_prompt = (
+            "# Original Request\n"
+            + "\n".join(user_prompts)
+            + "\n\n"
+            + structure_prompt
+        )
+
+    return self._request_llm_anthropic(
+        llm_model=llm_model,
+        system_prompts=system_prompts,
+        user_prompts=[structure_prompt],
+        schema=schema,
+        temperature=temperature,
+        web_grounding=False,
+    )
 
 
 def _request_llm_anthropic_helper(self, body, headers, inputs=()):
@@ -268,6 +353,7 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
 
 
 LLMApiService._request_llm_anthropic = _request_llm_anthropic
+LLMApiService._request_llm_anthropic_two_step = _request_llm_anthropic_two_step
 LLMApiService._request_llm_anthropic_helper = _request_llm_anthropic_helper
 
 _logger.info("[AI Pro] Patched LLMApiService with Anthropic support")
