@@ -1,0 +1,173 @@
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="text-center">
+            <h2 class="oe_slogan" style="color:#7C3AED;">Claude for Odoo</h2>
+            <h3 class="oe_slogan">Use Anthropic Claude as your Odoo 19 AI provider — agents, tool calling, RAG, and web search all work out of the box.</h3>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2>Why Claude?</h2>
+        <p>
+            Odoo 19 ships with OpenAI and Google Gemini. This module adds <strong>Anthropic Claude</strong> as a third provider.
+            Same UI, same agents, same tools — just pick a Claude model from the dropdown.
+        </p>
+        <div class="row">
+            <div class="col-12 col-md-4">
+                <div class="text-center p-3">
+                    <h4>Opus 4.6</h4>
+                    <p>Most capable model for complex reasoning and analysis</p>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="text-center p-3">
+                    <h4>Sonnet 4.6</h4>
+                    <p>Best balance of speed and intelligence for daily work</p>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="text-center p-3">
+                    <h4>Haiku 4.5</h4>
+                    <p>Fast and cost-effective for high-volume tasks</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2>Features</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Full AI Agent Support</strong></td>
+                    <td>Claude works with Odoo's agent system — topics, tools, system prompts, RAG sources</td>
+                </tr>
+                <tr>
+                    <td><strong>Tool Calling</strong></td>
+                    <td>Claude can call Odoo server actions — search records, create leads, update data</td>
+                </tr>
+                <tr>
+                    <td><strong>Web Search</strong></td>
+                    <td>Per-agent toggle to let Claude search the web for current information (Anthropic server-side)</td>
+                </tr>
+                <tr>
+                    <td><strong>RAG / Sources</strong></td>
+                    <td>Attach knowledge articles, PDFs, and websites — Claude uses them as context</td>
+                </tr>
+                <tr>
+                    <td><strong>Structured Output</strong></td>
+                    <td>JSON schema support for consistent, machine-readable responses</td>
+                </tr>
+                <tr>
+                    <td><strong>File Support</strong></td>
+                    <td>Upload images, PDFs, and text files — Claude processes them natively</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2>Setup in 3 Steps</h2>
+        <div class="row">
+            <div class="col-12 col-md-4 p-3">
+                <h4>1. Install</h4>
+                <p>Install Pan AI Pro from the Apps menu. Requires the built-in AI module (Enterprise).</p>
+            </div>
+            <div class="col-12 col-md-4 p-3">
+                <h4>2. Configure</h4>
+                <p>Go to <strong>Settings &rarr; AI</strong>, enable "Use your own Anthropic account", and paste your API key.</p>
+            </div>
+            <div class="col-12 col-md-4 p-3">
+                <h4>3. Use</h4>
+                <p>Create or edit an AI Agent &rarr; select a Claude model from the dropdown. Done.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2>Web Search</h2>
+        <p>
+            Enable the <strong>Web Search</strong> toggle on any Claude agent to let it search the web for real-time information.
+            Powered by Anthropic's native search capability — no external services to configure.
+        </p>
+        <p>
+            Location-aware results are provided automatically using your company's address settings.
+        </p>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2>How It Works</h2>
+        <p>
+            This module extends the standard Odoo 19 AI infrastructure. It registers Anthropic as a provider
+            alongside OpenAI and Google — no custom AI framework, no separate configuration.
+        </p>
+        <p>
+            All existing Odoo AI features work automatically with Claude: Ask AI, text improvement,
+            chatter AI, AI server actions, and more.
+        </p>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h2>Requirements</h2>
+        <ul>
+            <li>Odoo 19 Enterprise with the AI module (<code>ai_app</code>) installed</li>
+            <li>Anthropic API key from <a href="https://console.anthropic.com/">console.anthropic.com</a></li>
+            <li>No additional Python packages required</li>
+        </ul>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2>Security</h2>
+        <table class="table">
+            <tbody>
+                <tr>
+                    <td><strong>API key storage</strong></td>
+                    <td>Standard Odoo <code>ir.config_parameter</code> — same as OpenAI/Google keys</td>
+                </tr>
+                <tr>
+                    <td><strong>Access control</strong></td>
+                    <td>System administrator only (<code>base.group_system</code>)</td>
+                </tr>
+                <tr>
+                    <td><strong>Environment variable</strong></td>
+                    <td><code>ODOO_AI_CLAUDE_TOKEN</code> — optional override, no key in database</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="text-center">
+            <h2>Open Source</h2>
+            <p>
+                Licensed under <strong>LGPL-3</strong>. Built by
+                <a href="https://github.com/pantalytics">Pantalytics</a>.
+            </p>
+            <p>
+                <a href="https://github.com/pantalytics/pan_ai_pro">View on GitHub</a>
+            </p>
+        </div>
+    </div>
+</section>

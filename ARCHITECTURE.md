@@ -25,8 +25,10 @@ Odoo 19 (released September 2025 at Odoo Experience, Brussels) is the first vers
 |-----------|------------|
 | `llm_providers.py` | Register Anthropic provider + Claude models |
 | `llm_api_service.py` | Add `_request_llm_anthropic()` method |
+| `ai_agent.py` | `x_web_search` toggle + `_generate_response()` override |
 | `res_config_settings.py` | Add API key field for Anthropic |
 | `res_config_settings_views.xml` | Add Claude settings UI |
+| `ai_agent_views.xml` | Web search toggle widget on agent form |
 
 ---
 
@@ -354,14 +356,14 @@ pan_ai_pro/
 │   ├── __init__.py
 │   ├── llm_providers.py           # Registers Anthropic provider
 │   ├── llm_api_service.py         # Adds _request_llm_anthropic()
+│   ├── ai_agent.py                # x_web_search toggle + response override
 │   └── res_config_settings.py     # Anthropic API key field
 ├── views/
-│   └── res_config_settings_views.xml  # Settings UI for API key
-├── security/
-│   └── ir.model.access.csv
-├── tests/
+│   ├── res_config_settings_views.xml  # Settings UI for API key
+│   └── ai_agent_views.xml             # Web search toggle on agent form
 ├── static/description/
-│   └── icon.png
+│   ├── icon.png
+│   └── index.html                 # Odoo app store description
 ├── __manifest__.py
 ├── __init__.py
 ├── README.md

@@ -1,28 +1,14 @@
 # -*- coding: utf-8 -*-
 {
     'name': "Pan AI Pro",
-    'summary': "Adds Claude (Anthropic) as AI provider to Odoo",
-    'description': """
-Pan AI Pro - Claude for Odoo
-============================
-
-Extends the standard Odoo 19 AI module with Anthropic Claude support.
-
-All existing AI features (agents, topics, RAG, tool calling) work
-with Claude models out of the box.
-
-Supported Models
-----------------
-* Claude Opus 4.6
-* Claude Sonnet 4.6
-* Claude Haiku 4.5
-    """,
-    'author': "Pan",
-    'website': "https://www.yourwebsite.com",
-    'support': "support@yourwebsite.com",
-    'category': 'Hidden',
-    'version': '19.0.1.0.0',
-    'license': 'OPL-1',
+    'summary': "Use Claude (Anthropic) as AI provider",
+    'description': """Use Claude (Anthropic) as your Odoo AI provider — with web search.""",
+    'author': "Pantalytics",
+    'website': "https://github.com/pantalytics/pan_ai_pro",
+    'support': "rutger@pantalytics.com",
+    'category': 'Productivity',
+    'version': '19.0.1.1.0',
+    'license': 'LGPL-3',
 
     'depends': [
         'ai_app',
@@ -33,7 +19,7 @@ Supported Models
     ],
 
     'images': [
-        'static/description/icon.png',
+        'static/description/banner.png',
     ],
 
     'installable': True,

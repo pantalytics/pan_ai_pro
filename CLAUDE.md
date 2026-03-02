@@ -59,8 +59,10 @@ Keys stored in `ir.config_parameter` with env var fallback:
 |------|---------|
 | `models/llm_providers.py` | Registers Anthropic provider + Claude models |
 | `models/llm_api_service.py` | Adds `_request_llm_anthropic()` to API service |
+| `models/ai_agent.py` | `x_web_search` toggle + `_generate_response()` override |
 | `models/res_config_settings.py` | Adds Anthropic API key field to settings |
 | `views/res_config_settings_views.xml` | Settings UI for Claude API key |
+| `views/ai_agent_views.xml` | Web search toggle on agent form |
 
 ## Naming Conventions
 
