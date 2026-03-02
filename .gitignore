@@ -24,3 +24,4 @@ Thumbs.db
 
 # Local Docker config (per-developer)
 .local/
+CLAUDE.md
