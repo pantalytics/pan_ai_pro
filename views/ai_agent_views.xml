@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ai_agent_view_form_inherit" model="ir.ui.view">
+        <field name="name">ai.agent.form.inherit.pan_ai_pro</field>
+        <field name="model">ai.agent</field>
+        <field name="inherit_id" ref="ai_app.ai_agent_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='llm_model']" position="after">
+                <field name="x_web_search" widget="boolean_toggle"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

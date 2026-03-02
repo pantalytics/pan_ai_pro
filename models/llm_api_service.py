@@ -189,6 +189,22 @@ def _request_llm_anthropic(
         }]
         body["tool_choice"] = {"type": "tool", "name": "json_response"}
 
+    # Web search — Anthropic server-side tool
+    if web_grounding:
+        search_tool = {
+            'type': 'web_search_20250305',
+            'name': 'web_search',
+            'max_uses': 5,
+        }
+        if country_code := self.env.company.country_id.code:
+            search_tool['user_location'] = {
+                'type': 'approximate',
+                'country': country_code,
+            }
+            if city := self.env.company.city:
+                search_tool['user_location']['city'] = city
+        body.setdefault("tools", []).append(search_tool)
+
     headers = {
         "Content-Type": "application/json",
         "x-api-key": self._get_api_token(),
@@ -219,15 +235,19 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
     has_tool_calls = any(block.get("type") == "tool_use" for block in content_blocks)
 
     for block in content_blocks:
-        if block.get("type") == "tool_use":
+        block_type = block.get("type")
+        if block_type == "tool_use":
             to_call.append((block["name"], block["id"], block.get("input", {})))
-            # Add the assistant message with tool_use to inputs for next round
-        elif not has_tool_calls and block.get("type") == "text":
+        elif block_type in ("server_tool_use", "web_search_tool_result"):
+            # Server-side tool blocks — handled by Anthropic, just preserve
+            pass
+        elif block_type == "text" and not has_tool_calls:
             if text := block.get("text"):
                 response.append(text)
 
-    # If there were tool calls, add the full assistant response to inputs
-    if has_tool_calls:
+    # If there were tool calls or a paused turn, add assistant response to inputs
+    stop_reason = llm_response.get("stop_reason")
+    if has_tool_calls or stop_reason == "pause_turn":
         next_inputs.append({
             "role": "assistant",
             "content": content_blocks,

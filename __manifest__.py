@@ -29,6 +29,7 @@ Supported Models
     ],
     'data': [
         'views/res_config_settings_views.xml',
+        'views/ai_agent_views.xml',
     ],
 
     'images': [
