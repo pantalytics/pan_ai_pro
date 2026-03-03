@@ -7,13 +7,14 @@
     'website': "https://github.com/pantalytics/pan_ai_pro",
     'support': "rutger@pantalytics.com",
     'category': 'Productivity',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.4.0',
     'license': 'LGPL-3',
 
     'depends': [
         'ai_app',
     ],
     'data': [
+        'security/ir.model.access.csv',
         'views/res_config_settings_views.xml',
         'views/ai_agent_views.xml',
     ],
@@ -25,7 +26,6 @@
         ],
         'web_studio.studio_assets_minimal': [
             'pan_ai_pro/static/src/field_properties_patch.js',
-            'pan_ai_pro/static/src/ai_field_dialog_patch.js',
         ],
     },
 

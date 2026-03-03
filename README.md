@@ -82,11 +82,32 @@ Then install from **Apps** → search "Pan AI Pro".
 
 Odoo Studio's **AI Fields** feature normally only works with OpenAI. This module lets you use any configured AI agent — including Claude — for AI field computation.
 
+### Basic Setup
+
 1. Go to **Settings → AI**
 2. Select an agent in the **AI Fields Agent** dropdown
 3. AI fields will use that agent's model, temperature, and web search settings
 
 > Requires the `ai_fields` module (installed with Odoo Studio). If Studio is not installed, this feature is simply skipped.
+
+### Per-Field Agent
+
+Each AI field can use a different AI agent. In Studio, select an AI field and choose an agent in the properties panel. This overrides the global default, allowing different models, temperatures, and web search settings per field.
+
+### Auto Fill & Auto Update
+
+Two toggles control automatic AI field processing — inspired by [Airtable's AI fields](https://support.airtable.com/docs/using-airtable-ai-in-fields):
+
+| Setting | What it does |
+|---------|-------------|
+| **Auto Fill** | Fills all records with empty values in the background via cron |
+| **Auto Update** | Regenerates the value when input fields change |
+
+When neither is enabled, the field shows an **"Inputs changed"** indicator when source data changes, and the user can click to regenerate manually.
+
+### Human-Edit Protection
+
+If a user manually edits an AI-generated value, the field is marked as **human-edited** and skipped during automatic processing. This prevents AI from overwriting deliberate manual changes.
 
 ---
 

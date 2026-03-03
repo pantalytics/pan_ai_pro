@@ -206,13 +206,6 @@ def _request_llm_anthropic(
             'name': 'web_search',
             'max_uses': 5,
         }
-        if country_code := self.env.company.country_id.code:
-            search_tool['user_location'] = {
-                'type': 'approximate',
-                'country': country_code,
-            }
-            if city := self.env.company.city:
-                search_tool['user_location']['city'] = city
         body.setdefault("tools", []).append(search_tool)
 
     headers = {

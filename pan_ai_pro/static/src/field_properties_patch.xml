@@ -3,12 +3,31 @@
     <t t-inherit="web_studio.ViewEditor.InteractiveEditorProperties.Field" t-inherit-mode="extension">
         <xpath expr="//TechnicalName" position="before">
             <div t-if="agentState and agentState.loaded and ('ai' in this.props.node.field) and (!!this.props.node.field.ai or this.props.node.field.ai === '')" class="o_web_studio_property my-2 d-flex flex-column">
-                <label>AI Agent</label>
+                <label>AI Agent<sup class="text-info p-1" data-tooltip="Override the global AI agent for this field. Controls which model and settings are used to generate values. Tools like web search are configured on the agent.">?</sup></label>
                 <SelectMenu
                     choices="aiAgentChoices"
                     value="currentAiAgentId"
                     onSelect.bind="onChangeAiAgent"
                 />
+                <div class="form-check form-switch mt-2">
+                    <input type="checkbox" class="form-check-input" id="aiAutoFill"
+                           t-att-checked="autoFillEnabled"
+                           t-on-change="onChangeAutoFill"/>
+                    <label class="form-check-label" for="aiAutoFill">Auto Fill<sup class="text-info p-1" data-tooltip="Automatically generate values for new and empty records in the background.">?</sup></label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input type="checkbox" class="form-check-input" id="aiAutoUpdate"
+                           t-att-checked="autoUpdateEnabled"
+                           t-on-change="onChangeAutoUpdate"/>
+                    <label class="form-check-label" for="aiAutoUpdate">Auto Update<sup class="text-info p-1" data-tooltip="Automatically regenerate when input fields change.">?</sup></label>
+                </div>
+                <button class="btn btn-sm btn-secondary mt-2"
+                        t-att-disabled="agentState.regenerating"
+                        t-on-click="onRegenerateAll">
+                    <i t-if="agentState.regenerating" class="fa fa-spinner fa-spin me-1"/>
+                    <i t-else="" class="fa fa-refresh me-1"/>
+                    Regenerate all values
+                </button>
             </div>
         </xpath>
     </t>

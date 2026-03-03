@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates>
     <t t-inherit="ai_fields.ComputeAiFieldBtn" t-inherit-mode="extension">
-        <xpath expr="//button" position="attributes">
-            <attribute name="t-att-disabled">isAiComputing</attribute>
-        </xpath>
-        <xpath expr="//img" position="replace">
-            <span t-if="isAiComputing" class="spinner-border spinner-border-sm"
-                  style="width:20px;height:20px;"/>
-            <img t-else="" src="/ai/static/description/icon.png" width="20" alt="ai icon"/>
+        <xpath expr="//button" position="replace">
+            <button class="btn btn-light flex-shrink-0 align-self-start p-0 me-2"
+                t-att-disabled="isAiComputing"
+                t-on-click="onAiClick"
+                t-att-title="isStale ? 'Inputs changed \u2014 click to regenerate' : 'Generate with AI'"
+                style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;">
+                <span t-if="isAiComputing" class="spinner-border spinner-border-sm text-muted"
+                      style="width:16px;height:16px;"/>
+                <i t-elif="isStale" class="fa fa-refresh text-muted" style="font-size:16px;"/>
+                <i t-else="" class="fa fa-magic text-muted" style="font-size:16px;"/>
+            </button>
         </xpath>
     </t>
 </templates>

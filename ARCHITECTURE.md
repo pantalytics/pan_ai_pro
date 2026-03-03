@@ -358,11 +358,20 @@ pan_ai_pro/
 │   ├── llm_providers.py           # Registers Anthropic provider
 │   ├── llm_api_service.py         # Adds _request_llm_anthropic()
 │   ├── ai_agent.py                # x_web_search toggle + response override
-│   ├── ai_fields_patch.py         # Patch AI Fields for configurable agent
+│   ├── ai_fields_patch.py         # Patch AI Fields for configurable agent + auto-generate
+│   ├── ai_field_metadata.py       # x_ai.field.metadata model (stale/human-edit tracking)
+│   ├── ir_model_fields.py         # x_ai_agent_id, x_ai_auto_fill, x_ai_auto_update, regeneration actions
 │   └── res_config_settings.py     # Anthropic API key + AI Fields Agent
+├── security/
+│   └── ir.model.access.csv        # Access rights for x_ai.field.metadata
 ├── views/
 │   ├── res_config_settings_views.xml  # Settings UI for API key
 │   └── ai_agent_views.xml             # Web search toggle on agent form
+├── static/src/
+│   ├── ai_field_async_patch.js    # Non-blocking AI gen, spinner, stale indicator
+│   ├── ai_field_async_patch.xml   # Orange button + "Inputs changed" template
+│   ├── field_properties_patch.js  # Studio: agent selector, auto_fill/auto_update, regenerate all
+│   └── field_properties_patch.xml # Studio: properties panel UI
 ├── static/description/
 │   ├── icon.png
 │   └── index.html                 # Odoo app store description
@@ -429,9 +438,94 @@ LLMApiService(env, provider)._request_llm(...)
 
 The agent's model, response style (mapped to temperature), and web search toggle are all used.
 
+### Per-Field Configuration
+
+Each AI field can have its own agent and automation settings, stored on `ir.model.fields`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `x_ai_agent_id` | Many2one → `ai.agent` | Per-field agent override (falls back to global default) |
+| `x_ai_auto_fill` | Boolean | Automatically fill all records with empty values in the background (via cron) |
+| `x_ai_auto_update` | Boolean | Automatically regenerate when input fields, prompt, or AI agent changes |
+
+Configuration is done via Studio's field properties panel (not the AI field creation dialog).
+
+#### Auto Fill vs Auto Update
+
+These two toggles control different automation behaviors:
+
+| Setting | Trigger | What happens |
+|---------|---------|-------------|
+| **Auto Fill** | Cron job runs | Finds records where the AI field is NULL → generates values in the background |
+| **Auto Update** | Context field write | Marks stale → frontend auto-triggers inline regeneration with spinner |
+| Neither enabled | Context field write | Marks the field as `is_stale` → shows sync icon (click to regenerate) |
+
+Both respect **human-edit protection**: records where a user has manually edited the AI field value are skipped during automatic processing.
+
+### Metadata Tracking (`x_ai.field.metadata`)
+
+Per-record, per-field metadata for AI field state:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `model_name` | Char | Model technical name |
+| `res_id` | Integer | Record ID |
+| `field_name` | Char | AI field name |
+| `is_stale` | Boolean | Context fields changed since last generation |
+| `human_edited` | Boolean | User manually edited the value |
+
+**Behaviors:**
+- **Auto Update ON**: context field changes → mark `is_stale=True` → frontend detects stale + auto_regenerate → auto-triggers inline regeneration with spinner
+- **Auto Fill ON**: cron finds records with NULL AI field → generates values in the background (skips human-edited records)
+- **Neither enabled**: context field changes → mark `is_stale=True` → show sync icon (click to regenerate)
+- **Human-edit protection**: direct writes to AI fields set `human_edited=True` → automatic processing skips these records
+- **Regeneration**: clears `is_stale` and `human_edited` flags after generation
+
+### Frontend Patches
+
+| File | Bundle | What it does |
+|------|--------|-------------|
+| `ai_field_async_patch.js` | `web.assets_backend` | Non-blocking AI generation, spinner, stale indicator |
+| `ai_field_async_patch.xml` | `web.assets_backend` | AI button with three states: wand (idle), sync (stale), spinner (computing) |
+| `field_properties_patch.js` | `web_studio.studio_assets_minimal` | Agent selector, auto_fill/auto_update toggles, regenerate all |
+| `field_properties_patch.xml` | `web.assets_backend` | Properties panel UI for agent + automation settings |
+
 ### Optional Dependency
 
 `ai_fields` is an optional dependency (requires Odoo Studio). The import is wrapped in a `try/except ImportError` in `models/__init__.py` — if `ai_fields` is not installed, the patch is simply skipped.
+
+### Airtable AI Fields — Reference Implementation
+
+Our AI fields feature is modeled after [Airtable's AI fields](https://airtable.com/developers/web/api/field-model#aitext). Key Airtable concepts and how they map to our implementation:
+
+| Airtable | Our implementation |
+|----------|-------------------|
+| **AI Text field type** (`aiText`) — generates text from prompt + referenced fields | Odoo AI Fields (Studio) — prompt with `data-ai-field` references to other fields |
+| **Referenced fields** — `referencedFieldIds` in field config | Prompt references via `{field_name}` syntax, parsed by `get_field_prompt_vals()` |
+| **Run automatically** toggle | `x_ai_auto_fill` (fill all records) + `x_ai_auto_update` (regenerate on change) on `ir.model.fields` |
+| **Model selection** (OpenAI, Anthropic, Meta, IBM + "low-cost" labels) | Per-field `x_ai_agent_id` → agent's `llm_model` (inherits provider routing) |
+| **Randomness** (Low/Medium/High) | Agent's `response_style` → mapped to temperature via `TEMPERATURE_MAP` |
+| **"Inputs have changed — run agent to update"** indicator | `is_stale` in `x_ai.field.metadata` → sync icon (fa-refresh) on field button |
+| **"Keep existing data?"** dialog when enabling auto | Simplified: Auto Fill is a simple toggle, "Regenerate all values" button for bulk overwrite |
+| **Human-edit protection** (don't overwrite manual edits) | `human_edited` flag in metadata → skipped during auto-regeneration |
+| **Preview + credit usage** after prompt entry | Not implemented (nice-to-have) |
+| **Generate prompt** (AI-suggested prompt enhancement) | Not implemented |
+
+**Airtable API field config** (for reference):
+```
+Field type: "aiText"
+Options:
+  - prompt: string (with {field} references)
+  - referencedFieldIds: string[] (IDs of fields used in prompt)
+  - model: string (AI model identifier)
+  - randomness: "low" | "medium" | "high"
+  - generateAutomatically: boolean  → maps to x_ai_auto_fill + x_ai_auto_update
+```
+
+Sources:
+- [Airtable Web API — Field Model](https://airtable.com/developers/web/api/field-model#aitext)
+- [Using Airtable AI in fields](https://support.airtable.com/docs/using-airtable-ai-in-fields)
+- [Airtable's AI Fields Guide (xray.tech)](https://www.xray.tech/post/airtable-ai-fields)
 
 ---
 
