@@ -2,7 +2,14 @@
 {
     'name': "Pan AI Pro",
     'summary': "Use Claude (Anthropic) as AI provider",
-    'description': """Use Claude (Anthropic) as your Odoo AI provider — with web search.""",
+    'description': """
+Adds Anthropic Claude as an AI provider for Odoo 19.
+
+Extends the built-in AI module with Claude Opus, Sonnet, and Haiku models.
+Supports agents, tool calling, RAG, web search, structured output, and
+Airtable-style AI Fields with per-field agents, auto-fill, auto-update,
+and human-edit protection.
+""",
     'author': "Pantalytics",
     'website': "https://github.com/pantalytics/pan_ai_pro",
     'support': "rutger@pantalytics.com",
