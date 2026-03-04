@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="pan_ai_pro/static/description/ProductShowcase.gif" alt="Pan AI Pro Demo" width="800" />
+  <img src="https://raw.githubusercontent.com/pantalytics/pan_ai_pro/19.0/pan_ai_pro/static/description/ProductShowcase.gif" alt="Pan AI Pro Demo" width="800" />
 </p>
 
 > **Warning**
