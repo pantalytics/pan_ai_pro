@@ -234,7 +234,11 @@ def _request_llm_anthropic(
             response, to_call, next_inputs = self._request_llm_anthropic_helper(
                 body, headers, inputs)
         if record_response:
-            record_response(to_call, response)
+            try:
+                # Odoo 19 newer versions add request_token_usage parameter
+                record_response(to_call, response, 0)
+            except TypeError:
+                record_response(to_call, response)
         return response, to_call, next_inputs
 
 
