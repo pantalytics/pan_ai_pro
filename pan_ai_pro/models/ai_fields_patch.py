@@ -13,7 +13,7 @@ import requests
 from datetime import datetime
 
 from odoo import _
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from odoo.addons.ai.models.ai_agent import TEMPERATURE_MAP
 from odoo.addons.ai.utils.llm_api_service import LLMApiService
@@ -309,7 +309,7 @@ def _patched_base_write(self, vals):
     if vals and not self.env.context.get('_ai_auto_regenerating'):
         try:
             _handle_ai_field_writes(self, vals)
-        except Exception:
+        except (AccessError, KeyError, ValueError):
             _logger.warning("[AI Pro] Error in AI field tracking", exc_info=True)
     return result
 
@@ -329,8 +329,8 @@ def _handle_ai_field_writes(records, vals):
 
     env = records.env
     written_fields = set(vals.keys())
-    _logger.info("[AI Pro] _handle_ai_field_writes: model=%s, records=%s, written_fields=%s, ai_fields=%s",
-                 records._name, records.ids, written_fields, ai_field_names)
+    _logger.debug("[AI Pro] _handle_ai_field_writes: model=%s, records=%s, written_fields=%s, ai_fields=%s",
+                  records._name, records.ids, written_fields, ai_field_names)
 
     # Track human edits: when user writes directly to an AI field
     _track_human_edits(records, written_fields)
@@ -344,8 +344,8 @@ def _track_human_edits(records, written_fields):
     for fname in written_fields:
         field = records._fields.get(fname)
         if field and hasattr(field, 'ai') and field.ai:
-            _logger.info("[AI Pro] _track_human_edits: %s.%s → human_edited=True, is_stale=False",
-                         records._name, fname)
+            _logger.debug("[AI Pro] _track_human_edits: %s.%s → human_edited=True, is_stale=False",
+                          records._name, fname)
             _update_ai_metadata(records.env, records._name, records.ids, fname,
                                 human_edited=True, is_stale=False)
 
@@ -361,29 +361,29 @@ def _check_context_field_changes(records, written_fields):
         ('system_prompt', '!=', False),
     ])
     if not ir_fields:
-        _logger.info("[AI Pro] _check_context_field_changes: no AI fields found for %s", records._name)
+        _logger.debug("[AI Pro] _check_context_field_changes: no AI fields found for %s", records._name)
         return
 
-    _logger.info("[AI Pro] _check_context_field_changes: model=%s, found %d AI fields: %s",
-                 records._name, len(ir_fields),
-                 [(f.name, f.ttype) for f in ir_fields])
+    _logger.debug("[AI Pro] _check_context_field_changes: model=%s, found %d AI fields: %s",
+                  records._name, len(ir_fields),
+                  [(f.name, f.ttype) for f in ir_fields])
 
     fields_to_stale = []
 
     for ir_field in ir_fields:
         field = records._fields.get(ir_field.name)
         if not field:
-            _logger.info("[AI Pro]   %s: field not found in _fields", ir_field.name)
+            _logger.debug("[AI Pro]   %s: field not found in _fields", ir_field.name)
             continue
         try:
             _, context_fields, _ = get_field_prompt_vals(env, field)
         except Exception as e:
-            _logger.info("[AI Pro]   %s: get_field_prompt_vals failed: %s", ir_field.name, e)
+            _logger.debug("[AI Pro]   %s: get_field_prompt_vals failed: %s", ir_field.name, e)
             continue
         # Get root field names from context paths (e.g. 'partner_id.name' → 'partner_id')
         root_fields = {cf.split('.')[0] for cf in context_fields}
-        _logger.info("[AI Pro]   %s: context_fields=%s, root_fields=%s, overlap=%s",
-                     ir_field.name, context_fields, root_fields, root_fields & written_fields)
+        _logger.debug("[AI Pro]   %s: context_fields=%s, root_fields=%s, overlap=%s",
+                      ir_field.name, context_fields, root_fields, root_fields & written_fields)
         if not (root_fields & written_fields):
             continue
 
@@ -391,22 +391,26 @@ def _check_context_field_changes(records, written_fields):
         # The frontend handles the distinction:
         # - auto_update=True → frontend auto-triggers regeneration (spinner + inline update)
         # - auto_update=False → frontend shows "Inputs changed" indicator
-        _logger.info("[AI Pro]   %s: → fields_to_stale (auto_update=%s)", ir_field.name, ir_field.x_ai_auto_update)
+        _logger.debug("[AI Pro]   %s: → fields_to_stale (auto_update=%s)", ir_field.name, ir_field.x_ai_auto_update)
         fields_to_stale.append(ir_field.name)
 
     # Mark stale fields
     if fields_to_stale:
         for fname in fields_to_stale:
-            _logger.info("[AI Pro] Marking %s.%s as stale for records %s",
-                         records._name, fname, records.ids)
+            _logger.debug("[AI Pro] Marking %s.%s as stale for records %s",
+                          records._name, fname, records.ids)
             _update_ai_metadata(env, records._name, records.ids, fname, is_stale=True)
 
 
 def _process_auto_regenerate(env, batch_size=10):
-    """Process AI fields with NULL values where auto_fill or auto_update is enabled."""
+    """Process AI fields with NULL values where auto_fill is enabled.
+
+    Only auto_fill is processed here — auto_update is handled entirely by the
+    frontend (inline regeneration with spinner after context field changes).
+    """
     ir_fields = env['ir.model.fields'].sudo().search([
         ('ai', '=', True),
-        '|', ('x_ai_auto_fill', '=', True), ('x_ai_auto_update', '=', True),
+        ('x_ai_auto_fill', '=', True),
         ('system_prompt', '!=', False),
         ('ttype', 'in', ('char', 'text', 'html')),
     ])

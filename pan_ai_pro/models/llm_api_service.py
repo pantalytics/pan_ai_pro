@@ -8,11 +8,22 @@ import json
 import logging
 import os
 
+import requests
+
 from odoo import _
 from odoo.exceptions import UserError
 
 from odoo.addons.ai.utils.llm_api_service import LLMApiService
 from odoo.addons.ai.utils.ai_logging import api_call_logging
+
+# Anthropic error types → user-friendly messages
+_ANTHROPIC_ERROR_MESSAGES = {
+    'overloaded_error': "Anthropic API is temporarily overloaded. Please try again in a moment.",
+    'rate_limit_error': "Anthropic API rate limit exceeded. Please wait before retrying.",
+    'authentication_error': "Invalid Anthropic API key. Check your key in Settings → AI.",
+    'not_found_error': "Anthropic model not found. Check the model name in your agent configuration.",
+    'permission_error': "Your Anthropic API key does not have permission for this model.",
+}
 
 _logger = logging.getLogger(__name__)
 
@@ -238,13 +249,7 @@ def _request_llm_anthropic_web_schema(self, body, headers, inputs=()):
     web_search_tool_result blocks) in the conversation history.
     """
     # Turn 1: auto — model searches and maybe calls json_response
-    llm_response = self._request(
-        method="post",
-        endpoint="/messages",
-        headers=headers,
-        body=body,
-        timeout=120,
-    )
+    llm_response = self._anthropic_request(headers, body)
 
     content_blocks = llm_response.get("content") or []
 
@@ -278,14 +283,31 @@ def _request_llm_anthropic_web_schema(self, body, headers, inputs=()):
     return self._request_llm_anthropic_helper(body, headers, ())
 
 
+def _anthropic_request(self, headers, body):
+    """Wrap self._request with user-friendly Anthropic error messages."""
+    try:
+        return self._request(
+            method="post",
+            endpoint="/messages",
+            headers=headers,
+            body=body,
+            timeout=120,
+        )
+    except requests.exceptions.RequestException as e:
+        if e.response is not None:
+            try:
+                err = e.response.json().get('error', {})
+                err_type = err.get('type', '')
+                friendly = _ANTHROPIC_ERROR_MESSAGES.get(err_type)
+                if friendly:
+                    raise UserError(friendly) from e
+            except (ValueError, AttributeError):
+                pass
+        raise
+
+
 def _request_llm_anthropic_helper(self, body, headers, inputs=()):
-    llm_response = self._request(
-        method="post",
-        endpoint="/messages",
-        headers=headers,
-        body=body,
-        timeout=120,
-    )
+    llm_response = self._anthropic_request(headers, body)
 
     to_call = []
     next_inputs = list(inputs or ())
@@ -330,5 +352,6 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
 LLMApiService._request_llm_anthropic = _request_llm_anthropic
 LLMApiService._request_llm_anthropic_web_schema = _request_llm_anthropic_web_schema
 LLMApiService._request_llm_anthropic_helper = _request_llm_anthropic_helper
+LLMApiService._anthropic_request = _anthropic_request
 
 _logger.info("[AI Pro] Patched LLMApiService with Anthropic support")

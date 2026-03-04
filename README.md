@@ -5,8 +5,8 @@
 <h1 align="center">Pan AI Pro</h1>
 
 <p align="center">
-  <strong>Use Claude (Anthropic) as your Odoo 19 AI provider.</strong><br>
-  Agents, tool calling, RAG, and web search — all out of the box.
+  <strong>Claude AI provider + Airtable-style AI Fields for Odoo 19</strong><br>
+  Use Anthropic Claude for agents, tool calling, RAG, and web search — plus smart auto-fill, auto-update, and per-field AI agents for Studio AI fields.
 </p>
 
 <p align="center">
@@ -15,11 +15,22 @@
   <img src="https://img.shields.io/badge/Claude-Opus_|_Sonnet_|_Haiku-orange.svg" alt="Claude Models">
 </p>
 
+<p align="center">
+  <img src="pan_ai_pro/static/description/ProductShowcase.gif" alt="Pan AI Pro Demo" width="800" />
+</p>
+
+> **Warning**
+> This project is a **work in progress** and under active development. APIs, features, and configuration may change without notice. **Use at your own risk** — not recommended for production environments without thorough testing. No warranty is provided.
+
 ---
 
 ## What This Does
 
-Odoo 19 ships with OpenAI and Google Gemini as AI providers. This module adds **Anthropic Claude** as a third option — same UI, same agents, same tools.
+This module extends Odoo 19's built-in AI with two major capabilities:
+
+### 1. Claude as AI Provider
+
+Odoo 19 ships with OpenAI and Google Gemini. This module adds **Anthropic Claude** as a third provider — same UI, same agents, same tools.
 
 | Feature | Details |
 |---------|---------|
@@ -27,17 +38,27 @@ Odoo 19 ships with OpenAI and Google Gemini as AI providers. This module adds **
 | **Tool Calling** | Claude calls Odoo server actions to search, create, and update records |
 | **Web Search** | Per-agent toggle for real-time web search (Anthropic server-side) |
 | **RAG / Sources** | Attach PDFs, knowledge articles, websites — Claude uses them as context |
-| **AI Fields** | Use Claude for Studio AI fields — configurable agent with model, temperature, and web search |
 | **Structured Output** | JSON schema support for machine-readable responses |
 | **File Support** | Images, PDFs, and text files processed natively by Claude |
-
-## Supported Models
 
 | Model | Best For |
 |-------|----------|
 | **Claude Opus 4.6** | Complex reasoning, analysis, long-form content |
 | **Claude Sonnet 4.6** | Daily productivity — best speed/intelligence balance |
 | **Claude Haiku 4.5** | High-volume tasks — fast and cost-effective |
+
+### 2. Airtable-style AI Fields
+
+Upgrades Odoo Studio's AI Fields from basic single-provider generation to a smart, configurable system — inspired by [Airtable's AI fields](https://support.airtable.com/docs/using-airtable-ai-in-fields).
+
+| Feature | Details |
+|---------|---------|
+| **Per-Field Agent** | Each AI field can use a different AI agent (model, temperature, web search) |
+| **Auto Fill** | Fills all records with empty values in the background via cron |
+| **Auto Update** | Regenerates the value automatically when input fields change |
+| **Human-Edit Protection** | Manual edits are preserved — AI skips human-edited values |
+| **Stale Indicators** | Shows "Inputs changed" when source data changes (if auto-update is off) |
+| **Any Provider** | AI Fields work with Claude, OpenAI, or Gemini — no longer hardcoded to OpenAI |
 
 ---
 
@@ -78,36 +99,18 @@ Then install from **Apps** → search "Pan AI Pro".
 
 ---
 
-## AI Fields (Studio)
-
-Odoo Studio's **AI Fields** feature normally only works with OpenAI. This module lets you use any configured AI agent — including Claude — for AI field computation.
-
-### Basic Setup
-
-1. Go to **Settings → AI**
-2. Select an agent in the **AI Fields Agent** dropdown
-3. AI fields will use that agent's model, temperature, and web search settings
+## AI Fields Setup
 
 > Requires the `ai_fields` module (installed with Odoo Studio). If Studio is not installed, this feature is simply skipped.
 
-### Per-Field Agent
+1. Go to **Settings → AI**
+2. Select a default agent in the **AI Fields Agent** dropdown
+3. Optionally, override the agent per field in Studio's properties panel
+4. Enable **Auto Fill** and/or **Auto Update** per field as needed
 
-Each AI field can use a different AI agent. In Studio, select an AI field and choose an agent in the properties panel. This overrides the global default, allowing different models, temperatures, and web search settings per field.
+When neither auto option is enabled, the field shows an **"Inputs changed"** indicator when source data changes, and the user can click to regenerate manually.
 
-### Auto Fill & Auto Update
-
-Two toggles control automatic AI field processing — inspired by [Airtable's AI fields](https://support.airtable.com/docs/using-airtable-ai-in-fields):
-
-| Setting | What it does |
-|---------|-------------|
-| **Auto Fill** | Fills all records with empty values in the background via cron |
-| **Auto Update** | Regenerates the value when input fields change |
-
-When neither is enabled, the field shows an **"Inputs changed"** indicator when source data changes, and the user can click to regenerate manually.
-
-### Human-Edit Protection
-
-If a user manually edits an AI-generated value, the field is marked as **human-edited** and skipped during automatic processing. This prevents AI from overwriting deliberate manual changes.
+If a user manually edits an AI-generated value, the field is marked as **human-edited** and skipped during automatic processing — AI never overwrites deliberate manual changes.
 
 ---
 

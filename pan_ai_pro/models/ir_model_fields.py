@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import AccessError
 from odoo.tools import SQL
 
 _logger = logging.getLogger(__name__)
@@ -35,6 +36,13 @@ class IrModelFields(models.Model):
             'auto_regenerate': [field_names...],  # subset with auto_update=True
         }
         """
+        # Verify user has read access to the target model/record
+        try:
+            self.env[model_name].browse(record_id).check_access_rights('read')
+            self.env[model_name].browse(record_id).check_access_rule('read')
+        except (KeyError, AccessError):
+            return {'stale': [], 'auto_regenerate': []}
+
         Metadata = self.env['x_ai.field.metadata'].sudo()
         stale = Metadata.search([
             ('model_name', '=', model_name),
@@ -51,8 +59,8 @@ class IrModelFields(models.Model):
             ])
             auto_regenerate = auto_fields.mapped('name')
         if stale_names:
-            _logger.info("[AI Pro] get_ai_stale_fields(%s, %s) → stale=%s, auto=%s",
-                         model_name, record_id, stale_names, auto_regenerate)
+            _logger.debug("[AI Pro] get_ai_stale_fields(%s, %s) → stale=%s, auto=%s",
+                          model_name, record_id, stale_names, auto_regenerate)
         return {'stale': stale_names, 'auto_regenerate': auto_regenerate}
 
     @api.model
@@ -60,7 +68,8 @@ class IrModelFields(models.Model):
         """Check if any records have non-null data in the given AI field."""
         try:
             Model = self.env[model_name]
-        except KeyError:
+            Model.check_access_rights('read')
+        except (KeyError, AccessError):
             return False
         return Model.search_count([(field_name, '!=', False)], limit=1) > 0
 
@@ -73,6 +82,9 @@ class IrModelFields(models.Model):
             field_name: Technical name of the AI field
             record_ids: Optional list of record IDs. If None, regenerates all records.
         """
+        if not self.env.user.has_group('base.group_system'):
+            raise AccessError(_("Only administrators can regenerate AI fields."))
+
         ir_field = self.sudo().search([
             ('model', '=', model_name),
             ('name', '=', field_name),
