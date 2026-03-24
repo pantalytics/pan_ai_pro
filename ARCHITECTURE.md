@@ -1,6 +1,6 @@
 # Architecture
 
-Technical documentation for developers working on Pan AI Pro.
+Technical documentation for developers working on AI Pro.
 
 ---
 

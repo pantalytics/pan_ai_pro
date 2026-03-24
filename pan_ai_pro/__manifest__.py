@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "Pan AI Pro",
+    'name': "AI Pro",
     'summary': "Use Claude (Anthropic) as AI provider",
     'description': """
 Adds Anthropic Claude as an AI provider for Odoo 19.

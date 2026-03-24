@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="pan_ai_pro/static/description/icon.png" alt="Pan AI Pro" width="128" />
+  <img src="pan_ai_pro/static/description/icon.png" alt="AI Pro" width="128" />
 </p>
 
-<h1 align="center">Pan AI Pro</h1>
+<h1 align="center">AI Pro</h1>
 
 <p align="center">
   <strong>Claude AI provider + Airtable-style AI Fields for Odoo 19</strong><br>
@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pantalytics/pan_ai_pro/19.0/pan_ai_pro/static/description/ProductShowcase.gif" alt="Pan AI Pro Demo" width="800" />
+  <img src="https://raw.githubusercontent.com/pantalytics/pan_ai_pro/19.0/pan_ai_pro/static/description/ProductShowcase.gif" alt="AI Pro Demo" width="800" />
 </p>
 
 > **Warning**
@@ -86,7 +86,7 @@ cd /path/to/odoo/addons
 git clone https://github.com/pantalytics/pan_ai_pro.git
 ```
 
-Then install from **Apps** → search "Pan AI Pro".
+Then install from **Apps** → search "AI Pro".
 
 ### Configuration
 
