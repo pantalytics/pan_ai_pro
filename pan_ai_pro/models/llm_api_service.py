@@ -353,9 +353,123 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
     return response, to_call, next_inputs
 
 
+def _request_llm_anthropic_stream(self, body, headers, on_token=None):
+    """Stream a response from the Anthropic Messages API.
+
+    Sends the request with stream=True and parses SSE events. Calls
+    on_token(accumulated_text) as text deltas arrive. Tool calls are
+    accumulated silently and returned at the end.
+
+    Args:
+        body: Request body (will be mutated to add stream=True).
+        headers: Request headers.
+        on_token: Callback called with the full accumulated text so far.
+
+    Returns:
+        Same as _request_llm_anthropic_helper: (response, to_call, next_inputs).
+    """
+    body["stream"] = True
+    url = f"{self.base_url}/messages"
+
+    resp = requests.post(url, headers=headers, json=body, stream=True, timeout=120)
+    if resp.status_code != 200:
+        try:
+            err = resp.json().get('error', {})
+            err_type = err.get('type', '')
+            friendly = _ANTHROPIC_ERROR_MESSAGES.get(err_type)
+            if friendly:
+                raise UserError(friendly)
+        except (ValueError, AttributeError):
+            pass
+        resp.raise_for_status()
+
+    # Parse SSE stream
+    accumulated_text = ""
+    tool_blocks = {}  # index → {id, name, input_json_str}
+    content_blocks = []
+    to_call = []
+    stop_reason = None
+
+    for line in resp.iter_lines(decode_unicode=True):
+        if not line or not line.startswith("data: "):
+            continue
+        data_str = line[6:]
+        if data_str.strip() == "[DONE]":
+            break
+        try:
+            event = json.loads(data_str)
+        except json.JSONDecodeError:
+            continue
+
+        event_type = event.get("type")
+
+        if event_type == "content_block_start":
+            block = event.get("content_block", {})
+            idx = event.get("index", 0)
+            if block.get("type") == "tool_use":
+                tool_blocks[idx] = {
+                    "id": block.get("id"),
+                    "name": block.get("name"),
+                    "input_json": "",
+                }
+
+        elif event_type == "content_block_delta":
+            delta = event.get("delta", {})
+            idx = event.get("index", 0)
+            if delta.get("type") == "text_delta":
+                accumulated_text += delta.get("text", "")
+                if on_token:
+                    on_token(accumulated_text)
+            elif delta.get("type") == "input_json_delta":
+                if idx in tool_blocks:
+                    tool_blocks[idx]["input_json"] += delta.get("partial_json", "")
+
+        elif event_type == "content_block_stop":
+            idx = event.get("index", 0)
+            if idx in tool_blocks:
+                tb = tool_blocks[idx]
+                try:
+                    args = json.loads(tb["input_json"]) if tb["input_json"] else {}
+                except json.JSONDecodeError:
+                    args = {}
+                if tb["name"] == "json_response":
+                    accumulated_text = json.dumps(args)
+                else:
+                    to_call.append((tb["name"], tb["id"], args))
+                content_blocks.append({
+                    "type": "tool_use",
+                    "id": tb["id"],
+                    "name": tb["name"],
+                    "input": args,
+                })
+            else:
+                if accumulated_text.strip():
+                    content_blocks.append({
+                        "type": "text",
+                        "text": accumulated_text,
+                    })
+
+        elif event_type == "message_delta":
+            stop_reason = event.get("delta", {}).get("stop_reason")
+
+    resp.close()
+
+    response = [accumulated_text] if accumulated_text.strip() else []
+    next_inputs = []
+    has_tool_calls = any(
+        b.get("type") == "tool_use" and b.get("name") != "json_response"
+        for b in content_blocks
+    )
+    if has_tool_calls or stop_reason == "pause_turn":
+        next_inputs.append({"role": "assistant", "content": content_blocks})
+
+    return response, to_call, next_inputs
+
+
 LLMApiService._request_llm_anthropic = _request_llm_anthropic
 LLMApiService._request_llm_anthropic_web_schema = _request_llm_anthropic_web_schema
 LLMApiService._request_llm_anthropic_helper = _request_llm_anthropic_helper
 LLMApiService._anthropic_request = _anthropic_request
+LLMApiService._request_llm_anthropic_stream = _request_llm_anthropic_stream
 
 _logger.info("[AI Pro] Patched LLMApiService with Anthropic support")

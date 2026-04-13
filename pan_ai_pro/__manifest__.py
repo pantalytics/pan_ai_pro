@@ -14,7 +14,7 @@ and human-edit protection.
     'website': "https://github.com/pantalytics/pan_ai_pro",
     'support': "rutger@pantalytics.com",
     'category': 'Productivity',
-    'version': '19.0.1.5.0',
+    'version': '19.0.1.6.0',
     'license': 'LGPL-3',
 
     'depends': [
