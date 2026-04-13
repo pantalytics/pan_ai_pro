@@ -53,32 +53,48 @@ class AIAgent(models.Model):
 
     # --- Source file upload ---
 
-    def _upload_source_files(self, llm):
-        """Upload agent source files to Anthropic Files API.
+    def _upload_tool_result_files(self, llm, result_str, file_ids):
+        """If a tool result contains large base64 data, upload to Files API.
 
-        Returns:
-            (file_blocks, file_ids) where file_blocks is a list of document
-            content blocks for the Messages API, and file_ids is a list of
-            Anthropic file IDs to clean up after the request.
+        Scans the result string for base64 blobs. If found, uploads each as
+        a file and returns a compact description instead. This prevents huge
+        base64 strings from bloating the conversation context.
+
+        Returns the (possibly shortened) result string.
         """
-        file_blocks = []
-        file_ids = []
-        for source in self.sources_ids:
-            attachment = source.attachment_id
-            if not attachment or not attachment.datas:
-                continue
-            raw = base64.b64decode(attachment.datas)
-            file_id = llm._anthropic_upload_file(
-                attachment.name, raw, attachment.mimetype)
-            file_ids.append(file_id)
-            file_blocks.append({
-                "type": "document",
-                "source": {"type": "file", "file_id": file_id},
-                "title": attachment.name,
-            })
-        return file_blocks, file_ids
+        if len(result_str) < 10000:
+            return result_str
 
-    def _cleanup_source_files(self, llm, file_ids):
+        # Try to find base64 data in the result (common patterns from Odoo tools)
+        import re
+        # Match standalone base64 blobs (at least 1000 chars of base64)
+        b64_pattern = re.compile(r'[A-Za-z0-9+/]{1000,}={0,2}')
+        matches = b64_pattern.findall(result_str)
+
+        for match in matches:
+            try:
+                raw = base64.b64decode(match)
+            except Exception:
+                continue
+
+            # Guess filename and mimetype from context
+            from odoo.tools.mimetypes import guess_mimetype
+            mimetype = guess_mimetype(raw)
+            ext = mimetype.split('/')[-1].split('.')[-1][:10]
+            filename = f"tool_result.{ext}"
+
+            file_id = llm._anthropic_upload_file(filename, raw, mimetype)
+            file_ids.append(file_id)
+
+            # Replace the base64 blob with a file reference
+            result_str = result_str.replace(
+                match,
+                f"[File uploaded: {filename} ({len(raw)} bytes, file_id={file_id})]"
+            )
+
+        return result_str
+
+    def _cleanup_files(self, llm, file_ids):
         """Delete uploaded files from Anthropic after use."""
         for file_id in file_ids:
             llm._anthropic_delete_file(file_id)
@@ -115,20 +131,7 @@ class AIAgent(models.Model):
         llm, body, headers = self._build_stream_request(
             agent, provider, system_messages, chat_history, prompt, tools, temperature)
 
-        # Upload source files to Anthropic and add as document blocks
         file_ids = []
-        if provider == 'anthropic' and agent.sources_ids:
-            file_blocks, file_ids = agent._upload_source_files(llm)
-            if file_blocks:
-                # Prepend file documents to the user message content
-                messages = body["messages"]
-                last_msg = messages[-1]
-                if isinstance(last_msg.get("content"), str):
-                    last_msg["content"] = file_blocks + [
-                        {"type": "text", "text": last_msg["content"]}
-                    ]
-                elif isinstance(last_msg.get("content"), list):
-                    last_msg["content"] = file_blocks + last_msg["content"]
 
         # Create placeholder message
         placeholder = channel.sudo().message_post(
@@ -193,7 +196,29 @@ class AIAgent(models.Model):
                     has_end = "__end_message" in arguments
                     end_msg = arguments.pop("__end_message", None)
                     result, error = tools[tool_name][2](arguments=arguments)
-                    next_inputs.append(llm._build_tool_call_response(call_id, result))
+
+                    # Upload large base64 blobs to Files API
+                    result_str = str(result)
+                    prev_file_count = len(file_ids)
+                    if provider == 'anthropic' and len(result_str) > 10000:
+                        result_str = agent._upload_tool_result_files(
+                            llm, result_str, file_ids)
+                    next_inputs.append(llm._build_tool_call_response(call_id, result_str))
+
+                    # Add uploaded files as document blocks in a follow-up user message
+                    new_file_ids = file_ids[prev_file_count:]
+                    if new_file_ids:
+                        next_inputs.append({
+                            'role': 'user',
+                            'content': [{
+                                "type": "document",
+                                "source": {"type": "file", "file_id": fid},
+                            } for fid in new_file_ids] + [{
+                                "type": "text",
+                                "text": "The files referenced above have been uploaded. "
+                                        "Use the code execution tool to read and analyze them.",
+                            }],
+                        })
 
                     if has_end and error is None:
                         done = True
@@ -221,7 +246,7 @@ class AIAgent(models.Model):
 
         # Clean up uploaded files at Anthropic
         if file_ids:
-            agent._cleanup_source_files(llm, file_ids)
+            agent._cleanup_files(llm, file_ids)
 
     # --- Request builders ---
 
