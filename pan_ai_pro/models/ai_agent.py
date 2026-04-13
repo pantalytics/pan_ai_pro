@@ -12,10 +12,7 @@ from odoo.addons.ai.utils.llm_api_service import LLMApiService
 from odoo.addons.ai.utils.ai_logging import ai_response_logging, get_ai_logging_session
 from odoo.addons.mail.tools.discuss import Store
 
-try:
-    from markdown2 import markdown as md_convert
-except ImportError:
-    md_convert = None
+from markdown2 import markdown as md_convert
 
 _logger = logging.getLogger(__name__)
 
@@ -26,9 +23,7 @@ def _markdown_to_html(text):
     """Convert markdown to HTML using markdown2."""
     if not text:
         return ""
-    if md_convert:
-        return md_convert(text, extras=['fenced-code-blocks', 'tables', 'strike'])
-    return html_sanitize(text)
+    return md_convert(text, extras=['fenced-code-blocks', 'tables', 'strike'])
 
 
 class AIAgent(models.Model):
@@ -230,7 +225,7 @@ class AIAgent(models.Model):
         # Create placeholder message
         placeholder = channel.sudo().message_post(
             author_id=agent.partner_id.id,
-            body="",
+            body="<p>...</p>",
             message_type='comment',
             silent=True,
             subtype_xmlid='mail.mt_comment',

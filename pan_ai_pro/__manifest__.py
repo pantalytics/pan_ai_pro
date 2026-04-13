@@ -17,6 +17,9 @@ and human-edit protection.
     'version': '19.0.1.6.0',
     'license': 'LGPL-3',
 
+    'external_dependencies': {
+        'python': ['markdown2'],
+    },
     'depends': [
         'ai_app',
     ],
