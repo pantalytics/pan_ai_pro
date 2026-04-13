@@ -7,6 +7,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='llm_model']" position="after">
                 <field name="x_web_search" widget="boolean_toggle"/>
+                <field name="x_code_execution" widget="boolean_toggle"/>
             </xpath>
         </field>
     </record>

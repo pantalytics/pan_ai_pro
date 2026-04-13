@@ -128,7 +128,8 @@ LLMApiService._build_tool_call_response = _patched_build_tool_call_response
 
 def _request_llm_anthropic(
     self, llm_model, system_prompts, user_prompts, tools=None,
-    files=None, schema=None, temperature=0.2, inputs=(), web_grounding=False
+    files=None, schema=None, temperature=0.2, inputs=(), web_grounding=False,
+    code_execution=False
 ):
     """Make a request to the Anthropic Messages API.
 
@@ -212,12 +213,18 @@ def _request_llm_anthropic(
 
     # Web search — Anthropic server-side tool
     if web_grounding:
-        search_tool = {
+        body.setdefault("tools", []).append({
             'type': 'web_search_20250305',
             'name': 'web_search',
             'max_uses': 5,
-        }
-        body.setdefault("tools", []).append(search_tool)
+        })
+
+    # Code execution — Anthropic server-side tool
+    if code_execution:
+        body.setdefault("tools", []).append({
+            'type': 'code_execution_20250825',
+            'name': 'code_execution',
+        })
 
     headers = {
         "Content-Type": "application/json",
@@ -332,7 +339,8 @@ def _request_llm_anthropic_helper(self, body, headers, inputs=()):
                 text_parts.append(json.dumps(block.get("input", {})))
             else:
                 to_call.append((block["name"], block["id"], block.get("input", {})))
-        elif block_type in ("server_tool_use", "web_search_tool_result"):
+        elif block_type in ("server_tool_use", "web_search_tool_result",
+                            "code_execution_tool_use", "code_execution_tool_result"):
             # Server-side tool blocks — handled by Anthropic, just preserve
             pass
         elif block_type == "text":
@@ -412,6 +420,9 @@ def _request_llm_anthropic_stream(self, body, headers, on_token=None):
                     "name": block.get("name"),
                     "input_json": "",
                 }
+            elif block.get("type") in ("server_tool_use", "code_execution_tool_use"):
+                # Server-side tools — preserve block for conversation history
+                content_blocks.append(block)
 
         elif event_type == "content_block_delta":
             delta = event.get("delta", {})

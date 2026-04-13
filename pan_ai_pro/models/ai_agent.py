@@ -40,6 +40,12 @@ class AIAgent(models.Model):
         help="Allow this agent to search the web for current information. "
              "Currently supported for Anthropic Claude models only.",
     )
+    x_code_execution = fields.Boolean(
+        string="Code Execution",
+        default=False,
+        help="Allow this agent to run Python code for calculations, data parsing, "
+             "and visualizations. Currently supported for Anthropic Claude models only.",
+    )
 
     def _post_ai_response(self, channel, message):
         """Convert markdown to HTML before posting."""
@@ -70,7 +76,8 @@ class AIAgent(models.Model):
     # --- Provider-specific body builders ---
 
     def _build_stream_request_anthropic(self, agent, system_messages, chat_history,
-                                        prompt, tools, temperature, web_grounding):
+                                        prompt, tools, temperature, web_grounding,
+                                        code_execution=False):
         """Build Anthropic Messages API request body and headers."""
         llm = LLMApiService(env=self.env, provider='anthropic')
         messages = list(chat_history) + [{'role': 'user', 'content': prompt}]
@@ -93,6 +100,11 @@ class AIAgent(models.Model):
                 'type': 'web_search_20250305',
                 'name': 'web_search',
                 'max_uses': 5,
+            })
+        if code_execution:
+            body.setdefault("tools", []).append({
+                'type': 'code_execution_20250825',
+                'name': 'code_execution',
             })
         headers = {
             "Content-Type": "application/json",
@@ -199,18 +211,21 @@ class AIAgent(models.Model):
         tools = agent.topic_ids.tool_ids._get_ai_tools()
         temperature = TEMPERATURE_MAP[agent.response_style]
         web_grounding = getattr(agent, 'x_web_search', False) and provider == 'anthropic'
+        code_execution = getattr(agent, 'x_code_execution', False) and provider == 'anthropic'
 
         # Build provider-specific request
-        builder = {
-            'anthropic': self._build_stream_request_anthropic,
-            'openai': self._build_stream_request_openai,
-            'google': self._build_stream_request_google,
-        }.get(provider)
-        if not builder:
+        if provider == 'anthropic':
+            llm, body, headers = self._build_stream_request_anthropic(
+                agent, system_messages, chat_history, prompt, tools, temperature,
+                web_grounding, code_execution=code_execution)
+        elif provider == 'openai':
+            llm, body, headers = self._build_stream_request_openai(
+                agent, system_messages, chat_history, prompt, tools, temperature, web_grounding)
+        elif provider == 'google':
+            llm, body, headers = self._build_stream_request_google(
+                agent, system_messages, chat_history, prompt, tools, temperature, web_grounding)
+        else:
             raise NotImplementedError(f"Streaming not supported for provider: {provider}")
-
-        llm, body, headers = builder(
-            agent, system_messages, chat_history, prompt, tools, temperature, web_grounding)
 
         # Create placeholder message
         placeholder = channel.sudo().message_post(
@@ -299,21 +314,25 @@ class AIAgent(models.Model):
             self.env.cr.commit()
 
     def _generate_response(self, prompt, chat_history=None, extra_system_context=""):
-        """Override for web search (non-streaming path, used by non-channel callers)."""
+        """Override for web search / code execution (non-streaming path)."""
         self.ensure_one()
-        if self.x_web_search and self._get_provider() == 'anthropic':
-            _logger.debug("[AI Pro] Using web search for agent %s", self.name)
+        web_search = self.x_web_search and self._get_provider() == 'anthropic'
+        code_exec = self.x_code_execution and self._get_provider() == 'anthropic'
+        if web_search or code_exec:
+            _logger.debug("[AI Pro] Using server tools for agent %s (web=%s, code=%s)",
+                          self.name, web_search, code_exec)
             system_messages = self._build_system_context(extra_system_context=extra_system_context)
             if rag_context := self._build_rag_context(prompt):
                 system_messages.extend(rag_context)
-            llm_response = LLMApiService(env=self.env, provider=self._get_provider()).request_llm(
+            llm_response = LLMApiService(env=self.env, provider='anthropic').request_llm(
                 self.llm_model,
                 system_messages,
                 [],
                 inputs=(chat_history or []) + [{'role': 'user', 'content': prompt}],
                 tools=self.topic_ids.tool_ids._get_ai_tools(),
                 temperature=TEMPERATURE_MAP[self.response_style],
-                web_grounding=True,
+                web_grounding=web_search,
+                code_execution=code_exec,
             )
             if rag_context:
                 llm_response = self._get_llm_response_with_sources(llm_response)
