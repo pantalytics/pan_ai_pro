@@ -5,35 +5,22 @@ import { registry } from "@web/core/registry";
 /**
  * Listens for ai_pro.stream_token bus events and incrementally appends
  * text to the message DOM element, creating a smooth typewriter effect.
- *
- * Two event types:
- * - {delta: "text"} → append text tokens
- * - {status: "⚙ Reading Document..."} → show tool call status
- *
  * The final formatted message is written to DB server-side after streaming.
  */
 const streamService = {
     dependencies: ["bus_service"],
 
     start(env, { bus_service }) {
-        bus_service.subscribe("ai_pro.stream_token", ({ message_id, delta, status }) => {
+        bus_service.subscribe("ai_pro.stream_token", ({ message_id, delta }) => {
+            if (!delta) return;
+
             const el = document.querySelector(
                 `.o-mail-Message[data-message-id="${message_id}"] .o-mail-Message-richBody`
             );
             if (!el) return;
 
-            if (status) {
-                // Tool call status — replace content with status indicator
-                el.innerHTML = `<em class="text-muted">${status}</em>`;
-                scrollToBottom(el);
-                return;
-            }
-
-            if (!delta) return;
-
-            // On first text token, clear placeholder/status
-            const firstChild = el.firstElementChild;
-            if (el.textContent.trim() === "…" || (firstChild && firstChild.tagName === "EM")) {
+            // On first token, clear placeholder
+            if (el.textContent.trim() === "…") {
                 el.textContent = "";
             }
 
@@ -48,16 +35,13 @@ const streamService = {
                 }
             }
 
-            scrollToBottom(el);
+            // Scroll to bottom
+            const thread = el.closest(".o-mail-Thread");
+            if (thread) {
+                thread.scrollTop = thread.scrollHeight;
+            }
         });
     },
 };
-
-function scrollToBottom(el) {
-    const thread = el.closest(".o-mail-Thread");
-    if (thread) {
-        thread.scrollTop = thread.scrollHeight;
-    }
-}
 
 registry.category("services").add("ai_pro.stream", streamService);
