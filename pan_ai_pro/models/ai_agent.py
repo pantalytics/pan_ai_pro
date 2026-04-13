@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Extend ai.agent with streaming, web search, and code execution."""
+"""Extend ai.agent with streaming, web search, code execution, and file support."""
+import base64
 import copy
 import logging
 import time
@@ -16,7 +17,6 @@ from odoo.addons.mail.tools.discuss import Store
 
 _logger = logging.getLogger(__name__)
 
-_STREAM_THROTTLE = 0.15
 
 
 def _markdown_to_html(text):
@@ -51,6 +51,38 @@ class AIAgent(models.Model):
             subtype_xmlid='mail.mt_comment',
         )
 
+    # --- Source file upload ---
+
+    def _upload_source_files(self, llm):
+        """Upload agent source files to Anthropic Files API.
+
+        Returns:
+            (file_blocks, file_ids) where file_blocks is a list of document
+            content blocks for the Messages API, and file_ids is a list of
+            Anthropic file IDs to clean up after the request.
+        """
+        file_blocks = []
+        file_ids = []
+        for source in self.sources_ids:
+            attachment = source.attachment_id
+            if not attachment or not attachment.datas:
+                continue
+            raw = base64.b64decode(attachment.datas)
+            file_id = llm._anthropic_upload_file(
+                attachment.name, raw, attachment.mimetype)
+            file_ids.append(file_id)
+            file_blocks.append({
+                "type": "document",
+                "source": {"type": "file", "file_id": file_id},
+                "title": attachment.name,
+            })
+        return file_blocks, file_ids
+
+    def _cleanup_source_files(self, llm, file_ids):
+        """Delete uploaded files from Anthropic after use."""
+        for file_id in file_ids:
+            llm._anthropic_delete_file(file_id)
+
     # --- Streaming ---
 
     def _generate_response_for_channel(self, mail_message, channel):
@@ -83,26 +115,49 @@ class AIAgent(models.Model):
         llm, body, headers = self._build_stream_request(
             agent, provider, system_messages, chat_history, prompt, tools, temperature)
 
+        # Upload source files to Anthropic and add as document blocks
+        file_ids = []
+        if provider == 'anthropic' and agent.sources_ids:
+            file_blocks, file_ids = agent._upload_source_files(llm)
+            if file_blocks:
+                # Prepend file documents to the user message content
+                messages = body["messages"]
+                last_msg = messages[-1]
+                if isinstance(last_msg.get("content"), str):
+                    last_msg["content"] = file_blocks + [
+                        {"type": "text", "text": last_msg["content"]}
+                    ]
+                elif isinstance(last_msg.get("content"), list):
+                    last_msg["content"] = file_blocks + last_msg["content"]
+
         # Create placeholder message
         placeholder = channel.sudo().message_post(
             author_id=agent.partner_id.id,
-            body="&#8203;",
+            body="…",
             message_type='comment',
             silent=True,
             subtype_xmlid='mail.mt_comment',
         )
+        msg_id = placeholder.id
         self.env.cr.commit()
 
-        last_update = [0.0]
+        prev_len = [0]
+        last_commit = [time.monotonic()]
 
         def on_token(text):
-            now = time.monotonic()
-            if now - last_update[0] < _STREAM_THROTTLE:
+            delta = text[prev_len[0]:]
+            if not delta:
                 return
-            last_update[0] = now
-            placeholder.sudo().write({'body': html_sanitize(_markdown_to_html(text))})
-            Store(bus_channel=channel).add(placeholder, ["body"]).bus_send()
-            self.env.cr.commit()
+            prev_len[0] = len(text)
+            channel._bus_send("ai_pro.stream_token", {
+                "message_id": msg_id,
+                "delta": delta,
+            })
+            # Batch commits: bus notifications queue up until commit
+            now = time.monotonic()
+            if now - last_commit[0] > 0.08:
+                self.env.cr.commit()
+                last_commit[0] = now
 
         max_calls = int(self.env["ir.config_parameter"].sudo().get_param(
             "ai.max_successive_calls", "20"))
@@ -152,7 +207,10 @@ class AIAgent(models.Model):
                 msg_key = {'anthropic': 'messages', 'openai': 'input', 'google': 'contents'}[provider]
                 body[msg_key].extend(next_inputs)
 
-        # Final update
+        # Flush remaining bus notifications
+        self.env.cr.commit()
+
+        # Final update: write formatted HTML to DB and notify frontend
         if all_responses:
             final_text = "\n\n".join(all_responses)
             if rag_context:
@@ -160,6 +218,10 @@ class AIAgent(models.Model):
             placeholder.sudo().write({'body': html_sanitize(_markdown_to_html(final_text))})
             Store(bus_channel=channel).add(placeholder, ["body"]).bus_send()
             self.env.cr.commit()
+
+        # Clean up uploaded files at Anthropic
+        if file_ids:
+            agent._cleanup_source_files(llm, file_ids)
 
     # --- Request builders ---
 

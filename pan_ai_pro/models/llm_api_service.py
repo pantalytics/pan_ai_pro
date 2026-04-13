@@ -607,6 +607,51 @@ def _request_llm_google_stream(self, body, llm_model, on_token=None):
     return response, to_call, next_inputs
 
 
+def _anthropic_upload_file(self, filename, content_bytes, mimetype):
+    """Upload a file to Anthropic's Files API.
+
+    Args:
+        filename: Original filename (e.g. "data.xlsx")
+        content_bytes: Raw binary content
+        mimetype: MIME type (e.g. "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    Returns:
+        file_id string from Anthropic
+    """
+    resp = requests.post(
+        f"{self.base_url}/files",
+        headers={
+            "x-api-key": self._get_api_token(),
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "files-api-2025-04-14",
+        },
+        files={"file": (filename, content_bytes, mimetype)},
+        timeout=120,
+    )
+    resp.raise_for_status()
+    file_id = resp.json().get("id")
+    _logger.info("[AI Pro] Uploaded file %s → %s", filename, file_id)
+    return file_id
+
+
+def _anthropic_delete_file(self, file_id):
+    """Delete a file from Anthropic's Files API."""
+    try:
+        resp = requests.delete(
+            f"{self.base_url}/files/{file_id}",
+            headers={
+                "x-api-key": self._get_api_token(),
+                "anthropic-version": "2023-06-01",
+                "anthropic-beta": "files-api-2025-04-14",
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        _logger.info("[AI Pro] Deleted file %s", file_id)
+    except Exception:
+        _logger.warning("[AI Pro] Failed to delete file %s", file_id, exc_info=True)
+
+
 LLMApiService._request_llm_anthropic = _request_llm_anthropic
 LLMApiService._request_llm_anthropic_web_schema = _request_llm_anthropic_web_schema
 LLMApiService._request_llm_anthropic_helper = _request_llm_anthropic_helper
@@ -614,5 +659,7 @@ LLMApiService._anthropic_request = _anthropic_request
 LLMApiService._request_llm_anthropic_stream = _request_llm_anthropic_stream
 LLMApiService._request_llm_openai_stream = _request_llm_openai_stream
 LLMApiService._request_llm_google_stream = _request_llm_google_stream
+LLMApiService._anthropic_upload_file = _anthropic_upload_file
+LLMApiService._anthropic_delete_file = _anthropic_delete_file
 
 _logger.info("[AI Pro] Patched LLMApiService with Anthropic support")
