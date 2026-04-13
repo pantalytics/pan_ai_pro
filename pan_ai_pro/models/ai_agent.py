@@ -118,6 +118,7 @@ class AIAgent(models.Model):
         try:
             self._generate_response_streaming(agent, channel, prompt, session_info_context)
         except Exception:
+            _logger.error("[AI Pro] Streaming failed", exc_info=True)
             if self.env.user._is_internal():
                 raise
             self._post_ai_response(channel, self.env._("Oops, it looks like our AI is unreachable"))
