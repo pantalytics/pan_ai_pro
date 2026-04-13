@@ -74,20 +74,18 @@ else:
     base_url = env['ir.config_parameter'].sudo().get_param('web.base.url')
     tokens = attachment.generate_access_token()
     url = f"{base_url}/web/content/{attachment.id}?access_token={tokens[0]}"
-    info = {
-        'id': doc.id,
-        'name': doc.name,
-        'folder': doc.folder_id.name or '',
-        'mimetype': doc.mimetype or '',
-        'size': doc.file_size or 0,
-        'url': url,
-        'description': doc.description or '',
-        'tags': ', '.join(doc.tag_ids.mapped('name')) if doc.tag_ids else '',
-        'owner': doc.owner_id.name or '',
-        'create_date': str(doc.create_date),
-    }
-    import json
-    ai['result'] = json.dumps(info)
+    lines = []
+    lines.append(f"id: {doc.id}")
+    lines.append(f"name: {doc.name}")
+    lines.append(f"folder: {doc.folder_id.name or ''}")
+    lines.append(f"mimetype: {doc.mimetype or ''}")
+    lines.append(f"size: {doc.file_size or 0}")
+    lines.append(f"url: {url}")
+    lines.append(f"description: {doc.description or ''}")
+    lines.append(f"tags: {', '.join(doc.tag_ids.mapped('name')) if doc.tag_ids else ''}")
+    lines.append(f"owner: {doc.owner_id.name or ''}")
+    lines.append(f"create_date: {doc.create_date}")
+    ai['result'] = '\n'.join(lines)
         </field>
         <field name="ai_tool_description">
             Read details and get the download URL for a specific document from Odoo's Documents app.
@@ -99,20 +97,14 @@ else:
             Parameters:
             - document_id: The numeric ID of the document (from Search Documents results)
 
-            Returns JSON:
-            ```json
-            {
-                "id": 42,
-                "name": "Invoice Q1.pdf",
-                "folder": "Finance",
-                "mimetype": "application/pdf",
-                "size": 245000,
-                "url": "https://example.odoo.com/web/content/123?access_token=abc...",
-                "description": "",
-                "tags": "invoice, Q1",
-                "owner": "John",
-                "create_date": "2026-01-15 10:30:00"
-            }
+            Returns key-value pairs:
+            ```
+            id: 42
+            name: Invoice Q1.pdf
+            folder: Finance
+            mimetype: application/pdf
+            size: 245000
+            url: https://example.odoo.com/web/content/123?access_token=abc...
             ```
         </field>
         <field name="ai_tool_schema">
