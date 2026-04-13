@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- AI Tool: Search Documents -->
+    <record id="ir_actions_server_search_documents" model="ir.actions.server">
+        <field name="name">AI: Search Documents</field>
+        <field name="state">code</field>
+        <field name="use_in_ai" eval="True"/>
+        <field name="model_id" ref="base.model_ir_actions_server"/>
+        <field name="code">
+domain = []
+if query:
+    domain.append(('name', 'ilike', query))
+if folder:
+    domain.append(('folder_id.name', 'ilike', folder))
+if mimetype:
+    domain.append(('mimetype', 'ilike', mimetype))
+docs = env['documents.document'].search(domain, limit=limit or 20)
+lines = ['id|name|folder|mimetype|size|owner|create_date']
+for d in docs:
+    lines.append(f"{d.id}|{d.name}|{d.folder_id.name or ''}|{d.mimetype or ''}|{d.file_size or 0}|{d.owner_id.name or ''}|{d.create_date}")
+ai['result'] = '\n'.join(lines)
+        </field>
+        <field name="ai_tool_description">
+            Search for documents in Odoo's Documents app.
+            Returns a list of matching documents with their ID, name, folder, type, size, and owner.
+
+            Use this to find documents before reading them with the Read Document tool.
+            You can search by name, folder name, or file type (mimetype).
+
+            Returns CSV with pipe (|) delimiter:
+            ```
+            id|name|folder|mimetype|size|owner|create_date
+            42|Invoice Q1.pdf|Finance|application/pdf|245000|John|2026-01-15
+            ```
+        </field>
+        <field name="ai_tool_schema">
+        {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search by document name (partial match). Leave empty to list all."
+                },
+                "folder": {
+                    "type": "string",
+                    "description": "Filter by folder name (partial match). Optional."
+                },
+                "mimetype": {
+                    "type": "string",
+                    "description": "Filter by file type, e.g. 'pdf', 'xlsx', 'image'. Optional."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of results (default 20)"
+                }
+            },
+            "required": []
+        }
+        </field>
+    </record>
+
+    <!-- AI Tool: Read Document -->
+    <record id="ir_actions_server_read_document" model="ir.actions.server">
+        <field name="name">AI: Read Document</field>
+        <field name="state">code</field>
+        <field name="use_in_ai" eval="True"/>
+        <field name="model_id" ref="base.model_ir_actions_server"/>
+        <field name="code">
+doc = env['documents.document'].browse(document_id)
+if not doc.exists():
+    ai['result'] = f"Document {document_id} not found"
+else:
+    attachment = doc.attachment_id
+    base_url = env['ir.config_parameter'].sudo().get_param('web.base.url')
+    tokens = attachment.generate_access_token()
+    url = f"{base_url}/web/content/{attachment.id}?access_token={tokens[0]}"
+    info = {
+        'id': doc.id,
+        'name': doc.name,
+        'folder': doc.folder_id.name or '',
+        'mimetype': doc.mimetype or '',
+        'size': doc.file_size or 0,
+        'url': url,
+        'description': doc.description or '',
+        'tags': ', '.join(doc.tag_ids.mapped('name')) if doc.tag_ids else '',
+        'owner': doc.owner_id.name or '',
+        'create_date': str(doc.create_date),
+    }
+    import json
+    ai['result'] = json.dumps(info)
+        </field>
+        <field name="ai_tool_description">
+            Read details and get the download URL for a specific document from Odoo's Documents app.
+            Returns document metadata including a direct download URL with access token.
+
+            The URL can be used to download the file directly. When code execution is enabled,
+            you can fetch the URL and analyze the file content (Excel, CSV, PDF, etc.).
+
+            Parameters:
+            - document_id: The numeric ID of the document (from Search Documents results)
+
+            Returns JSON:
+            ```json
+            {
+                "id": 42,
+                "name": "Invoice Q1.pdf",
+                "folder": "Finance",
+                "mimetype": "application/pdf",
+                "size": 245000,
+                "url": "https://example.odoo.com/web/content/123?access_token=abc...",
+                "description": "",
+                "tags": "invoice, Q1",
+                "owner": "John",
+                "create_date": "2026-01-15 10:30:00"
+            }
+            ```
+        </field>
+        <field name="ai_tool_schema">
+        {
+            "type": "object",
+            "properties": {
+                "document_id": {
+                    "type": "integer",
+                    "description": "The ID of the document to read (from Search Documents results)"
+                }
+            },
+            "required": ["document_id"]
+        }
+        </field>
+    </record>
+
+    <!-- AI Topic: Documents -->
+    <record id="ai_topic_documents" model="ai.topic">
+        <field name="name">Documents</field>
+        <field name="tool_ids" eval="[(6, 0, [ref('ir_actions_server_search_documents'), ref('ir_actions_server_read_document')])]"/>
+    </record>
+</odoo>
