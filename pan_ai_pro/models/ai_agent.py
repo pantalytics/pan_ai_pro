@@ -53,51 +53,61 @@ class AIAgent(models.Model):
 
     # --- Source file upload ---
 
-    def _upload_tool_result_files(self, llm, result_str, file_ids):
-        """If a tool result contains large base64 data, upload to Files API.
+    def _extract_file_urls(self, result_str):
+        """Extract large base64 blobs from tool results and replace with Odoo URLs.
 
-        Scans the result string for base64 blobs. If found, uploads each as
-        a file and returns a compact description instead. This prevents huge
-        base64 strings from bloating the conversation context.
+        When a tool returns large data (base64 file content), find the
+        corresponding ir.attachment, generate a public access token URL,
+        and return document blocks that Anthropic can fetch directly.
 
-        Returns the (possibly shortened) result string.
+        Returns:
+            (shortened_result, file_blocks) where file_blocks is a list
+            of document content blocks with URLs.
         """
         if len(result_str) < 10000:
-            return result_str
+            return result_str, []
 
-        # Try to find base64 data in the result (common patterns from Odoo tools)
         import re
-        # Match standalone base64 blobs (at least 1000 chars of base64)
         b64_pattern = re.compile(r'[A-Za-z0-9+/]{1000,}={0,2}')
         matches = b64_pattern.findall(result_str)
+        if not matches:
+            return result_str, []
+
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        file_blocks = []
 
         for match in matches:
+            # Find the attachment by matching checksum
             try:
                 raw = base64.b64decode(match)
             except Exception:
                 continue
 
-            # Guess filename and mimetype from context
-            from odoo.tools.mimetypes import guess_mimetype
-            mimetype = guess_mimetype(raw)
-            ext = mimetype.split('/')[-1].split('.')[-1][:10]
-            filename = f"tool_result.{ext}"
+            checksum = self.env['ir.attachment']._compute_checksum(
+                base64.b64encode(raw).decode())
+            attachment = self.env['ir.attachment'].sudo().search(
+                [('checksum', '=', checksum)], limit=1)
+            if not attachment:
+                continue
 
-            file_id = llm._anthropic_upload_file(filename, raw, mimetype)
-            file_ids.append(file_id)
+            # Generate access token and build URL
+            tokens = attachment.generate_access_token()
+            url = (f"{base_url}/web/content/{attachment.id}"
+                   f"?access_token={tokens[0]}")
 
-            # Replace the base64 blob with a file reference
+            file_blocks.append({
+                "type": "document",
+                "source": {"type": "url", "url": url},
+                "title": attachment.name,
+            })
+
             result_str = result_str.replace(
                 match,
-                f"[File uploaded: {filename} ({len(raw)} bytes, file_id={file_id})]"
+                f"[File: {attachment.name} ({attachment.file_size} bytes) — "
+                f"available as document attachment]"
             )
 
-        return result_str
-
-    def _cleanup_files(self, llm, file_ids):
-        """Delete uploaded files from Anthropic after use."""
-        for file_id in file_ids:
-            llm._anthropic_delete_file(file_id)
+        return result_str, file_blocks
 
     # --- Streaming ---
 
@@ -131,7 +141,6 @@ class AIAgent(models.Model):
         llm, body, headers = self._build_stream_request(
             agent, provider, system_messages, chat_history, prompt, tools, temperature)
 
-        file_ids = []
 
         # Create placeholder message
         placeholder = channel.sudo().message_post(
@@ -197,25 +206,20 @@ class AIAgent(models.Model):
                     end_msg = arguments.pop("__end_message", None)
                     result, error = tools[tool_name][2](arguments=arguments)
 
-                    # Upload large base64 blobs to Files API
+                    # Replace large base64 blobs with Odoo download URLs
                     result_str = str(result)
-                    prev_file_count = len(file_ids)
+                    file_blocks = []
                     if provider == 'anthropic' and len(result_str) > 10000:
-                        result_str = agent._upload_tool_result_files(
-                            llm, result_str, file_ids)
+                        result_str, file_blocks = agent._extract_file_urls(result_str)
                     next_inputs.append(llm._build_tool_call_response(call_id, result_str))
 
-                    # Add uploaded files as document blocks in a follow-up user message
-                    new_file_ids = file_ids[prev_file_count:]
-                    if new_file_ids:
+                    # Add file URL documents so Anthropic can fetch them directly
+                    if file_blocks:
                         next_inputs.append({
                             'role': 'user',
-                            'content': [{
-                                "type": "document",
-                                "source": {"type": "file", "file_id": fid},
-                            } for fid in new_file_ids] + [{
+                            'content': file_blocks + [{
                                 "type": "text",
-                                "text": "The files referenced above have been uploaded. "
+                                "text": "The files above are available for download. "
                                         "Use the code execution tool to read and analyze them.",
                             }],
                         })
@@ -244,9 +248,6 @@ class AIAgent(models.Model):
             Store(bus_channel=channel).add(placeholder, ["body"]).bus_send()
             self.env.cr.commit()
 
-        # Clean up uploaded files at Anthropic
-        if file_ids:
-            agent._cleanup_files(llm, file_ids)
 
     # --- Request builders ---
 
