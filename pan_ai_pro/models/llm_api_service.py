@@ -466,10 +466,142 @@ def _request_llm_anthropic_stream(self, body, headers, on_token=None):
     return response, to_call, next_inputs
 
 
+def _request_llm_openai_stream(self, body, on_token=None):
+    """Stream a response from OpenAI's Responses API.
+
+    Uses the /v1/responses endpoint with stream=True. Parses SSE events
+    and calls on_token(accumulated_text) as text deltas arrive.
+
+    Returns:
+        Same tuple as _request_llm_openai_helper: (response, to_call, next_inputs).
+    """
+    body["stream"] = True
+    url = f"{self.base_url}/responses"
+    headers = self._get_base_headers()
+
+    resp = requests.post(url, headers=headers, json=body, stream=True, timeout=120)
+    if resp.status_code != 200:
+        resp.raise_for_status()
+
+    accumulated_text = ""
+    tool_calls = {}  # call_id → {name, arguments_str}
+    to_call = []
+    output_items = []
+
+    for line in resp.iter_lines(decode_unicode=True):
+        if not line or not line.startswith("data: "):
+            continue
+        data_str = line[6:]
+        if data_str.strip() == "[DONE]":
+            break
+        try:
+            event = json.loads(data_str)
+        except json.JSONDecodeError:
+            continue
+
+        event_type = event.get("type")
+
+        if event_type == "response.output_text.delta":
+            accumulated_text += event.get("delta", "")
+            if on_token:
+                on_token(accumulated_text)
+
+        elif event_type == "response.function_call_arguments.delta":
+            call_id = event.get("call_id", "")
+            if call_id not in tool_calls:
+                tool_calls[call_id] = {"name": event.get("name", ""), "arguments": ""}
+            tool_calls[call_id]["arguments"] += event.get("delta", "")
+
+        elif event_type == "response.output_item.added":
+            item = event.get("item", {})
+            if item.get("type") == "function_call":
+                call_id = item.get("call_id", "")
+                tool_calls[call_id] = {
+                    "name": item.get("name", ""),
+                    "arguments": "",
+                }
+
+        elif event_type == "response.output_item.done":
+            item = event.get("item", {})
+            if item.get("type") == "function_call":
+                call_id = item.get("call_id", "")
+                tc = tool_calls.get(call_id, {})
+                try:
+                    args = json.loads(tc.get("arguments", "{}"))
+                except json.JSONDecodeError:
+                    args = {}
+                to_call.append((tc.get("name", ""), call_id, args))
+                output_items.append(item)
+            elif item.get("type") == "message":
+                output_items.append(item)
+
+    resp.close()
+
+    response = [accumulated_text] if accumulated_text.strip() else []
+    next_inputs = list(output_items)
+    return response, to_call, next_inputs
+
+
+def _request_llm_google_stream(self, body, llm_model, on_token=None):
+    """Stream a response from Google's Gemini API.
+
+    Uses the streamGenerateContent endpoint with alt=sse. Parses SSE events
+    and calls on_token(accumulated_text) as text deltas arrive.
+
+    Returns:
+        Same tuple as _request_llm_google_helper: (response, to_call, next_inputs).
+    """
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta"
+        f"/models/{llm_model}:streamGenerateContent?alt=sse"
+    )
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": self._get_api_token(),
+    }
+
+    resp = requests.post(url, headers=headers, json=body, stream=True, timeout=120)
+    if resp.status_code != 200:
+        resp.raise_for_status()
+
+    accumulated_text = ""
+    to_call = []
+    next_inputs = []
+
+    for line in resp.iter_lines(decode_unicode=True):
+        if not line or not line.startswith("data: "):
+            continue
+        data_str = line[6:]
+        try:
+            event = json.loads(data_str)
+        except json.JSONDecodeError:
+            continue
+
+        for candidate in event.get("candidates", []):
+            for part in candidate.get("content", {}).get("parts", []):
+                if f_info := part.get("functionCall"):
+                    to_call.append((f_info["name"], f_info["name"], f_info.get("args", {})))
+                    next_inputs.append({
+                        "role": "model",
+                        "parts": [part],
+                    })
+                elif text := part.get("text"):
+                    accumulated_text += text
+                    if on_token:
+                        on_token(accumulated_text)
+
+    resp.close()
+
+    response = [accumulated_text] if accumulated_text.strip() else []
+    return response, to_call, next_inputs
+
+
 LLMApiService._request_llm_anthropic = _request_llm_anthropic
 LLMApiService._request_llm_anthropic_web_schema = _request_llm_anthropic_web_schema
 LLMApiService._request_llm_anthropic_helper = _request_llm_anthropic_helper
 LLMApiService._anthropic_request = _anthropic_request
 LLMApiService._request_llm_anthropic_stream = _request_llm_anthropic_stream
+LLMApiService._request_llm_openai_stream = _request_llm_openai_stream
+LLMApiService._request_llm_google_stream = _request_llm_google_stream
 
 _logger.info("[AI Pro] Patched LLMApiService with Anthropic support")

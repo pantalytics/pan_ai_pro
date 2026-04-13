@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Extend ai.agent with web search toggle and streaming for Anthropic."""
+"""Extend ai.agent with web search toggle and streaming for all providers."""
 import copy
 import logging
 import time
@@ -19,7 +19,6 @@ except ImportError:
 
 _logger = logging.getLogger(__name__)
 
-# Minimum interval between bus updates during streaming (seconds)
 _STREAM_THROTTLE = 0.15
 
 
@@ -54,11 +53,8 @@ class AIAgent(models.Model):
         )
 
     def _generate_response_for_channel(self, mail_message, channel):
-        """Override to stream Anthropic responses token-by-token."""
+        """Override to stream responses token-by-token for all providers."""
         self.ensure_one()
-        if self._get_provider() != 'anthropic':
-            return super()._generate_response_for_channel(mail_message, channel)
-
         prompt, session_info_context = self._parse_user_message(mail_message)
         agent = self.with_context(discuss_channel=channel)
 
@@ -71,24 +67,12 @@ class AIAgent(models.Model):
             self._post_ai_response(
                 channel, self.env._("Oops, it looks like our AI is unreachable"))
 
-    def _generate_response_streaming(self, agent, channel, prompt, session_info_context):
-        """Stream an Anthropic response into a discuss channel message."""
-        system_messages = agent._build_system_context(
-            extra_system_context=agent._build_extra_system_context(channel))
-        if rag_context := agent._build_rag_context(prompt):
-            system_messages.extend(rag_context)
+    # --- Provider-specific body builders ---
 
-        chat_history = (
-            [{'content': session_info_context, 'role': 'user'}]
-            + agent._retrieve_chat_history(channel)
-        )
-
+    def _build_stream_request_anthropic(self, agent, system_messages, chat_history,
+                                        prompt, tools, temperature, web_grounding):
+        """Build Anthropic Messages API request body and headers."""
         llm = LLMApiService(env=self.env, provider='anthropic')
-        tools = agent.topic_ids.tool_ids._get_ai_tools()
-        temperature = TEMPERATURE_MAP[agent.response_style]
-        web_grounding = agent.x_web_search
-
-        # Build Anthropic request body (reuse logic from _request_llm_anthropic)
         messages = list(chat_history) + [{'role': 'user', 'content': prompt}]
         body = {
             "model": agent.llm_model,
@@ -115,6 +99,118 @@ class AIAgent(models.Model):
             "x-api-key": llm._get_api_token(),
             "anthropic-version": "2023-06-01",
         }
+        return llm, body, headers
+
+    def _build_stream_request_openai(self, agent, system_messages, chat_history,
+                                     prompt, tools, temperature, web_grounding):
+        """Build OpenAI Responses API request body."""
+        llm = LLMApiService(env=self.env, provider='openai')
+        user_content = [{"type": "input_text", "text": prompt}]
+        body = {
+            "model": agent.llm_model,
+            "input": [
+                {
+                    "role": "system",
+                    "content": [{"type": "input_text", "text": p} for p in system_messages],
+                },
+                {"role": "user", "content": user_content},
+                *chat_history,
+            ],
+            "store": False,
+        }
+        if agent.llm_model not in ('gpt-5', 'gpt-5-mini'):
+            body["temperature"] = temperature
+        if tools:
+            body["tools"] = llm._to_open_ai_tool_schema([{
+                "description": desc,
+                "parameters": schema,
+                "type": "function",
+                "name": name,
+                "strict": True,
+            } for name, (desc, __, __, schema) in tools.items()])
+            body["parallel_tool_calls"] = True
+        if web_grounding:
+            search_tool = {'type': 'web_search_preview'}
+            if country_code := self.env.company.country_id.code:
+                search_tool['user_location'] = {'type': 'approximate', 'country': country_code}
+                if city := self.env.company.city:
+                    search_tool['user_location']['city'] = city
+            body.setdefault("tools", []).append(search_tool)
+        return llm, body, None
+
+    def _build_stream_request_google(self, agent, system_messages, chat_history,
+                                     prompt, tools, temperature, web_grounding):
+        """Build Google Gemini API request body."""
+        llm = LLMApiService(env=self.env, provider='google')
+        # Convert OpenAI-style chat history to Gemini format
+        gemini_history = [
+            {"role": "user" if m["role"] == "user" else "model",
+             "parts": [{"text": m["content"]}]}
+            for m in chat_history if isinstance(m, dict) and "content" in m
+        ]
+        body = {
+            "contents": gemini_history + [
+                {"role": "user", "parts": [{"text": prompt}]},
+            ],
+            "generationConfig": {"temperature": temperature},
+        }
+        if system_messages:
+            body["systemInstruction"] = {
+                "parts": [{"text": p} for p in system_messages],
+            }
+        if tools:
+            body["tools"] = {
+                "functionDeclarations": [{
+                    "description": desc,
+                    "parameters": schema,
+                    "name": name,
+                } for name, (desc, __, __, schema) in tools.items()]
+            }
+        if web_grounding:
+            body["tools"] = {'google_search': {}}
+        return llm, body, None
+
+    def _stream_call(self, provider, llm, body, headers, llm_model, on_token):
+        """Dispatch to the correct streaming method based on provider."""
+        if provider == 'anthropic':
+            return llm._request_llm_anthropic_stream(body, headers, on_token=on_token)
+        elif provider == 'openai':
+            return llm._request_llm_openai_stream(body, on_token=on_token)
+        elif provider == 'google':
+            return llm._request_llm_google_stream(body, llm_model, on_token=on_token)
+        raise NotImplementedError(f"Streaming not supported for provider: {provider}")
+
+    # --- Main streaming orchestrator ---
+
+    def _generate_response_streaming(self, agent, channel, prompt, session_info_context):
+        """Stream a response into a discuss channel message. Works for all providers."""
+        provider = agent._get_provider()
+
+        system_messages = agent._build_system_context(
+            extra_system_context=agent._build_extra_system_context(channel))
+        if rag_context := agent._build_rag_context(prompt):
+            system_messages.extend(rag_context)
+
+        chat_history = (
+            [{'content': session_info_context, 'role': 'user'}]
+            + agent._retrieve_chat_history(channel)
+        )
+
+        tools = agent.topic_ids.tool_ids._get_ai_tools()
+        temperature = TEMPERATURE_MAP[agent.response_style]
+        web_grounding = getattr(agent, 'x_web_search', False) and provider == 'anthropic'
+
+        # Build provider-specific request
+        builder = {
+            'anthropic': self._build_stream_request_anthropic,
+            'openai': self._build_stream_request_openai,
+            'google': self._build_stream_request_google,
+        }.get(provider)
+        if not builder:
+            raise NotImplementedError(f"Streaming not supported for provider: {provider}")
+
+        llm, body, headers = builder(
+            agent, system_messages, chat_history, prompt, tools, temperature, web_grounding)
 
         # Create placeholder message
         placeholder = channel.sudo().message_post(
@@ -148,8 +244,8 @@ class AIAgent(models.Model):
         with ai_response_logging(agent.llm_model):
             for api_call in range(max_calls):
                 stream_body = copy.deepcopy(body)
-                response, to_call, next_inputs = llm._request_llm_anthropic_stream(
-                    stream_body, headers, on_token=on_token)
+                response, to_call, next_inputs = self._stream_call(
+                    provider, llm, stream_body, headers, agent.llm_model, on_token)
                 all_responses.extend(response)
 
                 if not to_call:
@@ -184,8 +280,13 @@ class AIAgent(models.Model):
                 if done:
                     break
 
-                # Add tool call history to messages for next iteration
-                body["messages"].extend(next_inputs)
+                # Add tool call history for next iteration
+                if provider == 'anthropic':
+                    body["messages"].extend(next_inputs)
+                elif provider == 'openai':
+                    body["input"].extend(next_inputs)
+                elif provider == 'google':
+                    body["contents"].extend(next_inputs)
 
         # Final update with complete response
         if all_responses:
