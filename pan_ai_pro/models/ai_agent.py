@@ -190,6 +190,14 @@ class AIAgent(models.Model):
                             call_id, f"Error: unknown tool '{tool_name}'"))
                         continue
 
+                    # Show tool call status to user
+                    label = tool_name.replace('_', ' ').title()
+                    channel._bus_send("ai_pro.stream_token", {
+                        "message_id": msg_id,
+                        "status": f"⚙ {label}…",
+                    })
+                    self.env.cr.commit()
+
                     has_end = "__end_message" in arguments
                     end_msg = arguments.pop("__end_message", None)
                     result, error = tools[tool_name][2](arguments=arguments)
