@@ -22,6 +22,7 @@ PROVIDERS.append(
             ("claude-sonnet-4-6", "Claude Sonnet 4.6"),
             ("claude-haiku-4-5-20251001", "Claude Haiku 4.5"),
         ],
+        deprecated_models=[],
     )
 )
 
