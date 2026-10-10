@@ -154,6 +154,17 @@ API keys are stored the same way as OpenAI and Google keys in the built-in AI mo
 
 ---
 
+## Local Development
+
+Needs Docker and a checkout of `odoo/enterprise` (19.0), because the `ai` module is Enterprise-only.
+
+```bash
+ENTERPRISE_PATH=~/src/enterprise ANTHROPIC_API_KEY=sk-ant-... \
+  docker compose -f dev/docker-compose.yml up --build
+```
+
+Open http://localhost:8069, create a database, install **AI Pro**. The addon is mounted live, so Python changes reload on save.
+
 ## Contributing
 
 Contributions are welcome. Please open an issue or pull request on [GitHub](https://github.com/pantalytics/pan_ai_pro).

@@ -1,0 +1,38 @@
+# Local Odoo 19 Enterprise with this addon mounted.
+#   ENTERPRISE_PATH=~/src/enterprise docker compose -f dev/docker-compose.yml up --build
+# Then open http://localhost:8069 (master password: admin).
+services:
+  db:
+    # pgvector is required by the `ai` module for RAG embeddings.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: postgres
+    volumes:
+      - db:/var/lib/postgresql/data
+
+  odoo:
+    build:
+      context: ..
+      dockerfile: dev/Dockerfile
+    depends_on: [db]
+    ports: ["8069:8069"]
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: odoo
+      ODOO_AI_CLAUDE_TOKEN: ${ANTHROPIC_API_KEY:-}
+      ODOO_AI_CHATGPT_TOKEN: ${OPENAI_API_KEY:-}
+      ODOO_AI_GEMINI_TOKEN: ${GEMINI_API_KEY:-}
+    command: >-
+      odoo --dev=reload,xml
+      --addons-path=/mnt/enterprise,/mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+    volumes:
+      - ${ENTERPRISE_PATH:?set ENTERPRISE_PATH to your odoo/enterprise 19.0 checkout}:/mnt/enterprise:ro
+      - ../pan_ai_pro:/mnt/extra-addons/pan_ai_pro
+      - filestore:/var/lib/odoo
+
+volumes:
+  db:
+  filestore:
