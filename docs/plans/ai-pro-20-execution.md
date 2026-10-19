@@ -67,16 +67,15 @@ architecture-20.md.
       model, so v1 is web search only. Search results cost 8 to 13k input
       tokens per question on Sonnet and GPT: `max_uses` and
       `search_context_size` are the budget. `scripts/spikes/s5_builtin_tools/`.
-- [ ] **S6 MCP Pro as a toolset.** `MCPServerStreamableHTTP` against
-      `mcp.pantalytics.com/mcp` with a Zitadel token from the device flow
-      (RFC 8628) started in Odoo; the grant enabled on the Zitadel app;
-      refresh stored encrypted; `tools/list` filtered by
-      `allowed_tool_names`; the SSRF gate on the URL. Half answered
-      2026-10-19: our Zitadel instance advertises
-      `device_authorization_endpoint` and the `device_code` grant in its
-      discovery document, so no redirect URI per customer database is
-      needed. Left: the grant enabled on a Zitadel app for the module, the
-      flow from Odoo, the refresh at rest, the filter.
+- [x] **S6 MCP Pro as a toolset.** Withdrawn 2026-10-19 (decision 14):
+      AI Pro and MCP Pro are two products, AI Pro never calls
+      `mcp.pantalytics.com`, nobody signs in to Zitadel from Odoo. Measured
+      before the withdrawal: a native app with the device-code grant
+      issues a user code in 556 ms, and Zitadel's `/device` page is its
+      login v1 regardless of the app's login version, so a Microsoft
+      sign-in there needs the v1 callback in Azure. The app `pan-ai-pro`
+      created for it is deactivated (the PAT cannot delete).
+      `scripts/spikes/s6_device_flow/`.
 
 ## 2. Module (`pan_ai_pro` branch `20.0`), PR A: records, runtime, window
 
@@ -169,17 +168,16 @@ architecture-20.md.
       schema, no toolsets unless the field says so, 60 s
 - [ ] tests with a fake model, both editions' paths
 
-## 4. Module, PR C: MCP toolsets and the Pantalytics sign-in
+## 4. Module, PR C (last, only when a customer asks): generic MCP toolsets
 
 - [ ] `runtime/mcp_toolset.py`: `MCPServerStreamableHTTP(url, headers)`
       per `pan_ai.toolset` of kind `mcp`, `FilteredToolset` on
       `allowed_tool_names`, `tool_prefix`, `requires_approval` per tool;
       the SSRF gate (copied from the public server) on every URL, plus the
       allowed hosts setting
-- [ ] auth `bearer`: a token per toolset, encrypted. Auth `pantalytics`: a
-      token per Odoo user, Zitadel device flow from the toolset row
-      ("Sign in to Pantalytics", code shown, polled), refresh encrypted,
-      Revoke on the same row (S6)
+- [ ] auth `bearer` only: one token per toolset row, encrypted, pasted by
+      a Settings administrator. No token per user, no Zitadel, no MCP Pro
+      (decision 14)
 - [ ] the window's tool rows show the server's name for MCP tools
 - [ ] tests: a local MCP server in the test (the public `mcp` package),
       filter, prefix, refused host, token refresh
@@ -264,8 +262,7 @@ find answered.
 **Secrets at rest**
 - [ ] OpenRouter key: encrypted with the 19.0 helper, system group only,
       shown as last four, never logged, never in a bus message
-- [ ] MCP bearer tokens and Zitadel refresh tokens: same helper, deleted
-      on toolset delete, on user deactivation, on Revoke
+- [ ] MCP bearer tokens (PR C): same helper, deleted on toolset delete
 - [ ] the Ed25519 public key in the module is the one
       `signing.public_key_b64()` prints on prod; the release checklist
       checks it
@@ -324,7 +321,7 @@ find answered.
 | PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper connected to staging with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan |
 | PR E (runs) | CI green, a scheduled run and a triggered run seen by hand, a continuous thread watched for a day on staging |
 | PR B (fields) | CI green, Enterprise and Community field each computed once by hand |
-| PR C (MCP toolsets) | CI green, `mcp.pantalytics.com/mcp` as a toolset from a real Odoo, one vault tool called by hand |
+| PR C (generic MCP toolsets, if ever) | CI green, one public MCP server as a toolset from a real Odoo, one tool called by hand |
 | Release | tag, store listing, the Ed25519 key check, `20.0` protected |
 
 Each PR is reviewable on its own and leaves production working: without a

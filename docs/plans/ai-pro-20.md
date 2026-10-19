@@ -61,11 +61,15 @@ AI's, not Odoo's.**
    lacks: streaming, tool rows, approval cards, Stop. The same on Community
    and Enterprise; on Enterprise 20 we hide Odoo's AI button and ship ours.
    Section 4 has the options that were weighed.
-5. **MCP Pro compatibility is an MCP `Toolset`.** An agent can hold
-   `https://mcp.pantalytics.com/mcp` (vault, `pan_` and hosting tools) and
-   any other MCP server, through Pydantic AI's MCP client. The person signs
-   in to Pantalytics from Odoo once, with Zitadel's device flow, which
-   needs no redirect URI per customer database.
+5. **AI Pro and MCP Pro are two products, not one toolset.** MCP Pro is
+   AI outside Odoo (Claude, ChatGPT, a vault) reaching in; AI Pro is AI
+   inside Odoo, where the tools are the ORM itself. AI Pro never calls
+   `mcp.pantalytics.com`, and no Odoo user ever signs in to Zitadel from
+   Odoo. The one sign-in is Connect to Pantalytics, Mail Pro's pairing,
+   once per database (point 8). An agent can still hold any MCP server
+   with a bearer token, as a generic toolset, later (PR C). Decided
+   2026-10-19 by Rutger after S6, which replaces the first draft of this
+   point (MCP Pro as a toolset with Zitadel's device flow).
 6. AI fields stay the gold: the 19.0 metadata model (stale, human-edited,
    auto-fill, auto-update, per-field agent) is ported as is and computes
    through an `Agent` with `output_type` = the field's schema.
@@ -141,8 +145,8 @@ Odoo controller / cron ──► Pydantic AI Agent (in-process) ─────�
                                         │
                    ┌────────────────────┼──────────────────────┐
                    ▼                    ▼                       ▼
-              Odoo ORM (ACLs)      openrouter.ai        mcp.pantalytics.com/mcp
-                                   (+ web plugin)       (Zitadel token, device flow)
+              Odoo ORM (ACLs)      openrouter.ai        any MCP server (later, PR C)
+                                   (+ web plugin)       (bearer token on the row)
 ```
 
 - **Stream.** The run emits Pydantic AI's events; the runtime batches them
@@ -241,7 +245,7 @@ What the patches add to the `mail` window:
 | Window | `pan_ai_pro/static/src/chat/` | patches on `mail`'s `Message`, `Composer`, `ChatWindow`; the event handler on the bus; markdown; approval card; tool row |
 | Runs | `pan_ai_pro/models/run.py`, `runtime/slices.py`, `data/ir_cron.xml` | the four kinds, the slice loop on `agent.iter()`, two worker crons, the advisory lock, the watch for continuous threads |
 | Fields | `pan_ai_pro/models/ai_field_*.py` | the 19.0 metadata, cron and Studio panel, retargeted to an `Agent` with `output_type` |
-| Pantalytics | `pan_ai_pro/models/pan_ai_license.py`, admin `apps/ai_pro.py` | pairing, heartbeat, entitlement; the device-flow sign-in for the MCP toolset |
+| Pantalytics | `pan_ai_pro/models/pan_ai_license.py`, admin `apps/ai_pro.py` | pairing, heartbeat, entitlement, Mail Pro's shape; the only sign-in the module has |
 
 ## 6. Spikes before any code
 
@@ -267,10 +271,9 @@ exits non-zero when its claim fails; the result and the date land in
 5. **S5 Built-in tools.** Pydantic AI's `WebSearchTool` and
    `CodeExecutionTool` through OpenRouter on Sonnet, GPT and Gemini, and
    the OpenRouter `web` plugin as the fallback that works on every model.
-6. **S6 MCP Pro as a toolset.** `MCPServerStreamableHTTP` against
-   `mcp.pantalytics.com/mcp` with a Zitadel token from the device flow
-   (RFC 8628) started in Odoo; refresh stored encrypted; `tools/list`
-   filtered by `allowed_tool_names`.
+6. **S6 MCP Pro as a toolset.** Withdrawn 2026-10-19 with point 5 of
+   the decision: AI Pro does not call MCP Pro. What was measured before
+   the withdrawal is in `scripts/spikes/s6_device_flow/README.md`.
 
 ## 7. Order
 
@@ -281,7 +284,7 @@ exits non-zero when its claim fails; the result and the date land in
 - [ ] Runs: scheduled, triggered, continuous, the slice loop and the
       worker crons. PR E
 - [ ] AI fields: Enterprise seam or property fields, metadata ported. PR B
-- [ ] MCP toolsets and the Pantalytics sign-in. PR C
+- [ ] Generic MCP toolsets with a bearer token, if a customer asks. PR C, last
 - [ ] Admin: `apps/ai_pro.py`, pairing and entitlement, Mail Pro's shape.
       PR D (small), before PR A ships: the module needs it to run at all
 - [ ] Store listing 20.0, humanizer over every string, README rewritten

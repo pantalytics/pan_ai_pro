@@ -13,8 +13,8 @@ Pydantic AI runs inside Odoo; its objects are Odoo records with Pydantic
 AI's names; tools run through `env` as the person who asked; the chat is
 Odoo's own chat window on an `ai` channel, fed by the run's own events over
 the bus; a run starts from a chat, a schedule, a trigger or a continuous
-thread, in slices on Odoo's workers; MCP Pro is one toolset among the
-agent's.
+thread, in slices on Odoo's workers; the one sign-in is Connect to
+Pantalytics, Mail Pro's pairing, and MCP Pro is a different product.
 
 ## 2. The objects
 
@@ -54,16 +54,15 @@ action is "Run agent" with a prompt. We add nothing of our own there.
 │   runtime/agent.py        build_agent(record) -> pydantic_ai.Agent│
 │   runtime/deps.py         OdooDeps(env, user, record, thread)    │
 │   runtime/odoo_toolset    FunctionToolset over env (ACLs apply)  │
-│   runtime/mcp_toolset     MCPServerStreamableHTTP per toolset row│
+│   runtime/mcp_toolset     MCPServerStreamableHTTP (later, PR C)   │
 │   runtime/stream.py       run events -> batched bus events       │
 │   data/ir_cron.xml        two worker crons, woken by _trigger()  │
 │   models/                 the records; AI field metadata         │
 │   pan_ai_license.py       pairing, heartbeat, entitlement        │
 └───────┬──────────────────────┬──────────────────────┬────────────┘
-   (2) ORM                (3) OpenRouter          (4) MCP servers
-   as the user            key from Settings       mcp.pantalytics.com/mcp
-                          + web plugin            (Zitadel device-flow token)
-                                                  any other MCP server
+   (2) ORM                (3) OpenRouter          (4) MCP servers, later
+   as the user            key from Settings       any server, bearer token
+                          + web plugin            on the row; never MCP Pro
                                                        │
                           (5) heartbeat daily ──► platform apps/ai_pro.py
                               counts only          signed entitlement back
@@ -74,7 +73,7 @@ action is "Run agent" with a prompt. We add nothing of our own there.
 | Window | the patches on `mail`'s components, the bus handler, markdown, tool rows, approval cards | hold a key, talk to a model, keep state the thread does not have |
 | Runtime | building the `Agent`, the slice loop, streaming, limits, cost, the worker crons | `sudo`, a second cursor per tool, a path outside `env`, a thread of its own |
 | Odoo toolset | the built-ins and the server actions, as the user | widen rights, swallow an AccessError |
-| MCP toolset | one remote server per row, its token, its filter | reach a host the SSRF gate refuses |
+| MCP toolset (later) | one remote server per row, its bearer token, its filter | reach a host the SSRF gate refuses; hold a token per user |
 | License | pairing, heartbeat, cached signed entitlement | send a prompt, a record or a thread title |
 | Platform (`apps/ai_pro.py`) | entitlement, tiers, telemetry counts | see a message |
 
@@ -132,12 +131,11 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   model as the tool's error, never caught into a wider path.
 - Who may chat: the groups on the `Agent`. Who may configure: Settings
   administrators (`base.group_system`).
-- MCP toolsets with a Pantalytics sign-in hold a token per Odoo user,
-  obtained with Zitadel's device flow from Odoo, stored encrypted, revoked
-  from the same settings row. The AI on our MCP server then acts as that
-  person, the way ADR-0011 wants it.
-- A deactivated Odoo user loses their threads' access and their MCP tokens
-  are deleted by the same hook.
+- No Odoo user ever signs in to Zitadel from Odoo. The module's one
+  sign-in is Connect to Pantalytics, once per database, by a Settings
+  administrator, Mail Pro's pairing (decision 14). A generic MCP toolset,
+  when it comes, holds one bearer token per row, encrypted, not per user.
+- A deactivated Odoo user loses their threads' access.
 
 ## 6. Money and limits
 
@@ -172,7 +170,7 @@ No streaming here: one `agent.run`, one value, a spinner on the field.
 |---|---|---|
 | browser ↔ Odoo | `mail`'s message_post in, Pydantic AI run events batched over the bus out | the chat window already listens on the bus; one producer, one consumer, so no third vocabulary |
 | Odoo ↔ model | OpenRouter (OpenAI-compatible) through Pydantic AI's provider | one key, any model, web plugin |
-| Odoo ↔ MCP servers | MCP Streamable HTTP through Pydantic AI's client | the standard; MCP Pro is one of them |
+| Odoo ↔ MCP servers (later) | MCP Streamable HTTP through Pydantic AI's client, a bearer token per row | the standard; MCP Pro is not one of them |
 | Odoo ↔ platform | HTTPS JSON, bearer installation key, Ed25519-signed entitlement | Mail Pro's door, unchanged |
 | not used | an SSE route of our own, Odoo's `/mcp`, AG-UI, a platform brain, DBOS | a second channel beside the one the window has; Enterprise-only; a third vocabulary; the configuration lives in two places; its own tables and launch step in the process |
 
@@ -196,12 +194,13 @@ later. The public MCP server stays as it is.
 | 4 | Run events batched over the bus into the message | an SSE route of our own (second draft), WebSocket | 2026-10-19, **S2 measured the same day**: first token 50 ms after the server sent it, slowest batch 97 ms, Stop works, final body written once (`scripts/spikes/s2_bus_stream/`) |
 | 5 | Identity is the Odoo session; tools through `env` | per-user API keys, members per Odoo user | 2026-10-19 |
 | 6 | OpenRouter as the one provider, key per database | provider registry with three request formats (19.0) | 2026-10-19 |
-| 7 | MCP Pro as an MCP toolset, Zitadel device flow for the token | pairing per user, a platform-side identity | 2026-10-19, pending S6 |
+| 7 | ~~MCP Pro as an MCP toolset, Zitadel device flow for the token~~ replaced by 14 | pairing per user, a platform-side identity | 2026-10-19, withdrawn the same day |
 | 8 | AI fields metadata ported from 19.0 as is | redesign | 2026-10-19 |
 | 9 | Triggers are Odoo's automation rules and scheduled actions | a trigger model of our own | 2026-10-19 |
 | 10 | Runs in slices on Odoo's workers, `agent.iter()` plus `ir.cron._trigger()`, MuK AI's loop shape | a daemon, OCA `queue_job`, DBOS durability | 2026-10-19, **S4 measured the same day** on a prefork server: a chat of 5 slices outlives an 8 s HTTP limit, cron wake 122 to 849 ms, a killed worker's thread is reclaimed, a continuous thread keeps its memory (`scripts/spikes/s4_slices/`) |
 | 11 | `Thread.conversation` is Pydantic AI's `Conversation` | a message model of our own | 2026-10-19 |
 | 12 | Connect to Pantalytics is required to run, as Mail Pro | an optional pairing | 2026-10-19, Rutger |
+| 14 | AI Pro and MCP Pro are two products: AI Pro never calls `mcp.pantalytics.com`, no Zitadel sign-in from Odoo, the only sign-in is Connect to Pantalytics (Mail Pro's pairing); MCP servers in general stay a later, bearer-token toolset | decision 7 | 2026-10-19, Rutger, after S6: Zitadel's device page is its login v1, whose Microsoft callback Azure does not know, and a sign-in per user was never the product (`scripts/spikes/s6_device_flow/`) |
 | 13 | On Enterprise 20, AI fields keep Odoo's widget, cron and Studio panel; we inherit `_fill_ai_field` on `base` and remove `ai.systray_action`, `ask_ai` and `chat_with_agent` from the registries | replacing `ai_fields`, or patching `ai.utils` | 2026-10-19, **S1 measured the same day** on the Enterprise demo: widget and cron both end in `get_ai_field_value` then `_fill_ai_field` then IAP `get_completions_sync`; `ai.agent` has no provider or model field (`scripts/spikes/s1_seam/`) |
 
 ## 11. Open
@@ -210,6 +209,8 @@ later. The public MCP server stays as it is.
   S2 done 2026-10-19 (decision 4). One rule from it: latency is measured
   against a real server with Playwright, never in `HttpCase`, whose
   `TestCursor` defers the bus to the end of the request.
+  S6 withdrawn 2026-10-19 (decision 14): the device flow itself worked
+  up to the login page; the product did not want it.
   S1 done 2026-10-19 (decision 13). One thing it showed beyond its
   claim: Odoo 20's `ai.session` is itself a slice loop (`loop_state`,
   `request_round`, `resume_token`, `pending_tool_call`), the same shape
