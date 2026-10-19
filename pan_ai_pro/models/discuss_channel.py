@@ -8,7 +8,10 @@ approve, new chat, pick an agent) are the RPCs at the bottom.
 
 import logging
 
+from markupsafe import escape as html_escape
+
 from odoo import _, api, fields, models
+from odoo.addons.mail.tools.discuss import Store
 from odoo.exceptions import AccessError, UserError
 from odoo.tools import html2plaintext
 
@@ -68,7 +71,7 @@ class DiscussChannel(models.Model):
             thread = self.browse(channel_id)._pan_ai_thread()
             agent_id = thread.agent_id.id if thread else None
         if not agent_id:
-            agents = self.env["pan_ai.agent"].search([], limit=50).filtered("may_use")
+            agents = self.env["pan_ai.agent"].search([], limit=50).filtered(lambda a: a.may_use())
             if not agents:
                 raise UserError(_("No agent is open to you. Ask an administrator."))
             agent_id = agents[0].id
@@ -110,11 +113,13 @@ class DiscussChannel(models.Model):
         if not prompt:
             return
         Run = self.env["pan_ai.run"]
+        placeholder = self._pan_ai_agent_message(thread.agent_id, _("Thinking"))
         try:
-            placeholder = self._pan_ai_agent_message(thread.agent_id, _("Thinking"))
             run = Run.start(thread, prompt, kind="chat", message=placeholder)
         except UserError as error:
-            self._pan_ai_agent_message(thread.agent_id, str(error))
+            # The refusal is the agent's answer: in the same bubble, no second one.
+            placeholder.sudo().write({"body": html_escape(str(error))})
+            Store(bus_channel=self.sudo()).add(placeholder, ["body"])
             return
         # The person's message and the placeholder reach the browser now, not
         # at the end of the slice.

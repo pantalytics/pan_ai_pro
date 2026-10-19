@@ -1,6 +1,6 @@
 # AI Pro 20: execution plan
 
-Status: proposed 2026-10-19, waiting for Rutger's go. Companion to
+Status: go 2026-10-19 (Rutger: "werk hele plan uit"); PR D, A and E built the same day, this file ticked as they land. Companion to
 [ai-pro-20.md](ai-pro-20.md) (the why) and
 [../architecture-20.md](../architecture-20.md) (the shape). This file is the
 checklist; tick boxes in commits. Rewritten the same day for the in-Odoo
@@ -82,49 +82,49 @@ architecture-20.md.
 - [ ] branch `20.0` from an empty tree; `19.0` untouched. Manifest
       depends on `web`, `mail`, `base_setup`, `base_automation`; external
       dependency `pydantic_ai`; `requirements.txt` for Odoo.sh
-- [ ] `security/ir.access.csv` (Odoo 20 merged ACLs and record rules into
+- [x] `security/ir.access.csv` (Odoo 20 merged ACLs and record rules into
       `ir.access`: `id,name,model_id,group_id/id,operation,domain`)
-- [ ] `models/agent.py`, `toolset.py`, `tool.py`, `thread.py`, `run.py`
+- [x] `models/agent.py`, `toolset.py`, `tool.py`, `thread.py`, `run.py`
       as architecture-20.md section 2 lists them; `res_config_settings.py`
       (OpenRouter key encrypted with the 19.0 helper, default model,
       retention, allowed MCP hosts)
-- [ ] `data/tools.xml`: the built-in `Tools` (search, read, read_group,
+- [x] `data/tools.xml`: the built-in `Tools` (search, read, read_group,
       create, write, open menu, compute date), each with its JSON schema
       and `requires_approval` on create and write
-- [ ] `runtime/agent.py` `build_agent(record)`; `runtime/deps.py`
+- [x] `runtime/agent.py` `build_agent(record)`; `runtime/deps.py`
       `OdooDeps`; `runtime/odoo_toolset.py` (`FunctionToolset` over
       `deps.env`, server actions with "Use in AI" included by their AI
       schema); `runtime/limits.py`; `runtime/stream.py` (events to JSON
       lines, the approval interrupt, cancel)
-- [ ] `runtime/slices.py`: the loop on `agent.iter()` with the slice
+- [x] `runtime/slices.py`: the loop on `agent.iter()` with the slice
       budget, persist `thread.conversation`, resume; `runtime/stream.py`
       batches events to the bus; `models/run.py` with `kind`, slices,
       worker claim and heartbeat; approval resume with
       `deferred_tool_results` from the card's RPC
 - [ ] (moved to PR E) scheduled, triggered and continuous runs
-- [ ] `models/discuss_channel.py`: channel type `ai`, one channel per
+- [x] `models/discuss_channel.py`: channel type `ai`, one channel per
       (user, agent), the agent's partner, `message_post` starts the run;
       `static/src/chat/`: patches on `mail`'s `Message` (streaming body,
       `ToolRow`, `ApprovalCard`), `Composer` (Stop, the "+" actions through
       `mail.composer/actions`), `ChatWindow` header (New chat, agent
       picker); `Systray` icon and Ctrl+K "Ask AI"; `run_events.js` (the bus
       handler); `markdown.js` (no HTML pass-through, links `rel=noopener`)
-- [ ] Settings > AI Pro: Model (key: Connected / No key, Replace, Remove;
+- [x] Settings > AI Pro: Model (key: Connected / No key, Replace, Remove;
       default model), Limits (runs per user per hour, retention), Danger
       zone (delete all threads). Agents, Toolsets, Tools as list views under
       a Configuration menu
-- [ ] `models/pan_ai_license.py`: Mail Pro's client with the paths
+- [x] `models/pan_ai_license.py`: Mail Pro's client with the paths
       swapped (`/api/v1/ai-pro/link/*`, `/api/v1/ai-pro/heartbeat`),
       pinned Ed25519 public key, 14-day grace. **Required to run:** every
       run start checks the cached entitlement; not connected or revoked
       refuses with "Connect to Pantalytics in Settings". Settings > AI Pro
       gets the Connection row first: Not connected / Connected, Connect to
       Pantalytics, Disconnect
-- [ ] On Enterprise 20: remove the systray item `ai.systray_action`, the
+- [ ] (left) On Enterprise 20: remove the systray item `ai.systray_action`, the
       command providers `ask_ai` and `chat_with_agent` (S1); leave the
       `ai_char` widgets and `ai.client_tools` alone
-- [ ] retention cron: threads older than the setting, runs kept
-- [ ] tests (Odoo `TransactionCase`): `test_agent_build.py` (record to
+- [x] retention cron: threads older than the setting, runs kept
+- [x] tests (Odoo `TransactionCase`): `test_agent_build.py` (record to
       `Agent`), `test_odoo_toolset.py` (ACL respected, AccessError
       returned as tool error, no sudo), `test_run_stream.py` (fake model:
       text, tool call, interrupt, resume, cancel, a second slice),
@@ -134,22 +134,26 @@ architecture-20.md.
 
 ## 2a. Module, PR E: scheduled, triggered and continuous runs
 
-- [ ] server action "Run agent" (agent, prompt with record context, post
+Built 2026-10-19 inside PR A's branch (one module, one PR for now):
+`ir.actions.server` state "Run AI agent", `pan_ai.thread._start_due_ticks`,
+`Run.kind`. Tests in `tests/test_runs.py`.
+
+- [x] server action "Run agent" (agent, prompt with record context, post
       the answer to, create an activity): automation rules and scheduled
       actions call it; `Run.kind` = `triggered` or `scheduled`, `user` =
       the rule's or action's user, never the superuser
-- [ ] two worker crons (`data/ir_cron.xml`), `_trigger()`-woken, a claim
+- [x] two worker crons (`data/ir_cron.xml`), `_trigger()`-woken, a claim
       per thread (an atomic row update, `SerializationFailure` caught),
       heartbeat on every flush, stale recovery, a claim token checked
       before every write (the fence, S4 finding 5), one wake runs every
       claimable slice within `limit_time_real_cron` minus a margin (S4
       findings 2 and 3)
-- [ ] continuous threads: `continuous`, the watch (model, domain, cursor,
+- [x] continuous threads: `continuous`, the watch (model, domain, cursor,
       interval of at least a minute), `next_tick_at` that the claim
       respects (S4 finding 5), the per-tick prompt ("since your last tick:
       N records changed, here they are"), Pause and Stop on the thread's
       form, a history processor that compacts past a token budget
-- [ ] the Runs list view: kind, agent, user, status, cost, duration; a
+- [x] the Runs list view: kind, agent, user, status, cost, duration; a
       thread's form shows its runs
 - [ ] tests: a scheduled run posts its answer, a triggered run gets the
       record, a continuous thread ticks twice and compacts, a paused thread
@@ -184,19 +188,19 @@ architecture-20.md.
 
 ## 5. Platform (admin), PR D: Mail Pro's door for AI Pro
 
-- [ ] `apps/__init__.py`: `AI_PRO = "ai_pro"`, in `PAIRED`, `APP_NAMES`,
+- [x] `apps/__init__.py`: `AI_PRO = "ai_pro"`, in `PAIRED`, `APP_NAMES`,
       `RETURN_PATHS`
-- [ ] `apps/ai_pro.py`: `register_link_routes` on `/api/v1/ai-pro/link`;
+- [x] `apps/ai_pro.py`: `register_link_routes` on `/api/v1/ai-pro/link`;
       heartbeat `/api/v1/ai-pro/heartbeat` through `door.admit` with its own
       request model (db uuid, module and Odoo version, edition, agents
       count, runs in 24 h, errors `[{code, count}]`; nothing that can carry
       a prompt, a record or a thread title); entitlement with `plan`,
       `latest_version`, `message`, same signing key
-- [ ] the module's client is in PR A (required to run); here the server
+- [x] the module's client is in PR A (required to run); here the server
       side, so PR D lands on staging before PR A's gate
-- [ ] instance page: the app tile shows Connected / Not connected and
+- [x] instance page: the app tile shows Connected / Not connected and
       Disconnect
-- [ ] tests: `test_ai_pro_door.py`, `test_db_ai_pro.py` (integration)
+- [x] tests: `test_ai_pro_door.py`, `test_db_ai_pro.py` (integration)
 
 ## 6. CI/CD
 

@@ -6,17 +6,17 @@
                 <t t-foreach="this.panAiStream.tools" t-as="tool" t-key="tool.id">
                     <div class="pan-ai-tool text-muted small d-flex align-items-center gap-1">
                         <i class="fa fa-wrench" t-att-class="{ 'pan-ai-tool-busy': !tool.summary }"/>
-                        <span class="pan-ai-tool-name" t-esc="tool.name"/>
-                        <span t-if="tool.summary" class="pan-ai-tool-summary text-truncate" t-esc="tool.summary"/>
+                        <span class="pan-ai-tool-name" t-out="tool.name"/>
+                        <span t-if="tool.summary" class="pan-ai-tool-summary text-truncate" t-out="tool.summary"/>
                     </div>
                 </t>
-                <div t-if="this.panAiStream.text" class="pan-ai-text" t-esc="this.panAiStream.text"/>
+                <div t-if="this.panAiStream.text" class="pan-ai-text" t-out="this.panAiStream.text"/>
                 <div t-elif="!this.panAiStream.tools.length and this.panAiStream.status === 'running'" class="pan-ai-thinking text-muted small">Thinking</div>
                 <div t-if="this.panAiStream.pending.length" class="pan-ai-approval mt-2">
                     <t t-foreach="this.panAiStream.pending" t-as="call" t-key="call.id">
                         <div class="pan-ai-approval-card border rounded p-2 mb-1">
-                            <div class="small">The agent wants to run <b t-esc="call.name"/></div>
-                            <pre class="pan-ai-approval-args small text-muted mb-1" t-esc="call.args"/>
+                            <div class="small">The agent wants to run <b t-out="call.name"/></div>
+                            <pre class="pan-ai-approval-args small text-muted mb-1" t-out="call.args"/>
                             <div t-if="!this.panAiIsDecided(call)" class="d-flex gap-1">
                                 <button class="btn btn-primary btn-sm pan-ai-approve" t-on-click="() => this.panAiApprove(call, true)">Allow</button>
                                 <button class="btn btn-secondary btn-sm pan-ai-skip" t-on-click="() => this.panAiApprove(call, false)">Skip</button>
@@ -25,7 +25,7 @@
                         </div>
                     </t>
                 </div>
-                <div t-if="this.panAiStream.error" class="pan-ai-error text-danger small mt-1" t-esc="this.panAiStream.error"/>
+                <div t-if="this.panAiStream.error" class="pan-ai-error text-danger small mt-1" t-out="this.panAiStream.error"/>
             </div>
         </xpath>
         <xpath expr="//div[hasclass('o-mail-Message-richBody')]" position="attributes">

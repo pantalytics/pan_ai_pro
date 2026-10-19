@@ -34,6 +34,7 @@ class TestChannel(AiProCase):
     def test_not_connected_answers_in_the_chat(self):
         self.license.sudo().write({"status": "not_connected", "key": False})
         self.fake(["never"])
+        self.assertFalse(self.env["pan_ai.license"].current().is_entitled())
         channel, thread = self.chat(text="hi")
         self.assertFalse(thread.run_ids)
         self.assertIn("Connect to Pantalytics", channel.sudo().message_ids[:1].body)

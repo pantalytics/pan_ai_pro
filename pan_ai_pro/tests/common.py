@@ -54,6 +54,8 @@ class AiProCase(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.env["ir.config_parameter"].sudo().set_str("pan_ai.openrouter_key", "sk-or-test")
+        # the database under test may be connected for real: the test\'s row is the one
+        cls.env["pan_ai.license"].sudo().search([]).unlink()
         cls.license = (
             cls.env["pan_ai.license"]
             .sudo()

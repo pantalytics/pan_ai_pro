@@ -2,11 +2,11 @@
 import { registerThreadAction } from "@mail/core/common/thread_actions";
 import { _t } from "@web/core/l10n/translation";
 
-/** Open a channel in the chat window, bottom right. */
+/** Open a channel: the chat window bottom right, or the pane when inside Discuss. */
 export async function openChannel(store, channelId) {
     const thread = await store["mail.thread"].getOrFetch({ model: "discuss.channel", id: channelId });
     if (thread) {
-        await thread.openChatWindow({ focus: true });
+        await thread.open({ focus: true });
     }
     return thread;
 }

@@ -9,7 +9,6 @@ import { openChannel } from "@pan_ai_pro/chat/thread_actions";
 /** The sparkle top right: one click opens the chat with the default agent. */
 export class AiProSystray extends Component {
     static template = "pan_ai_pro.Systray";
-    static props = {};
 
     setup() {
         this.orm = useService("orm");

@@ -24,7 +24,7 @@ class IrActionsServer(models.Model):
     pan_ai_agent_id = fields.Many2one("pan_ai.agent", string="Agent", ondelete="restrict")
     pan_ai_prompt = fields.Text(
         string="Prompt",
-        help="Inline template: {{ record.name }}, {{ record.partner_id.email }}. Without a record, plain text.",
+        help="Inline template: {{ object.name }}, {{ object.partner_id.email }}. Without a record, plain text.",
     )
     pan_ai_post = fields.Boolean(string="Post the answer on the record", default=True)
     pan_ai_activity = fields.Boolean(string="Create an activity with the answer")

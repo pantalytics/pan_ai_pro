@@ -24,6 +24,7 @@ class TestLicense(TransactionCase):
             serialization.Encoding.Raw, serialization.PublicFormat.Raw
         )
         self.public_b64 = base64.b64encode(public).decode()
+        self.env["pan_ai.license"].sudo().search([]).unlink()
         self.link = self.env["pan_ai.license"].sudo().create({"status": "active", "key": "mp_x"})
         self.db_uuid = self.env["ir.config_parameter"].sudo().get_str("database.uuid")
 

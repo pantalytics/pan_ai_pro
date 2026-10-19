@@ -3,7 +3,7 @@
     <t t-name="pan_ai_pro.Systray">
         <div class="o-dropdown dropdown pan-ai-systray">
             <button class="dropdown-toggle o-dropdown--no-caret" title="Ask AI" aria-label="Ask AI" t-on-click="this.onClick">
-                <i class="fa fa-magic" role="img"/>
+                <i class="oi pan-ai-systray-icon" data-icon="lightbulb" role="img"/>
             </button>
         </div>
     </t>

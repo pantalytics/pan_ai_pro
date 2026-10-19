@@ -8,6 +8,8 @@ limits.
 """
 
 import json
+import logging
+import os
 
 from pydantic_ai import Agent, DeferredToolRequests, RunContext, UsageLimits
 from pydantic_ai.capabilities import WebSearch
@@ -22,7 +24,13 @@ from odoo.exceptions import UserError
 from .deps import OdooDeps
 from .odoo_toolset import build_toolset
 
-# OpenRouter is the only model host. A constant, never a setting.
+_logger = logging.getLogger(__name__)
+
+# OpenRouter is the only model host. A constant, never a setting. The one
+# exception is a stand-in for a browser check or CI (scripts/browser/
+# fake_openrouter.py), named by an environment variable on the server, which
+# the log announces on every run so it can never pass unnoticed.
+ENV_BASE_URL = "PAN_AI_PRO_OPENROUTER_BASE_URL"
 APP_URL = "https://pantalytics.com"
 APP_TITLE = "AI Pro for Odoo"
 DEFAULT_MODEL = "anthropic/claude-sonnet-5.5"
@@ -45,7 +53,20 @@ def model_for(agent_record, env):
         or env["ir.config_parameter"].sudo().get_str("pan_ai.default_model", "")
         or DEFAULT_MODEL
     )
-    provider = OpenRouterProvider(api_key=openrouter_key(env), app_url=APP_URL, app_title=APP_TITLE)
+    base_url = os.environ.get(ENV_BASE_URL, "").strip()
+    if base_url:
+        _logger.warning(
+            "[AI Pro] models answer from %s, not OpenRouter (%s is set)", base_url, ENV_BASE_URL
+        )
+        from openai import AsyncOpenAI
+
+        provider = OpenRouterProvider(
+            openai_client=AsyncOpenAI(base_url=base_url, api_key=openrouter_key(env))
+        )
+    else:
+        provider = OpenRouterProvider(
+            api_key=openrouter_key(env), app_url=APP_URL, app_title=APP_TITLE
+        )
     return OpenRouterModel(name, provider=provider)
 
 

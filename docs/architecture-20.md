@@ -126,9 +126,13 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
                                                        multi-company as is
 ```
 
-- The AI sees what its person sees. No service account, no `sudo` in a
-  tool, no "AI user". An `AccessError` inside a tool is returned to the
-  model as the tool's error, never caught into a wider path.
+- The AI sees what its identity sees. An agent runs as the person who
+  asks, or as a dedicated Odoo user an administrator made for it (`run_as`
+  on the agent, decision 15): that user's groups, record rules and roles
+  are the agent's reach, and governance's scoped roles apply to it like to
+  any user. No `sudo` in a tool, no user with everything. An `AccessError`
+  inside a tool is returned to the model as the tool's error, never caught
+  into a wider path.
 - Who may chat: the groups on the `Agent`. Who may configure: Settings
   administrators (`base.group_system`).
 - No Odoo user ever signs in to Zitadel from Odoo. The module's one
@@ -200,6 +204,8 @@ later. The public MCP server stays as it is.
 | 10 | Runs in slices on Odoo's workers, `agent.iter()` plus `ir.cron._trigger()`, MuK AI's loop shape | a daemon, OCA `queue_job`, DBOS durability | 2026-10-19, **S4 measured the same day** on a prefork server: a chat of 5 slices outlives an 8 s HTTP limit, cron wake 122 to 849 ms, a killed worker's thread is reclaimed, a continuous thread keeps its memory (`scripts/spikes/s4_slices/`) |
 | 11 | `Thread.conversation` is Pydantic AI's `Conversation` | a message model of our own | 2026-10-19 |
 | 12 | Connect to Pantalytics is required to run, as Mail Pro | an optional pairing | 2026-10-19, Rutger |
+| 15 | An agent is an identity: `run_as` is the person who asks or a dedicated Odoo user whose groups, record rules and roles (governance's `res.users.role` when installed) are the agent's reach; chosen per agent by an administrator; never `sudo`, never a user with everything | one identity for every run (first draft of decision 5) | 2026-10-19, Rutger: "wie de agent aanstuurt kan een mens zijn of een autonome agent, met andere rechten" |
+| 16 | The OpenRouter key sits in `ir.config_parameter`, system group only, never shown back (last four) | "encrypted with the 19.0 helper" (the plan): 19.0 had no such helper | 2026-10-19, found while porting |
 | 14 | AI Pro and MCP Pro are two products: AI Pro never calls `mcp.pantalytics.com`, no Zitadel sign-in from Odoo, the only sign-in is Connect to Pantalytics (Mail Pro's pairing); MCP servers in general stay a later, bearer-token toolset | decision 7 | 2026-10-19, Rutger, after S6: Zitadel's device page is its login v1, whose Microsoft callback Azure does not know, and a sign-in per user was never the product (`scripts/spikes/s6_device_flow/`) |
 | 13 | On Enterprise 20, AI fields keep Odoo's widget, cron and Studio panel; we inherit `_fill_ai_field` on `base` and remove `ai.systray_action`, `ask_ai` and `chat_with_agent` from the registries | replacing `ai_fields`, or patching `ai.utils` | 2026-10-19, **S1 measured the same day** on the Enterprise demo: widget and cron both end in `get_ai_field_value` then `_fill_ai_field` then IAP `get_completions_sync`; `ai.agent` has no provider or model field (`scripts/spikes/s1_seam/`) |
 

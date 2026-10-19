@@ -31,7 +31,7 @@ $pan-ai-accent: #9b99ff;
         }
     }
 }
-.pan-ai-systray .fa-magic {
+.pan-ai-systray .pan-ai-systray-icon {
     color: $pan-ai-accent;
 }
 @keyframes pan-ai-pulse {
@@ -40,4 +40,13 @@ $pan-ai-accent: #9b99ff;
 }
 @media (prefers-reduced-motion: reduce) {
     .pan-ai-tool-busy, .pan-ai-thinking::after { animation: none; }
+}
+// Tables in an agent's answer: Odoo's sanitizer keeps the table, not its look.
+.o-mail-Message-richBody table {
+    border-collapse: collapse;
+    margin: 0.25rem 0;
+    th, td {
+        border: 1px solid var(--border-color, #dee2e6);
+        padding: 0.15rem 0.5rem;
+    }
 }

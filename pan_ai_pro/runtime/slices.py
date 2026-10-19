@@ -80,6 +80,10 @@ def run_slice(run, token, where):
     except UserError as error:
         _fail(run, stream, str(error))
         return
+    except Exception as error:  # noqa: BLE001 - a bad agent row or a bad dependency lands on the run
+        _logger.exception("[AI Pro] run %s: could not build the agent", run.id)
+        _fail(run, stream, _("The agent could not be built: %s", type(error).__name__))
+        return
     history = ModelMessagesTypeAdapter.validate_python(thread.messages()) or None
     prompt = run.prompt or None
     deferred = None
