@@ -405,7 +405,8 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
       push (`.github/workflows/mirror.yml`, a force push: the old `19.0`
       history is the retired provider clients). Nobody commits to a mirror;
       odoo.pantalytics.com keeps its `19.0` attachment and gets the module
-      on its next pull
+      on its next pull. Measured after #11 merged: the first run put `19.0`
+      and `20.0` on main's head (9552bf1)
 - [ ] the default branch switched to `main` on GitHub (a repository
       setting, Rutger)
 - [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the
