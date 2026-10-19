@@ -10,6 +10,7 @@ page logged a JavaScript error or no answer came.
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -24,7 +25,9 @@ HERE = Path(__file__).parent
 def main():
     errors = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(executable_path="/opt/pw-browsers/chromium")
+        # Playwright's own Chromium unless CHROMIUM_EXECUTABLE points at another.
+        executable = os.environ.get("CHROMIUM_EXECUTABLE")
+        browser = p.chromium.launch(**({"executable_path": executable} if executable else {}))
         page = browser.new_context(viewport={"width": 1280, "height": 900}).new_page()
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on(
