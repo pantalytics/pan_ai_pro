@@ -62,7 +62,7 @@ Sources: [release notes](https://www.odoo.com/odoo-20-release-notes),
 ## 3. The shape
 
 ```
-browser (OWL window) ──SSE, Vercel AI data stream──> platform /api/v1/ai-pro/chat
+browser (OWL window) ──AG-UI events over SSE──────> platform /api/v1/ai-pro/chat
         │                                                  │ Pydantic AI, OpenRouter
         │ JSON-RPC /pan_ai/token (15 min member token)      │ McpToolset pinned to this Odoo,
         ▼                                                  │ run as this Odoo user
@@ -71,10 +71,22 @@ Odoo: pan_ai_pro ──daily heartbeat, pairing key──> platform  │
         └────────── external API, the user's own key ── Odoo MCP Pro tools
 ```
 
-- **Transport.** The browser talks to the platform directly. Pydantic AI's
-  `VercelAIAdapter` streams text deltas, tool input, tool output, sources and
-  approvals as SSE; we write the 100-line parser in the OWL component, no
-  Vercel SDK. No Odoo worker is held, no bus, no commits per token.
+- **Protocol.** AG-UI, the open agent-to-frontend event standard (16 typed
+  events: run and step lifecycle, text message start/content/end, tool call
+  start/args/end, state snapshot and JSON Patch delta, custom). Pydantic AI
+  ships `AGUIAdapter` with approvals (`RUN_FINISHED` with outcome
+  `interrupt`, the client resumes with `resume[]`) and shared state
+  (`StateDeps`). Vendor-neutral: Oracle's Open Agent Spec, Google's A2UI and
+  Microsoft's Agent Framework align on it, CopilotKit consumes it. The Vercel
+  AI data stream was the alternative; it is one vendor's wire format and we
+  would need none of its React side.
+- **Transport.** One POST per run, the reply a request-scoped SSE stream,
+  cancel by closing it. The browser talks to the platform directly. No Odoo
+  worker is held, no bus, no commits per token. The OWL component gets a
+  small event parser of its own (the `@ag-ui/client` package is TypeScript
+  on RxJS, too much to vendor into Odoo assets). WebSocket is reserved for
+  what needs a return channel mid-run, which is voice, and voice is not in
+  v1. See the transport note in section 9.
 - **Identity.** The installation pairs once (Mail Pro's `pairing.py`,
   `door.py`; `PAIRED` gains `AI_PRO`). Per Odoo user, on first chat, the
   module mints an Odoo API key server-side and registers it with the platform
@@ -91,7 +103,7 @@ Odoo: pan_ai_pro ──daily heartbeat, pairing key──> platform  │
 - **Reads and writes.** One switch on the module's settings row: "May change
   data" off by default. Off: the read toolset. On: writes, and every write
   tool gets `requires_approval`, which the window shows as a confirmation
-  card (the Vercel protocol carries approvals natively).
+  card (AG-UI carries the interrupt and the resume natively).
 
 ## 4. The window
 
@@ -132,13 +144,15 @@ fails, dated in this file when done.
    whether Enterprise AI fields route to us or Enterprise gets Community's
    property-field path too.
 2. **SSE from the Odoo backend.** A `main_components` component in Odoo 20
-   Community opens an `EventSource`-style fetch to `mcp.pantalytics.com`.
-   CORS, CSP, cookies, and the Vercel event parse with tool rows and an
-   approval round trip. Measures the 100 ms first-paint rule.
+   Community POSTs to `mcp.pantalytics.com` and reads the SSE stream with
+   `fetch`. CORS, CSP, cookies, the AG-UI event parse with tool rows, and an
+   approval round trip (`interrupt`, then `resume[]`). Measures the 100 ms
+   first-paint rule and time to first event.
 3. **Streaming through the runner.** `runner.run` uses `agent.run`;
-   `VercelAIAdapter.dispatch_request` wants `run_stream_events`. Keep
+   `AGUIAdapter.dispatch_request` wants `run_stream_events`. Keep
    `agent_runs`, limits, timeout and cost; add `on_complete`. Confirm the
-   `McpToolset` streams tool input and output events.
+   `McpToolset` streams `TOOL_CALL_*` events and that `ag-ui-protocol` is
+   at least 0.1.19 (older versions drop the approval resume silently).
 4. **Code execution.** Which of Pydantic AI workspaces, Anthropic's server
    tool through OpenRouter, or neither, actually streams through the adapter
    on Sonnet, GPT and Gemini. If neither streams, v1 ships web search only
@@ -169,3 +183,29 @@ tool layer.
 Who is the chat user on the bill? An Odoo user who chats is not a workspace
 member. Assumption until told otherwise: chats run on the workspace's own
 OpenRouter key and count no seat while in beta, the same stance as Agents.
+
+## 9. Transport note (checked 2026-10-19)
+
+"Is SSE outdated?" No. What was retired is MCP's old two-endpoint HTTP+SSE
+transport (spec 2025-03-26). The current MCP revision, 2026-07-28, went
+further the same way: no standalone GET stream, no protocol sessions, no
+resumability; each JSON-RPC message is one POST and the reply is a JSON
+object or a request-scoped SSE stream, cancel by closing it
+([spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports),
+[TrueFoundry on the wire protocol](https://www.truefoundry.com/blog/mcp-streamable-http-wire-protocol)).
+OpenAI, Anthropic, OpenRouter, the Vercel AI SDK and both Pydantic AI UI
+adapters stream over SSE. OpenAI's WebSocket mode (2026) sits between the
+agent runtime and the inference API, not between agent and browser, and
+OpenRouter does not offer it. WebTransport reached every browser in March
+2026 and is built for unreliable datagrams, not for a text stream.
+
+The 2026 consensus, also from the WebSocket vendors: SSE for agent to
+browser, AG-UI as the event vocabulary on top, WebSocket only for a return
+channel mid-run (voice, collaborative editing)
+([zylos.ai on AG-UI convergence](https://zylos.ai/research/2026-05-03-agent-frontend-streaming-protocols-ag-ui-convergence/),
+[laramateo.com, SSE vs WebSocket vs WebTransport](https://laramateo.com/blog/sse-vs-websocket-vs-webtransport-how-to-choose-in-2026),
+[websocket.org on AI streaming](https://websocket.org/guides/use-cases/ai-streaming/),
+[Pydantic AI AG-UI](https://pydantic.dev/docs/ai/integrations/ui/ag-ui/),
+[AG-UI architecture](https://docs.ag-ui.com/concepts/architecture)).
+Our stack is that consensus: AG-UI over request-scoped SSE, the same shape
+as MCP itself. If voice comes, it gets a WebSocket beside it, not instead.
