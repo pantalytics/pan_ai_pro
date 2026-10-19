@@ -22,6 +22,7 @@ from odoo import _, fields
 from odoo.exceptions import UserError
 
 from .deps import OdooDeps
+from .mcp_toolset import build_mcp_toolset
 from .odoo_toolset import build_toolset
 
 _logger = logging.getLogger(__name__)
@@ -116,6 +117,12 @@ def context_instructions(ctx: RunContext[OdooDeps]) -> str:
     return "\n".join(lines)
 
 
+def toolset_for(toolset_record, env):
+    if toolset_record.kind == "mcp":
+        return build_mcp_toolset(toolset_record, env)
+    return build_toolset(toolset_record, env)
+
+
 def build_agent(agent_record, env):
     """The `Agent`. `env` is the run user's env, used for the key and the toolsets."""
     capabilities = []
@@ -129,7 +136,7 @@ def build_agent(agent_record, env):
         model_for(agent_record, env),
         instructions=[agent_record.instructions or "", context_instructions],
         toolsets=[
-            build_toolset(toolset, env) for toolset in agent_record.toolset_ids if toolset.active
+            toolset_for(toolset, env) for toolset in agent_record.toolset_ids if toolset.active
         ],
         capabilities=capabilities,
         output_type=output_type(agent_record),

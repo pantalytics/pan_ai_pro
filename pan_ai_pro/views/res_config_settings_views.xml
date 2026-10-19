@@ -83,6 +83,9 @@
                         <setting id="pan_ai_retention_setting" string="Keep chats for" help="Days. Older chats are deleted nightly; runs are kept.">
                             <field name="pan_ai_retention_days" nolabel="1"/>
                         </setting>
+                        <setting id="pan_ai_mcp_hosts_setting" string="Allowed MCP hosts" help="An MCP toolset connects only to a host named here. Comma separated.">
+                            <field name="pan_ai_mcp_allowed_hosts" nolabel="1" placeholder="mcp.example.com"/>
+                        </setting>
                     </block>
 
                     <block title="Danger zone" name="pan_ai_danger_block">

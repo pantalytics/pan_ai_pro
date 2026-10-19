@@ -209,6 +209,8 @@ later. The public MCP server stays as it is.
 | 14 | AI Pro and MCP Pro are two products: AI Pro never calls `mcp.pantalytics.com`, no Zitadel sign-in from Odoo, the only sign-in is Connect to Pantalytics (Mail Pro's pairing); MCP servers in general stay a later, bearer-token toolset | decision 7 | 2026-10-19, Rutger, after S6: Zitadel's device page is its login v1, whose Microsoft callback Azure does not know, and a sign-in per user was never the product (`scripts/spikes/s6_device_flow/`) |
 | 13 | On Enterprise 20, AI fields keep Odoo's widget, cron and Studio panel; we inherit `_fill_ai_field` on `base` and remove `ai.systray_action`, `ask_ai` and `chat_with_agent` from the registries | replacing `ai_fields`, or patching `ai.utils` | 2026-10-19, **S1 measured the same day** on the Enterprise demo: widget and cron both end in `get_ai_field_value` then `_fill_ai_field` then IAP `get_completions_sync`; `ai.agent` has no provider or model field (`scripts/spikes/s1_seam/`) |
 
+The brand's Product UI rules, applied item by item: [brand.md](brand.md).
+
 ## 11. Open
 
 - Spike results (plan, section 6) may move boxes; each result lands here.

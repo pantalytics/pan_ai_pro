@@ -31,8 +31,13 @@ $pan-ai-accent: #9b99ff;
         }
     }
 }
+// The brand's own app icon (brand.pantalytics.com, app icons: one ring, one
+// object, one accent), the same file the Apps page and the menu show.
 .pan-ai-systray .pan-ai-systray-icon {
-    color: $pan-ai-accent;
+    height: 22px;
+    width: 22px;
+    border-radius: 50%;
+    vertical-align: middle;
 }
 @keyframes pan-ai-pulse {
     0%, 100% { opacity: 1; }

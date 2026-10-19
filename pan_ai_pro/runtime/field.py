@@ -16,9 +16,8 @@ from odoo import _, fields
 from odoo.exceptions import UserError
 
 from ..tools import commit
-from .agent import context_instructions, model_for, model_settings
+from .agent import context_instructions, model_for, model_settings, toolset_for
 from .deps import OdooDeps
-from .odoo_toolset import build_toolset
 
 _logger = logging.getLogger(__name__)
 
@@ -151,7 +150,7 @@ def fill(records, ir_field, caller):
     agent = Agent(
         model_for(agent_record, env),
         instructions=[INSTRUCTIONS, agent_record.instructions or "", context_instructions],
-        toolsets=[build_toolset(ts, env) for ts in agent_record.toolset_ids if ts.active]
+        toolsets=[toolset_for(ts, env) for ts in agent_record.toolset_ids if ts.active]
         if ir_field.pan_ai_use_tools
         else [],
         output_type=StructuredDict(schema_for(ir_field)),

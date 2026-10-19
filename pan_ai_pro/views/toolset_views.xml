@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="kind"/>
                 <field name="description"/>
                 <field name="tool_count" string="Tools"/>
                 <field name="requires_approval"/>
@@ -22,11 +23,20 @@
                     <field name="active" invisible="1"/>
                     <div class="oe_title"><h1><field name="name" placeholder="Odoo"/></h1></div>
                     <group>
-                        <field name="description"/>
-                        <field name="requires_approval"/>
-                        <field name="agent_ids" widget="many2many_tags"/>
+                        <group>
+                            <field name="kind" widget="radio"/>
+                            <field name="description"/>
+                            <field name="requires_approval"/>
+                            <field name="agent_ids" widget="many2many_tags"/>
+                        </group>
+                        <group string="MCP server" invisible="kind != 'mcp'">
+                            <field name="url" required="kind == 'mcp'" placeholder="https://example.com/mcp"/>
+                            <field name="bearer_token" password="True" groups="base.group_system"/>
+                            <field name="allowed_tool_names" placeholder="search, read"/>
+                            <field name="tool_prefix" placeholder="crm"/>
+                        </group>
                     </group>
-                    <field name="tool_ids">
+                    <field name="tool_ids" invisible="kind != 'odoo'">
                         <list editable="bottom">
                             <field name="sequence" widget="handle"/>
                             <field name="name"/>

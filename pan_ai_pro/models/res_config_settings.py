@@ -44,6 +44,11 @@ class ResConfigSettings(models.TransientModel):
         default=90,
         help="0 keeps them forever. Runs are kept.",
     )
+    pan_ai_mcp_allowed_hosts = fields.Char(
+        string="Allowed MCP hosts",
+        config_parameter="pan_ai.mcp_allowed_hosts",
+        help="Comma separated. An MCP toolset may only connect to a host named here.",
+    )
     # Connection
     pan_ai_state = fields.Selection(STATE_SELECTION, compute="_compute_pan_ai_link")
     pan_ai_link_status = fields.Selection(STATUS_SELECTION, compute="_compute_pan_ai_link")

@@ -180,18 +180,24 @@ Enterprise seam is `pan_ai_pro_enterprise` (auto installs with
       schema, no toolsets unless the field says so, 60 s
 - [x] tests with a fake model, both editions' paths
 
-## 4. Module, PR C (last, only when a customer asks): generic MCP toolsets
+## 4. Module, PR C: generic MCP toolsets
 
-- [ ] `runtime/mcp_toolset.py`: `MCPServerStreamableHTTP(url, headers)`
+Built 2026-10-19 in PR A's branch, bearer token only: `pan_ai.toolset`
+kind `mcp` (url, token, allowed tool names, prefix), `runtime/mcp_toolset.py`
+on Pydantic AI's `MCPToolset`, the host gate (allowed hosts in Settings,
+private addresses refused), tested against a real MCP server on a local
+port (`tests/test_mcp_toolset.py`).
+
+- [x] `runtime/mcp_toolset.py`: `MCPServerStreamableHTTP(url, headers)`
       per `pan_ai.toolset` of kind `mcp`, `FilteredToolset` on
       `allowed_tool_names`, `tool_prefix`, `requires_approval` per tool;
       the SSRF gate (copied from the public server) on every URL, plus the
       allowed hosts setting
-- [ ] auth `bearer` only: one token per toolset row, encrypted, pasted by
+- [x] auth `bearer` only: one token per toolset row, encrypted, pasted by
       a Settings administrator. No token per user, no Zitadel, no MCP Pro
       (decision 14)
-- [ ] the window's tool rows show the server's name for MCP tools
-- [ ] tests: a local MCP server in the test (the public `mcp` package),
+- [x] the window's tool rows show the tool's name (the prefix carries the server's)
+- [x] tests: a local MCP server in the test (the public `mcp` package),
       filter, prefix, refused host, token refresh
 
 ## 5. Platform (admin), PR D: Mail Pro's door for AI Pro
@@ -330,7 +336,7 @@ find answered.
 |---|---|
 | Spikes S1 to S6 | results dated in architecture-20.md |
 | PR D (platform door) | admin CI green, staging walk: pair a stub, heartbeat, entitlement verifies. Lands first: PR A cannot run without it |
-| PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper connected to staging with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan |
+| PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper connected to staging with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan. 2026-10-19: the browser check and the suite are green locally (`scripts/browser/shot_desktop.png`); attaching this branch to a Cloudpepper instance from the session was refused by its permission gate, so the Cloudpepper walk is Rutger's |
 | PR E (runs) | CI green, a scheduled run and a triggered run seen by hand, a continuous thread watched for a day on staging |
 | PR B (fields) | CI green, Enterprise and Community field each computed once by hand |
 | PR C (generic MCP toolsets, if ever) | CI green, one public MCP server as a toolset from a real Odoo, one tool called by hand |
