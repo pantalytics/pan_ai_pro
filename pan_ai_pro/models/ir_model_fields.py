@@ -11,6 +11,7 @@ import re
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+from odoo.tools.sql import column_exists
 
 _logger = logging.getLogger(__name__)
 
@@ -93,7 +94,23 @@ class IrModelFields(models.Model):
 
     @api.model
     def pan_ai_fields_of(self, model_name):
+        if not self._pan_ai_column_ready():
+            return self.browse()
         return self.sudo().search([("model", "=", model_name), ("pan_ai_is_ai", "=", True)])
+
+    @api.model
+    def _pan_ai_column_ready(self):
+        """False while the module's code is on disk but its upgrade has not run:
+        a host pulls the code first and upgrades later, and in between the
+        column is not there. Every write would fail on it (measured on
+        odoo.pantalytics.com, 2026-10-19). Only a True answer is kept."""
+        registry = self.env.registry
+        if getattr(registry, "_pan_ai_column_ready", False):
+            return True
+        ready = column_exists(self.env.cr, "ir_model_fields", "pan_ai_is_ai")
+        if ready:
+            registry._pan_ai_column_ready = True
+        return ready
 
     def action_pan_ai_fill_all(self):
         """Fill now: every record whose value is empty, this field. Runs on the
