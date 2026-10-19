@@ -3,20 +3,32 @@ name: release
 on:
   push:
     tags: ['20.0.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The manifest's version, e.g. 20.0.1.0.0. The run makes the tag."
+        required: true
 
 jobs:
   zip:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
     steps:
       - uses: actions/checkout@v6
-      - name: The version in the manifest is the tag
+      - name: The version in the manifest is the one released
+        run: grep -q "\"version\": \"${VERSION}\"" pan_ai_pro/__manifest__.py
+      - name: Tag, on a manual run
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          grep -q "\"version\": \"${GITHUB_REF_NAME}\"" pan_ai_pro/__manifest__.py
+          git tag "${VERSION}"
+          git push origin "refs/tags/${VERSION}"
       - run: |
-          zip -r pan_ai_pro-${GITHUB_REF_NAME}.zip pan_ai_pro pan_ai_pro_enterprise -x '*/__pycache__/*' '*/tests/*'
+          zip -r pan_ai_pro-${VERSION}.zip pan_ai_pro pan_ai_pro_enterprise -x '*/__pycache__/*' '*/tests/*'
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.VERSION }}
           files: pan_ai_pro-*.zip
           generate_release_notes: true
