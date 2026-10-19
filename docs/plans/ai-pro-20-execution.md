@@ -379,7 +379,7 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
 
 - [x] S7: the 20.0 module on a real Odoo 19 (`odoo/odoo` 19.0 clone): five
       breaks, all small, listed in the spike
-- [x] manifest version without the Odoo prefix (`1.1.0`); Odoo prefixes its
+- [x] manifest version without the Odoo prefix (`2.0.0`); Odoo prefixes its
       own serie, 19 refuses a `20.0.` version outright
 - [x] `pan_ai_pro/compat.py`: `params(env)` with 20's typed getters on 19's
       `get_param`; the one file that may branch on the version
@@ -403,10 +403,19 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
       same evening: Odoo.sh and Cloudpepper attach a branch named after the
       Odoo version, so `19.0` and `20.0` stay and mirror `main` on every
       push (`.github/workflows/mirror.yml`, a force push: the old `19.0`
-      history is the retired provider clients). Nobody commits to a mirror;
-      odoo.pantalytics.com keeps its `19.0` attachment and gets the module
-      on its next pull. Measured after #11 merged: the first run put `19.0`
-      and `20.0` on main's head (9552bf1)
+      history is the retired provider clients). Nobody commits to a mirror.
+      Measured after #11 merged: the first run put `19.0` and `20.0` on
+      main's head (9552bf1)
+- [x] odoo.pantalytics.com, measured the hard way the same evening (#13): it
+      ran the old `pan_ai_pro` 1.6.1, the provider client, with `pan_crm_pro`
+      on top. A pull of `19.0` put the one module on disk without an upgrade
+      and every write failed on the missing `pan_ai_is_ai` column. Restored
+      on `19.0-legacy` (the 1.6.1 files over main). Two rules from it: the
+      version is `2.0.0`, above every 1.6.x install, so a host's auto-upgrade
+      and Odoo's own banner see a newer module (a pull with auto-upgrade on
+      a clone did nothing at `1.1.0`, twice); and `pan_ai_fields_of` answers
+      empty while the column is not there, so a pull before the upgrade no
+      longer breaks writes
 - [ ] the default branch switched to `main` on GitHub (a repository
       setting, Rutger)
 - [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the
