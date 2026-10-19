@@ -11,6 +11,19 @@ index b28e09a..6426884 100644
    },
    "style-pro": {
      label: "Style Pro",
+diff --git a/src/components/ProductUI.astro b/src/components/ProductUI.astro
+index 7486483..bba72aa 100644
+--- a/src/components/ProductUI.astro
++++ b/src/components/ProductUI.astro
+@@ -79,7 +79,7 @@ const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
+     </tr>
+   </thead>
+   <tbody>
+-    {range(7).map((i) => (
++    {range(8).map((i) => (
+       <tr>
+         <td><strong>{t(`ui.term.${i}.say`)}</strong></td>
+         <td>{t(`ui.term.${i}.means`)}</td>
 diff --git a/src/i18n/en.json b/src/i18n/en.json
 index 60ae691..9c28a05 100644
 --- a/src/i18n/en.json
