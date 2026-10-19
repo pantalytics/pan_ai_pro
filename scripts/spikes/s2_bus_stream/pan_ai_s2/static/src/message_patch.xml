@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="pan_ai_s2.Message" t-inherit="mail.Message" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o-mail-Message-richBody')]" position="before">
+            <div t-if="this.panAiStream" class="pan-ai-stream">
+                <t t-foreach="this.panAiStream.tools" t-as="tool" t-key="tool.id">
+                    <div class="text-muted small pan-ai-tool">
+                        <i class="fa fa-wrench me-1"/>
+                        <t t-if="tool.summary"><t t-esc="tool.name"/>: <t t-esc="tool.summary"/></t>
+                        <t t-else=""><t t-esc="tool.name"/>…</t>
+                    </div>
+                </t>
+                <div t-if="this.panAiStream.text" class="pan-ai-text" style="white-space: pre-wrap" t-esc="this.panAiStream.text"/>
+                <div t-elif="!this.panAiStream.tools.length" class="text-muted small">Thinking</div>
+            </div>
+        </xpath>
+        <xpath expr="//div[hasclass('o-mail-Message-richBody')]" position="attributes">
+            <attribute name="t-elif">this.message.hasTextContent and this.message.richBody and !this.message.linkPreviewSquash and !this.panAiStream</attribute>
+        </xpath>
+    </t>
+</templates>

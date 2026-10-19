@@ -26,12 +26,11 @@ architecture-20.md.
 - [ ] **S1 Enterprise 20 seam.** On a 20 Enterprise staging database
       (Cloudpepper): where `ai_fields` asks for a value, the registry names
       of the native AI systray item and the Ctrl+K command.
-- [ ] **S2 Streaming through the bus into a `mail` message.** The `ai`
-      channel type on Odoo 20 Community, a patched `Message` that grows
-      from `pan_ai.run_event` on the partner channel, commit cadence
-      100 ms, first token on screen under 300 ms after the model's first
-      byte, Stop mid-run, the final body written once. On Odoo.sh and
-      Cloudpepper.
+- [x] **S2 Streaming through the bus into a `mail` message.** Done
+      2026-10-19 locally, claim holds: first token 50 ms after the server
+      sent it, slowest batch 97 ms, Stop mid-run, final body written once,
+      two messages on the channel. `scripts/spikes/s2_bus_stream/`. Left
+      for S4's hosts: the same `measure.py` on Odoo.sh and Cloudpepper.
 - [ ] **S3 The dependency.** `pydantic-ai-slim[openai,mcp]` on Odoo.sh via
       `requirements.txt` and on Cloudpepper; import inside a worker;
       `asyncio.run` per request; memory per worker before and after.
@@ -173,9 +172,13 @@ architecture-20.md.
       requirements.txt`, `odoo -i pan_ai_pro --test-enable
       --stop-after-init`) on Community; the tour runs there
 - [ ] `.github/workflows/browser.yml`: Playwright drives the dockerised
-      Odoo against `scripts/browser/fake_openrouter.py` (an OpenAI-compatible
-      stub that streams text and one tool call), `fake_platform.py` (start,
-      poll, a signed entitlement with a test key) and a local MCP stub;
+      Odoo (a real server, not `HttpCase`: its `TestCursor` defers the bus
+      to the end of the request, so latency there is fiction, S2) against
+      `scripts/browser/fake_openrouter.py` (an OpenAI-compatible stub that
+      streams text and one tool call), `fake_platform.py` (start, poll, a
+      signed entitlement with a test key) and a local MCP stub; asserts
+      the S2 numbers (first token under 300 ms after send by the server,
+      slowest batch under 500 ms);
       screenshots at desktop and 390 px as the artifact, Mail Pro's
       `check_flow.py` as the shape
 - [ ] `.github/workflows/gitleaks.yml`, copied from admin

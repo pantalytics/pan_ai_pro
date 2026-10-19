@@ -190,7 +190,7 @@ later. The public MCP server stays as it is.
 | 1 | Pydantic AI inside Odoo | a brain on the platform (first draft, same day) | 2026-10-19 |
 | 2 | Records named as Pydantic AI names them | Odoo 20's agent / skills / sources / triggers | 2026-10-19 |
 | 3 | Odoo's own `mail` chat window on an `ai` channel, patched for streaming, tool rows and approvals | a window of our own (second draft), MuK AI's client, a web component | 2026-10-19 |
-| 4 | Run events batched over the bus into the message | an SSE route of our own (second draft), WebSocket | 2026-10-19, pending S2 |
+| 4 | Run events batched over the bus into the message | an SSE route of our own (second draft), WebSocket | 2026-10-19, **S2 measured the same day**: first token 50 ms after the server sent it, slowest batch 97 ms, Stop works, final body written once (`scripts/spikes/s2_bus_stream/`) |
 | 5 | Identity is the Odoo session; tools through `env` | per-user API keys, members per Odoo user | 2026-10-19 |
 | 6 | OpenRouter as the one provider, key per database | provider registry with three request formats (19.0) | 2026-10-19 |
 | 7 | MCP Pro as an MCP toolset, Zitadel device flow for the token | pairing per user, a platform-side identity | 2026-10-19, pending S6 |
@@ -203,4 +203,7 @@ later. The public MCP server stays as it is.
 ## 11. Open
 
 - Spike results (plan, section 6) may move boxes; each result lands here.
+  S2 done 2026-10-19 (decision 4). One rule from it: latency is measured
+  against a real server with Playwright, never in `HttpCase`, whose
+  `TestCursor` defers the bus to the end of the request.
 - Tiers in the entitlement: what Free gets. After the beta.
