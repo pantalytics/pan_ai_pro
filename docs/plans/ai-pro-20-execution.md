@@ -26,18 +26,22 @@ architecture-20.md.
 - [ ] **S1 Enterprise 20 seam.** On a 20 Enterprise staging database
       (Cloudpepper): where `ai_fields` asks for a value, the registry names
       of the native AI systray item and the Ctrl+K command.
-- [ ] **S2 SSE from an Odoo controller.** A `type='http'` route returns a
-      generator; the generator opens `registry.cursor()`, builds an `env` for
-      `request.env.user`, runs `agent.run_stream_events` and yields one JSON
-      line per event. Through Odoo.sh and Cloudpepper unbuffered
-      (`X-Accel-Buffering: no`, flush per event), first event under 100 ms,
-      cancel on client disconnect. The bus measured as fallback.
+- [ ] **S2 Streaming through the bus into a `mail` message.** The `ai`
+      channel type on Odoo 20 Community, a patched `Message` that grows
+      from `pan_ai.run_event` on the partner channel, commit cadence
+      100 ms, first token on screen under 300 ms after the model's first
+      byte, Stop mid-run, the final body written once. On Odoo.sh and
+      Cloudpepper.
 - [ ] **S3 The dependency.** `pydantic-ai-slim[openai,mcp]` on Odoo.sh via
       `requirements.txt` and on Cloudpepper; import inside a worker;
       `asyncio.run` per request; memory per worker before and after.
-- [ ] **S4 Workers and time.** A 5-minute run under `limit_time_real` and
-      `limit_time_cpu` on both hosts; what the window shows when a worker
-      is recycled mid-run; how `UsageLimits` time limit caps it first.
+- [ ] **S4 Slices.** `agent.iter()` stopped at a rounds-and-seconds
+      budget, the `Conversation` persisted, resumed on a worker cron woken
+      with `ir.cron._trigger()`; a 10-minute chat survives `limit_time_real`
+      on both hosts; a killed worker's thread is recovered by the
+      heartbeat; a continuous thread ticks for an hour on a watch and
+      compacts once. MuK AI's `session_loop.py` and `session_worker.py`
+      read first.
 - [ ] **S5 Built-in tools.** `WebSearchTool` and `CodeExecutionTool`
       through OpenRouter on Sonnet, GPT and Gemini; the OpenRouter `web`
       plugin as the fallback that works on every model.
@@ -64,16 +68,19 @@ architecture-20.md.
       `deps.env`, server actions with "Use in AI" included by their AI
       schema); `runtime/limits.py`; `runtime/stream.py` (events to JSON
       lines, the approval interrupt, cancel)
-- [ ] `controllers/run.py`: `POST /pan_ai/run` (internal users, CSRF,
-      the agent's groups): start a run, or resume one with
-      `deferred_tool_results`; `GET /pan_ai/threads`, `GET /pan_ai/threads/<id>`
-- [ ] server action "Run agent" (prompt with record context) so automation
-      rules and scheduled actions trigger an agent; its runs land in
-      `pan_ai.run` with `user` = the rule's user
-- [ ] `static/src/chat/`: `ChatWindow` (main_components, bottom-right,
-      folds to a bubble), `Systray`, Ctrl+K command "Ask AI", `events.js`
-      (the parser), `markdown.js` (no HTML pass-through, links
-      `rel=noopener`), `ApprovalCard`, `ToolRow`, `ThreadList`, agent picker
+- [ ] `runtime/slices.py`: the loop on `agent.iter()` with the slice
+      budget, persist `thread.conversation`, resume; `runtime/stream.py`
+      batches events to the bus; `models/run.py` with `kind`, slices,
+      worker claim and heartbeat; approval resume with
+      `deferred_tool_results` from the card's RPC
+- [ ] (moved to PR E) scheduled, triggered and continuous runs
+- [ ] `models/discuss_channel.py`: channel type `ai`, one channel per
+      (user, agent), the agent's partner, `message_post` starts the run;
+      `static/src/chat/`: patches on `mail`'s `Message` (streaming body,
+      `ToolRow`, `ApprovalCard`), `Composer` (Stop, the "+" actions through
+      `mail.composer/actions`), `ChatWindow` header (New chat, agent
+      picker); `Systray` icon and Ctrl+K "Ask AI"; `run_events.js` (the bus
+      handler); `markdown.js` (no HTML pass-through, links `rel=noopener`)
 - [ ] Settings > AI Pro: Model (key: Connected / No key, Replace, Remove;
       default model), Limits (runs per user per hour, retention), Danger
       zone (delete all threads). Agents, Toolsets, Tools as list views under
@@ -83,9 +90,29 @@ architecture-20.md.
 - [ ] tests (Odoo `TransactionCase`): `test_agent_build.py` (record to
       `Agent`), `test_odoo_toolset.py` (ACL respected, AccessError
       returned as tool error, no sudo), `test_run_stream.py` (fake model:
-      text, tool call, interrupt, resume, cancel), `test_controller.py`
-      (CSRF, portal user 403, groups), `test_retention.py`; one Odoo tour:
-      open, send, stream, approve, stop
+      text, tool call, interrupt, resume, cancel, a second slice),
+      `test_channel.py` (portal user cannot post on an `ai` channel,
+      groups), `test_retention.py`; one Odoo tour: open, send, stream,
+      approve, stop
+
+## 2a. Module, PR E: scheduled, triggered and continuous runs
+
+- [ ] server action "Run agent" (agent, prompt with record context, post
+      the answer to, create an activity): automation rules and scheduled
+      actions call it; `Run.kind` = `triggered` or `scheduled`, `user` =
+      the rule's or action's user, never the superuser
+- [ ] two worker crons (`data/ir_cron.xml`), `_trigger()`-woken, an
+      advisory lock per thread, heartbeat, stale recovery, one run per
+      thread at a time
+- [ ] continuous threads: `continuous`, the watch (model, domain, cursor,
+      interval), the per-tick prompt ("since your last tick: N records
+      changed, here they are"), Pause and Stop on the thread's form, a
+      history processor that compacts past a token budget
+- [ ] the Runs list view: kind, agent, user, status, cost, duration; a
+      thread's form shows its runs
+- [ ] tests: a scheduled run posts its answer, a triggered run gets the
+      record, a continuous thread ticks twice and compacts, a paused thread
+      does not tick, two workers never share a thread
 
 ## 3. Module, PR B: AI fields
 
@@ -209,14 +236,20 @@ find answered.
 - [ ] every MCP URL passes `_is_unreachable_host` and the allowed hosts
       setting before any connection; redirects not followed
 - [ ] OpenRouter is the only model host; the base URL is a constant
-- [ ] the SSE route sets no CORS header; same-origin only
+- [ ] no route of our own streams anything; the bus and `mail`'s own
+      controllers carry it, same-origin as always
 
 **Limits**
 - [ ] `UsageLimits` per agent (requests, tokens, time) enforced by
       Pydantic AI; runs per user per hour and one live run per user
       enforced by the controller; both refusals have one shape
-- [ ] a run cannot outlive `limit_time_real`: the time limit on the agent
-      is below it by default and Settings says so
+- [ ] a slice cannot outlive `limit_time_real` or `limit_time_real_cron`:
+      the slice budget is read from the config at runtime and capped
+      below it, as MuK does; a run past its total budget stops with an
+      error the thread shows
+- [ ] continuous threads: a watch domain is validated against the
+      model's ACL for the thread's user; a tick that finds nothing makes
+      no model call; a thread whose user is deactivated is paused
 
 **Supply chain**
 - [ ] `requirements.txt` pinned, Dependabot on it; gitleaks on both repos;
@@ -239,7 +272,8 @@ find answered.
 | Step | Gate to pass |
 |---|---|
 | Spikes S1 to S6 | results dated in architecture-20.md |
-| PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper with a real OpenRouter key, the whole chat by hand, screenshots dated in the plan |
+| PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan |
+| PR E (runs) | CI green, a scheduled run and a triggered run seen by hand, a continuous thread watched for a day on staging |
 | PR B (fields) | CI green, Enterprise and Community field each computed once by hand |
 | PR C (MCP toolsets) | CI green, `mcp.pantalytics.com/mcp` as a toolset from a real Odoo, one vault tool called by hand |
 | PR D (platform door) | admin CI green, staging walk: pair a stub, heartbeat, entitlement verifies |

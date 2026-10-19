@@ -10,8 +10,11 @@ Status: draft, 2026-10-19. Nothing below is built.
 ## 1. One sentence
 
 Pydantic AI runs inside Odoo; its objects are Odoo records with Pydantic
-AI's names; tools run through `env` as the person who asked; the window
-streams the run's own events; MCP Pro is one toolset among the agent's.
+AI's names; tools run through `env` as the person who asked; the chat is
+Odoo's own chat window on an `ai` channel, fed by the run's own events over
+the bus; a run starts from a chat, a schedule, a trigger or a continuous
+thread, in slices on Odoo's workers; MCP Pro is one toolset among the
+agent's.
 
 ## 2. The objects
 
@@ -23,8 +26,8 @@ from the record is a dozen lines, and the form view reads like the docs.
 | `pan_ai.agent` | `Agent` | name, `model` (OpenRouter id), `instructions` (markdown), `toolset_ids`, `output_type` (JSON schema, optional), `model_settings` (temperature, max tokens, reasoning), `usage_limits` (request limit, token limit, time limit), `builtin_tools` (web search, code execution), who may use it (groups) |
 | `pan_ai.toolset` | `Toolset` | kind: `odoo` (function tools) or `mcp`; for `odoo`: the `tool_ids`; for `mcp`: url, auth (none, bearer, Pantalytics sign-in), `allowed_tool_names`, `tool_prefix`; `requires_approval` default for its tools |
 | `pan_ai.tool` | `Tool` | name, description, `parameters_json_schema`; source: a server action with "Use in AI" (parameters from its AI schema), or a built-in (search, read, read_group, create, write, open menu, compute date); `requires_approval` |
-| `pan_ai.thread` | message history | user, agent, record context, `messages` (`ModelMessagesTypeAdapter` JSON), last activity |
-| `pan_ai.run` | `agent.run` | thread, user, status (running, ok, cancelled, failed, interrupted), `requests`, `input_tokens`, `output_tokens`, `cost` (OpenRouter reports it), started, finished, error |
+| `pan_ai.thread` | `Conversation` | user, agent, record context, `conversation` (`ConversationTypeAdapter` JSON: messages, usage across runs, `deferred_tool_requests`), the `discuss.channel` it shows in (chat kind), `continuous` with its watch (model, domain, cursor, interval), paused, last activity |
+| `pan_ai.run` | `agent.run` / `agent.iter()` | thread, user, `kind` (chat, scheduled, triggered, continuous), status (running, ok, cancelled, failed, interrupted), slices, `requests`, `input_tokens`, `output_tokens`, `cost` (OpenRouter reports it), started, finished, error, worker claim and heartbeat |
 | settings | `Model` provider | OpenRouter key (encrypted), default model, retention days, allowed MCP hosts |
 
 Triggers stay Odoo's: an automation rule or a scheduled action whose server
@@ -36,23 +39,26 @@ action is "Run agent" with a prompt. We add nothing of our own there.
 ┌──────────────────────────── browser ────────────────────────────┐
 │  Odoo web client (OWL)                                           │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐     │
-│  │ chat window              │   │ AI field widget          │     │
-│  │ systray, Ctrl+K          │   │ wand / stale / spinner   │     │
-│  └────────────┬─────────────┘   └───────────┬──────────────┘     │
-└───────────────┼─────────────────────────────┼────────────────────┘
-       (1) POST /pan_ai/run             (6) JSON-RPC get_ai_field_value
-           SSE of run events                      │
-                ▼                                 ▼
+│  │ mail chat window         │   │ AI field widget          │     │
+│  │ on an `ai` channel,      │   │ wand / stale / spinner   │     │
+│  │ patched Message/Composer │   │                          │     │
+│  │ systray, Ctrl+K          │   │                          │     │
+│  └──────┬─────────▲─────────┘   └───────────┬──────────────┘     │
+└─────────┼─────────┼─────────────────────────┼────────────────────┘
+   (1) message_post │ bus: pan_ai.run_event   (6) JSON-RPC get_ai_field_value
+          ▼         │                                     ▼
 ┌──────────────────────────── Odoo server ────────────────────────┐
 │  pan_ai_pro                                                      │
-│   controllers/run.py    own cursor, as env.user, streams events  │
-│   runtime/agent.py      build_agent(record) -> pydantic_ai.Agent │
-│   runtime/deps.py       OdooDeps(env, user, record, thread)      │
-│   runtime/odoo_toolset  FunctionToolset over env (ACLs apply)    │
-│   runtime/mcp_toolset   MCPServerStreamableHTTP per toolset row  │
-│   runtime/stream.py     run_stream_events -> SSE JSON            │
-│   models/               the records above; AI field metadata     │
-│   pan_ai_license.py     pairing, heartbeat, entitlement (Mail Pro)│
+│   models/discuss_channel  the `ai` channel type, the agent partner│
+│   runtime/slices.py       agent.iter() to a budget, persist, resume
+│   runtime/agent.py        build_agent(record) -> pydantic_ai.Agent│
+│   runtime/deps.py         OdooDeps(env, user, record, thread)    │
+│   runtime/odoo_toolset    FunctionToolset over env (ACLs apply)  │
+│   runtime/mcp_toolset     MCPServerStreamableHTTP per toolset row│
+│   runtime/stream.py       run events -> batched bus events       │
+│   data/ir_cron.xml        two worker crons, woken by _trigger()  │
+│   models/                 the records; AI field metadata         │
+│   pan_ai_license.py       pairing, heartbeat, entitlement        │
 └───────┬──────────────────────┬──────────────────────┬────────────┘
    (2) ORM                (3) OpenRouter          (4) MCP servers
    as the user            key from Settings       mcp.pantalytics.com/mcp
@@ -65,8 +71,8 @@ action is "Run agent" with a prompt. We add nothing of our own there.
 
 | Box | Owns | Never does |
 |---|---|---|
-| Window | rendering, the event parser, approval cards, threads list | hold a key, talk to a model |
-| Runtime | building the `Agent`, running it, streaming, limits, cost | `sudo`, a second cursor per tool, a path outside `env` |
+| Window | the patches on `mail`'s components, the bus handler, markdown, tool rows, approval cards | hold a key, talk to a model, keep state the thread does not have |
+| Runtime | building the `Agent`, the slice loop, streaming, limits, cost, the worker crons | `sudo`, a second cursor per tool, a path outside `env`, a thread of its own |
 | Odoo toolset | the built-ins and the server actions, as the user | widen rights, swallow an AccessError |
 | MCP toolset | one remote server per row, its token, its filter | reach a host the SSRF gate refuses |
 | License | pairing, heartbeat, cached signed entitlement | send a prompt, a record or a thread title |
@@ -75,35 +81,41 @@ action is "Run agent" with a prompt. We add nothing of our own there.
 ## 4. One chat turn
 
 ```
-user types, presses Send
+user types in the ai channel's composer, presses Send
   │
-  ├─ 0 ms    window appends the message, shows a muted "Thinking" row
-  ├─ (1)     POST /pan_ai/run {agent, thread, prompt, record}   (session, CSRF)
-  │          controller opens its own cursor, env as request.env.user,
-  │          loads thread.messages, builds the Agent, starts
-  │          agent.run_stream_events(prompt, message_history=..., deps=OdooDeps)
-  │          and yields each event as one SSE line:
-  │            run_started {run_id}
-  │            part_start / part_delta {text}            ← markdown while it streams
-  │            function_tool_call {name, args}           ← "Searching sales orders…"
-  │            function_tool_result {name, summary}      ← "12 found", foldable
-  │            final_result
-  │            run_finished {usage, cost}  |  deferred {approvals: [...]}
+  ├─ 0 ms    message_post: the user's message is in the thread (mail does this)
+  │          a placeholder message from the agent follows, body "Thinking"
+  ├─ (1)     the runtime starts Run(kind=chat) inline in the same request:
+  │          loads thread.conversation, builds the Agent, drives agent.iter()
+  │          and batches events every ~100 ms into one bus event on the
+  │          user's partner channel, then commits:
+  │            part_delta {text}                       ← the message body grows
+  │            function_tool_call {name, args}         ← "Searching sales orders…"
+  │            function_tool_result {name, summary}    ← "12 found", foldable
+  │            final_result | deferred {approvals}     ← the body is written once
+  │            run_finished {usage, cost}
   ├─ (2)     each Odoo tool: env[model].search/read/write as the user
   ├─ (3)     each model call: OpenRouter, the database's key
   ├─ (4)     each MCP tool: the toolset's server, the user's token
-  └─ stop    window closes the stream; the controller cancels the run and
-             writes run.status = cancelled; thread.messages keeps what came
+  ├─ slice   past the slice budget: conversation persisted, run stays
+  │          `running`, a worker cron is woken with ir.cron._trigger(),
+  │          the stream continues from there; "Still working" in the row
+  └─ stop    Stop in the composer sets the run cancelled; the loop sees it
+             at its next check; the body keeps what came
 ```
 
 Approval, when a tool has `requires_approval`:
 
 ```
-run_finished {deferred: [{tool_call_id, name, args}]}      run.status = interrupted
-window shows a card: the change, Apply, Skip
-POST /pan_ai/run {thread, deferred_tool_results: {id: true|false}}
-the agent resumes from thread.messages; the stream continues
+the run ends with DeferredToolRequests on thread.conversation
+the message shows a card: the change, Apply, Skip             run.status = interrupted
+Apply or Skip posts deferred_tool_results; the next run resumes the conversation
 ```
+
+Scheduled, triggered and continuous runs follow the same loop on a worker
+cron, without the placeholder: their answer is posted to the agent's
+channel with the thread's owner when done, and continuous threads tick on
+their watch (plan, section 3a).
 
 ## 5. Identity and rights
 
@@ -155,11 +167,11 @@ No streaming here: one `agent.run`, one value, a spinner on the field.
 
 | Boundary | Protocol | Why this one |
 |---|---|---|
-| browser ↔ Odoo | one POST, request-scoped SSE of Pydantic AI run events, cancel = close | MCP's own shape; one producer, one consumer, so no third vocabulary |
+| browser ↔ Odoo | `mail`'s message_post in, Pydantic AI run events batched over the bus out | the chat window already listens on the bus; one producer, one consumer, so no third vocabulary |
 | Odoo ↔ model | OpenRouter (OpenAI-compatible) through Pydantic AI's provider | one key, any model, web plugin |
 | Odoo ↔ MCP servers | MCP Streamable HTTP through Pydantic AI's client | the standard; MCP Pro is one of them |
 | Odoo ↔ platform | HTTPS JSON, bearer installation key, Ed25519-signed entitlement | Mail Pro's door, unchanged |
-| not used | Odoo's bus for the stream (fallback only), Odoo's `/mcp`, AG-UI, a platform brain | holds commits per token; Enterprise-only; a third vocabulary; the configuration lives in two places |
+| not used | an SSE route of our own, Odoo's `/mcp`, AG-UI, a platform brain, DBOS | a second channel beside the one the window has; Enterprise-only; a third vocabulary; the configuration lives in two places; its own tables and launch step in the process |
 
 ## 9. Open source
 
@@ -173,13 +185,15 @@ paid tier gates. The public MCP server stays as it is.
 |---|---|---|---|
 | 1 | Pydantic AI inside Odoo | a brain on the platform (first draft, same day) | 2026-10-19 |
 | 2 | Records named as Pydantic AI names them | Odoo 20's agent / skills / sources / triggers | 2026-10-19 |
-| 3 | Our own window, same on both editions | extending Odoo 20's AI chat | 2026-10-19 |
-| 4 | SSE from the Odoo controller, the run on its own cursor | the bus with commits per token (19.0), WebSocket | 2026-10-19, pending S2 |
+| 3 | Odoo's own `mail` chat window on an `ai` channel, patched for streaming, tool rows and approvals | a window of our own (second draft), MuK AI's client, a web component | 2026-10-19 |
+| 4 | Run events batched over the bus into the message | an SSE route of our own (second draft), WebSocket | 2026-10-19, pending S2 |
 | 5 | Identity is the Odoo session; tools through `env` | per-user API keys, members per Odoo user | 2026-10-19 |
 | 6 | OpenRouter as the one provider, key per database | provider registry with three request formats (19.0) | 2026-10-19 |
 | 7 | MCP Pro as an MCP toolset, Zitadel device flow for the token | pairing per user, a platform-side identity | 2026-10-19, pending S6 |
 | 8 | AI fields metadata ported from 19.0 as is | redesign | 2026-10-19 |
-| 9 | Triggers are Odoo's automation rules | a trigger model of our own | 2026-10-19 |
+| 9 | Triggers are Odoo's automation rules and scheduled actions | a trigger model of our own | 2026-10-19 |
+| 10 | Runs in slices on Odoo's workers, `agent.iter()` plus `ir.cron._trigger()`, MuK AI's loop shape | a daemon, OCA `queue_job`, DBOS durability | 2026-10-19, pending S4 |
+| 11 | `Thread.conversation` is Pydantic AI's `Conversation` | a message model of our own | 2026-10-19 |
 
 ## 11. Open
 
