@@ -44,36 +44,43 @@ jobs:
       options: --user root
     steps:
       - uses: actions/checkout@v6
+      # The image runs Odoo from Debian's packages. A venv over them, like Cloudpepper's,
+      # takes the module's requirements without touching Debian's files; playwright gets a
+      # venv of its own so its greenlet never shadows the one Debian's gevent was built against.
       - name: Install the module's Python dependencies (what Odoo.sh and Cloudpepper do on pull)
-        run: pip install --break-system-packages --ignore-installed -r pan_ai_pro/requirements.txt playwright==1.56.0 requests
+        run: |
+          python3 -m venv --without-pip --system-site-packages /opt/venv
+          /opt/venv/bin/python -m pip install -r pan_ai_pro/requirements.txt requests
+          python3 -m venv --without-pip --system-site-packages /opt/pw
+          /opt/pw/bin/python -m pip install playwright==1.56.0
       - name: Install and run the unit tests
         run: |
-          odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
+          /opt/venv/bin/python -m odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
             --addons-path=/usr/lib/python3/dist-packages/odoo/addons,$GITHUB_WORKSPACE \
             -i pan_ai_pro --test-enable --test-tags /pan_ai_pro --stop-after-init --without-demo=all \
             --log-level=test 2>&1 | tee odoo-tests.log
           grep -qE "0 failed, 0 error\(s\)" odoo-tests.log
       - name: Browser check against a real server and the stubs
         run: |
-          python -m playwright install --with-deps chromium
-          python scripts/browser/fake_platform.py 8090 /tmp/pub & sleep 1
-          python scripts/browser/fake_openrouter.py 8091 & sleep 1
+          /opt/pw/bin/python -m playwright install --with-deps chromium
+          python3 scripts/browser/fake_platform.py 8090 /tmp/pub & sleep 1
+          python3 scripts/browser/fake_openrouter.py 8091 & sleep 1
           PAN_AI_PRO_SERVER_URL=http://127.0.0.1:8090 PAN_AI_PRO_PUBLIC_KEY="$(cat /tmp/pub)" \
           PAN_AI_PRO_OPENROUTER_BASE_URL=http://127.0.0.1:8091/v1 \
-          odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
+          /opt/venv/bin/python -m odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
             --addons-path=/usr/lib/python3/dist-packages/odoo/addons,$GITHUB_WORKSPACE \
             --db-filter=^ci$ --workers=2 --max-cron-threads=1 --limit-time-real=30 --limit-time-real-cron=75 \
             --http-port=8069 --gevent-port=8072 --proxy-mode > odoo-server.log 2>&1 &
-          python scripts/browser/proxy.py 8080 & sleep 10
-          python - <<'PY'
+          python3 scripts/browser/proxy.py 8080 & sleep 10
+          python3 - <<'PY'
           import xmlrpc.client
           c = xmlrpc.client.ServerProxy("http://127.0.0.1:8080/xmlrpc/2/common"); uid = c.authenticate("ci", "admin", "admin", {})
           o = xmlrpc.client.ServerProxy("http://127.0.0.1:8080/xmlrpc/2/object")
           print(o.execute_kw("ci", uid, "admin", "pan_ai.license", "accept_key", ["mp_fake_" + "a" * 40]))
           o.execute_kw("ci", uid, "admin", "ir.config_parameter", "set_str", ["pan_ai.openrouter_key", "sk-or-ci"])
           PY
-          python scripts/browser/check_chat.py http://127.0.0.1:8080 admin admin "How many contacts are there?" | tee browser.json
-          python - <<'PY'
+          /opt/pw/bin/python scripts/browser/check_chat.py http://127.0.0.1:8080 admin admin "How many contacts are there?" | tee browser.json
+          python3 - <<'PY'
           import json; d = json.load(open("browser.json"))
           m = d["metrics"]; assert not d["js_errors"], d["js_errors"]
           assert m["first_delta_latency_ms"] is not None and m["first_delta_latency_ms"] < 300, m

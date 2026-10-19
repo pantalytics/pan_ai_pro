@@ -5,8 +5,6 @@ import socket
 import threading
 import time
 
-from mcp.server.fastmcp import FastMCP
-
 from odoo.exceptions import UserError
 
 from ..runtime import mcp_toolset
@@ -21,8 +19,24 @@ def _free_port():
         return s.getsockname()[1]
 
 
+def _make_server(port):
+    """The SDK renamed FastMCP to MCPServer in 2.x and moved the transport settings
+    to run(); pydantic-ai's mcp extra may bring either major."""
+    try:
+        from mcp.server.mcpserver import MCPServer
+    except ImportError:
+        from mcp.server.fastmcp import FastMCP
+
+        server = FastMCP("test", host="127.0.0.1", port=port, streamable_http_path="/mcp")
+        return server, lambda: server.run(transport="streamable-http")
+    server = MCPServer("test")
+    return server, lambda: server.run(
+        transport="streamable-http", host="127.0.0.1", port=port, streamable_http_path="/mcp"
+    )
+
+
 def _serve(port):
-    server = FastMCP("test", host="127.0.0.1", port=port, streamable_http_path="/mcp")
+    server, run = _make_server(port)
 
     @server.tool()
     def add(a: int, b: int) -> int:
@@ -34,7 +48,7 @@ def _serve(port):
         """Never allowed."""
         return "no"
 
-    server.run(transport="streamable-http")
+    run()
 
 
 class TestMcpToolset(AiProCase):

@@ -22,7 +22,9 @@ key, with any model. Community and Enterprise.
 
 1. Put `pan_ai_pro` (and `pan_ai_pro_enterprise` on Enterprise) in your
    addons path. Odoo.sh and Cloudpepper install `pan_ai_pro/requirements.txt`
-   on pull; elsewhere `pip install -r pan_ai_pro/requirements.txt`.
+   on pull; elsewhere `pip install -r pan_ai_pro/requirements.txt`. On Odoo's
+   Docker image install them in a venv over the system packages
+   (`python3 -m venv --system-site-packages`), the way `.github/workflows/ci.yml` does.
 2. Install AI Pro from Apps.
 3. Settings > AI Pro: Connect to Pantalytics, paste an OpenRouter key, pick
    a default model.
