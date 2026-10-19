@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_toolset_list" model="ir.ui.view">
+        <field name="name">pan_ai.toolset.list</field>
+        <field name="model">pan_ai.toolset</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="description"/>
+                <field name="tool_count" string="Tools"/>
+                <field name="requires_approval"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_toolset_form" model="ir.ui.view">
+        <field name="name">pan_ai.toolset.form</field>
+        <field name="model">pan_ai.toolset</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_title"><h1><field name="name" placeholder="Odoo"/></h1></div>
+                    <group>
+                        <field name="description"/>
+                        <field name="requires_approval"/>
+                        <field name="agent_ids" widget="many2many_tags"/>
+                    </group>
+                    <field name="tool_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="name"/>
+                            <field name="source"/>
+                            <field name="builtin" invisible="source != 'builtin'" required="source == 'builtin'"/>
+                            <field name="action_id" invisible="source != 'server_action'" required="source == 'server_action'"/>
+                            <field name="model_ids" widget="many2many_tags" invisible="source != 'builtin'"/>
+                            <field name="requires_approval"/>
+                            <field name="description" optional="hide"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_toolset" model="ir.actions.act_window">
+        <field name="name">Toolsets</field>
+        <field name="res_model">pan_ai.toolset</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

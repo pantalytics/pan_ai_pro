@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_agent_list" model="ir.ui.view">
+        <field name="name">pan_ai.agent.list</field>
+        <field name="model">pan_ai.agent</field>
+        <field name="arch" type="xml">
+            <list default_order="sequence, name">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="description"/>
+                <field name="model"/>
+                <field name="run_as"/>
+                <field name="thread_count" string="Threads"/>
+                <field name="run_count" string="Runs"/>
+                <button name="action_chat" type="object" string="Chat" class="btn-link" icon="fa-comments"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_agent_form" model="ir.ui.view">
+        <field name="name">pan_ai.agent.form</field>
+        <field name="model">pan_ai.agent</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_chat" type="object" string="Chat" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_threads" type="object" class="oe_stat_button" icon="fa-comments">
+                            <field name="thread_count" widget="statinfo" string="Threads"/>
+                        </button>
+                        <button name="action_open_runs" type="object" class="oe_stat_button" icon="fa-play">
+                            <field name="run_count" widget="statinfo" string="Runs"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Sales assistant"/></h1>
+                        <field name="description" placeholder="One line under the name"/>
+                    </div>
+                    <group>
+                        <group string="Model">
+                            <field name="model" placeholder="Default model from Settings"/>
+                            <field name="toolset_ids" widget="many2many_tags"/>
+                            <field name="web_search"/>
+                            <field name="web_search_max_uses" invisible="not web_search"/>
+                        </group>
+                        <group string="Identity">
+                            <field name="run_as" widget="radio"/>
+                            <field name="user_id" invisible="run_as != 'user'" required="run_as == 'user'"/>
+                            <field name="group_ids" widget="many2many_tags" placeholder="Every AI Pro user"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Instructions" name="instructions">
+                            <field name="instructions" nolabel="1" placeholder="How the agent works and what it never does"/>
+                        </page>
+                        <page string="Limits" name="limits">
+                            <group>
+                                <group string="Per run">
+                                    <field name="request_limit"/>
+                                    <field name="total_tokens_limit"/>
+                                    <field name="time_limit"/>
+                                </group>
+                                <group string="Model settings">
+                                    <field name="temperature"/>
+                                    <field name="max_tokens"/>
+                                    <field name="reasoning"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Output type" name="output">
+                            <field name="output_type" nolabel="1" placeholder='{"type": "object", "properties": {...}}'/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_agent" model="ir.actions.act_window">
+        <field name="name">Agents</field>
+        <field name="res_model">pan_ai.agent</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add an agent</p>
+            <p>A model, instructions, toolsets and whose rights it runs with.</p>
+        </field>
+    </record>
+</odoo>

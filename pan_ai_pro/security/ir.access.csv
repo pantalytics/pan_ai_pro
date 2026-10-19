@@ -1,0 +1,12 @@
+id,name,model_id,group_id/id,operation,domain
+access_agent_user,agent: user reads the agents open to them,pan_ai.agent,pan_ai_pro.group_user,r,"['|', ('group_ids', '=', False), ('group_ids', 'in', user.all_group_ids.ids)]"
+access_agent_manager,agent: manager,pan_ai.agent,pan_ai_pro.group_manager,crud,
+access_toolset_user,toolset: user reads,pan_ai.toolset,pan_ai_pro.group_user,r,
+access_toolset_manager,toolset: manager,pan_ai.toolset,pan_ai_pro.group_manager,crud,
+access_tool_user,tool: user reads,pan_ai.tool,pan_ai_pro.group_user,r,
+access_tool_manager,tool: manager,pan_ai.tool,pan_ai_pro.group_manager,crud,
+access_thread_own,thread: own,pan_ai.thread,pan_ai_pro.group_user,crud,"[('user_id', '=', user.id)]"
+access_thread_manager,thread: manager,pan_ai.thread,pan_ai_pro.group_manager,crud,
+access_run_own,run: own reads,pan_ai.run,pan_ai_pro.group_user,r,"[('user_id', '=', user.id)]"
+access_run_manager,run: manager,pan_ai.run,pan_ai_pro.group_manager,crud,
+access_license_manager,license: system,pan_ai.license,base.group_system,crud,

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_tool_list" model="ir.ui.view">
+        <field name="name">pan_ai.tool.list</field>
+        <field name="model">pan_ai.tool</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="toolset_id"/>
+                <field name="name"/>
+                <field name="source"/>
+                <field name="builtin"/>
+                <field name="action_id"/>
+                <field name="requires_approval"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_tool_form" model="ir.ui.view">
+        <field name="name">pan_ai.tool.form</field>
+        <field name="model">pan_ai.tool</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" placeholder="search_records"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="toolset_id"/>
+                            <field name="source" widget="radio"/>
+                            <field name="builtin" invisible="source != 'builtin'" required="source == 'builtin'"/>
+                            <field name="action_id" invisible="source != 'server_action'" required="source == 'server_action'"/>
+                            <field name="model_ids" widget="many2many_tags" invisible="source != 'builtin'"/>
+                        </group>
+                        <group>
+                            <field name="requires_approval"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="What the model reads">
+                        <field name="description" nolabel="1"/>
+                    </group>
+                    <group string="Parameters" invisible="source != 'server_action'">
+                        <field name="parameters_json_schema" nolabel="1" placeholder='{"type": "object", "properties": {"partner_id": {"type": "integer"}}, "required": ["partner_id"]}'/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_tool" model="ir.actions.act_window">
+        <field name="name">Tools</field>
+        <field name="res_model">pan_ai.tool</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

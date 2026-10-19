@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="privilege_ai_pro" model="res.groups.privilege">
+        <field name="name">AI Pro</field>
+        <field name="sequence">60</field>
+    </record>
+    <!-- Who may chat with an agent and read their own threads. Every internal
+         user by default; an agent's own "Who may use it" narrows further. -->
+    <record id="group_user" model="res.groups">
+        <field name="name">User</field>
+        <field name="privilege_id" ref="privilege_ai_pro"/>
+    </record>
+    <!-- Every internal user may chat; an agent's "Who may use it" narrows. -->
+    <record id="base.group_user" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('group_user'))]"/>
+    </record>
+    <!-- Who configures agents, toolsets, tools, settings and the connection. -->
+    <record id="group_manager" model="res.groups">
+        <field name="name">Administrator</field>
+        <field name="privilege_id" ref="privilege_ai_pro"/>
+        <field name="implied_ids" eval="[(4, ref('group_user'))]"/>
+    </record>
+    <record id="base.group_system" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('group_manager'))]"/>
+    </record>
+</odoo>

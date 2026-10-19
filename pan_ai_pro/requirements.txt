@@ -1,0 +1,3 @@
+# Installed by Odoo.sh and Cloudpepper on every pull (plan: ai-pro-20-execution.md, S3).
+pydantic-ai-slim[openai]==2.31.1
+markdown2==2.5.4

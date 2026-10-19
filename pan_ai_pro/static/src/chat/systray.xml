@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="pan_ai_pro.Systray">
+        <div class="o-dropdown dropdown pan-ai-systray">
+            <button class="dropdown-toggle o-dropdown--no-caret" title="Ask AI" aria-label="Ask AI" t-on-click="this.onClick">
+                <i class="fa fa-magic" role="img"/>
+            </button>
+        </div>
+    </t>
+</templates>
