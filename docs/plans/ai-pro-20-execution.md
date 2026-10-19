@@ -34,13 +34,17 @@ architecture-20.md.
 - [ ] **S3 The dependency.** `pydantic-ai-slim[openai,mcp]` on Odoo.sh via
       `requirements.txt` and on Cloudpepper; import inside a worker;
       `asyncio.run` per request; memory per worker before and after.
-- [ ] **S4 Slices.** `agent.iter()` stopped at a rounds-and-seconds
-      budget, the `Conversation` persisted, resumed on a worker cron woken
-      with `ir.cron._trigger()`; a 10-minute chat survives `limit_time_real`
-      on both hosts; a killed worker's thread is recovered by the
-      heartbeat; a continuous thread ticks for an hour on a watch and
-      compacts once. MuK AI's `session_loop.py` and `session_worker.py`
-      read first.
+- [x] **S4 Slices.** Done 2026-10-19 locally on a prefork server
+      (`workers = 2`, `limit_time_real = 8`), claim holds: a chat of 5
+      slices (first inline, four on crons, wake 122 to 849 ms) outlives
+      the HTTP limit; a worker killed at 75 s in a tool is followed by the
+      other, which finishes the thread; a continuous thread keeps its
+      memory over 3 ticks. Five findings in
+      `scripts/spikes/s4_slices/README.md` (the boundary carries
+      `node.request`; `limit_time_real_cron` floor about 70 s; one wake runs
+      every claimable slice; a busy-worker trigger waits up to 60 s; a
+      claim fence and `next_tick_at` are needed). Left for the hosts:
+      Odoo.sh and Cloudpepper limits and cron worker counts; compaction.
 - [ ] **S5 Built-in tools.** `WebSearchTool` and `CodeExecutionTool`
       through OpenRouter on Sonnet, GPT and Gemini; the OpenRouter `web`
       plugin as the fallback that works on every model.
@@ -55,6 +59,8 @@ architecture-20.md.
 - [ ] branch `20.0` from an empty tree; `19.0` untouched. Manifest
       depends on `web`, `mail`, `base_setup`, `base_automation`; external
       dependency `pydantic_ai`; `requirements.txt` for Odoo.sh
+- [ ] `security/ir.access.csv` (Odoo 20 merged ACLs and record rules into
+      `ir.access`: `id,name,model_id,group_id/id,operation,domain`)
 - [ ] `models/agent.py`, `toolset.py`, `tool.py`, `thread.py`, `run.py`
       as architecture-20.md section 2 lists them; `res_config_settings.py`
       (OpenRouter key encrypted with the 19.0 helper, default model,
@@ -107,13 +113,17 @@ architecture-20.md.
       the answer to, create an activity): automation rules and scheduled
       actions call it; `Run.kind` = `triggered` or `scheduled`, `user` =
       the rule's or action's user, never the superuser
-- [ ] two worker crons (`data/ir_cron.xml`), `_trigger()`-woken, an
-      advisory lock per thread, heartbeat, stale recovery, one run per
-      thread at a time
+- [ ] two worker crons (`data/ir_cron.xml`), `_trigger()`-woken, a claim
+      per thread (an atomic row update, `SerializationFailure` caught),
+      heartbeat on every flush, stale recovery, a claim token checked
+      before every write (the fence, S4 finding 5), one wake runs every
+      claimable slice within `limit_time_real_cron` minus a margin (S4
+      findings 2 and 3)
 - [ ] continuous threads: `continuous`, the watch (model, domain, cursor,
-      interval), the per-tick prompt ("since your last tick: N records
-      changed, here they are"), Pause and Stop on the thread's form, a
-      history processor that compacts past a token budget
+      interval of at least a minute), `next_tick_at` that the claim
+      respects (S4 finding 5), the per-tick prompt ("since your last tick:
+      N records changed, here they are"), Pause and Stop on the thread's
+      form, a history processor that compacts past a token budget
 - [ ] the Runs list view: kind, agent, user, status, cost, duration; a
       thread's form shows its runs
 - [ ] tests: a scheduled run posts its answer, a triggered run gets the

@@ -115,7 +115,9 @@ Apply or Skip posts deferred_tool_results; the next run resumes the conversation
 Scheduled, triggered and continuous runs follow the same loop on a worker
 cron, without the placeholder: their answer is posted to the agent's
 channel with the thread's owner when done, and continuous threads tick on
-their watch (plan, section 3a).
+their watch (plan, section 3a). The slice boundary, measured in S4: stop
+when the next node is a model request, persist `all_messages()` plus that
+node's request, resume with `message_history` and no prompt.
 
 ## 5. Identity and rights
 
@@ -196,7 +198,7 @@ later. The public MCP server stays as it is.
 | 7 | MCP Pro as an MCP toolset, Zitadel device flow for the token | pairing per user, a platform-side identity | 2026-10-19, pending S6 |
 | 8 | AI fields metadata ported from 19.0 as is | redesign | 2026-10-19 |
 | 9 | Triggers are Odoo's automation rules and scheduled actions | a trigger model of our own | 2026-10-19 |
-| 10 | Runs in slices on Odoo's workers, `agent.iter()` plus `ir.cron._trigger()`, MuK AI's loop shape | a daemon, OCA `queue_job`, DBOS durability | 2026-10-19, pending S4 |
+| 10 | Runs in slices on Odoo's workers, `agent.iter()` plus `ir.cron._trigger()`, MuK AI's loop shape | a daemon, OCA `queue_job`, DBOS durability | 2026-10-19, **S4 measured the same day** on a prefork server: a chat of 5 slices outlives an 8 s HTTP limit, cron wake 122 to 849 ms, a killed worker's thread is reclaimed, a continuous thread keeps its memory (`scripts/spikes/s4_slices/`) |
 | 11 | `Thread.conversation` is Pydantic AI's `Conversation` | a message model of our own | 2026-10-19 |
 | 12 | Connect to Pantalytics is required to run, as Mail Pro | an optional pairing | 2026-10-19, Rutger |
 
@@ -206,4 +208,10 @@ later. The public MCP server stays as it is.
   S2 done 2026-10-19 (decision 4). One rule from it: latency is measured
   against a real server with Playwright, never in `HttpCase`, whose
   `TestCursor` defers the bus to the end of the request.
+  S4 done 2026-10-19 (decision 10). Rules from it: the slice boundary is
+  before the next model request and carries `node.request`; the cron slice
+  budget is the host's `limit_time_real_cron` minus a margin, and that
+  limit cannot sit below about 70 s; a cron wake runs every claimable
+  slice, not one; writes after a slice need a claim fence; continuous
+  ticks have a `next_tick_at` and no interval under a minute.
 - Tiers in the entitlement: what Free gets. After the beta.

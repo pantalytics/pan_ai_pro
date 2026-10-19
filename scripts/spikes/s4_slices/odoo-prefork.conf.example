@@ -1,0 +1,16 @@
+[options]
+db_host = localhost
+db_port = 5432
+db_user = odoo
+db_password = <local>
+addons_path = /home/user/odoo/odoo/addons,/home/user/pan_ai_pro/scripts/spikes/s2_bus_stream,/home/user/pan_ai_pro/scripts/spikes/s4_slices
+data_dir = /home/user/odoo/data
+http_port = 8069
+gevent_port = 8072
+workers = 2
+max_cron_threads = 2
+limit_time_real = 8
+limit_time_real_cron = 75
+limit_time_cpu = 8
+proxy_mode = True
+log_level = warn

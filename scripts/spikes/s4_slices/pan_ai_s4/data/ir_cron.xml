@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="cron_worker_1" model="ir.cron">
+        <field name="name">AI Pro S4: worker 1</field>
+        <field name="model_id" ref="model_pan_ai_s4_thread"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_run_slices()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="user_id" ref="base.user_root"/>
+    </record>
+    <record id="cron_worker_2" model="ir.cron">
+        <field name="name">AI Pro S4: worker 2</field>
+        <field name="model_id" ref="model_pan_ai_s4_thread"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_run_slices()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="user_id" ref="base.user_root"/>
+    </record>
+</odoo>
