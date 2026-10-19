@@ -144,7 +144,8 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
 | What | Where | Rule |
 |---|---|---|
 | Tokens | OpenRouter key in Settings, one per database | no key, no chat; the window says "No key, ask your administrator" |
-| Web search | OpenRouter `web` plugin, or `WebSearchTool` where S5 proves it | on per agent, off by default |
+| Web search | Pydantic AI `WebSearch(native=WebSearchTool(max_uses, search_context_size))` on OpenRouter's server tool (S5: works on Sonnet, GPT, Gemini; 8 to 13k input tokens per question) | on per agent, off by default; `max_uses` and `search_context_size` on the agent |
+| Code execution | none in v1 (S5: Pydantic AI's OpenRouter model carries no `CodeExecutionTool`) | later, as its own sandbox or a direct provider client |
 | Per run | `UsageLimits` on the agent | default 20 requests, 300k tokens, 5 min |
 | Per user | `pan_ai.run` rows | runs per hour per user, a setting; one live run per user |
 | Per database | the signed entitlement, required | not connected or revoked: no run; the beta is "connected is entitled", as Mail Pro; tiers decided later |
