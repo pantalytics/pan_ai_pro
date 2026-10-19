@@ -53,9 +53,13 @@ architecture-20.md.
       every claimable slice; a busy-worker trigger waits up to 60 s; a
       claim fence and `next_tick_at` are needed). Left for the hosts:
       Odoo.sh and Cloudpepper limits and cron worker counts; compaction.
-- [ ] **S5 Built-in tools.** `WebSearchTool` and `CodeExecutionTool`
-      through OpenRouter on Sonnet, GPT and Gemini; the OpenRouter `web`
-      plugin as the fallback that works on every model.
+- [x] **S5 Built-in tools.** Done 2026-10-19: web search streams on
+      Sonnet 5.5, GPT 5.6 and Gemini 3.8 through Pydantic AI's `WebSearch`
+      capability on OpenRouter's server tool (the same tool as `:online`);
+      code execution is refused by Pydantic AI's OpenRouter model on every
+      model, so v1 is web search only. Search results cost 8 to 13k input
+      tokens per question on Sonnet and GPT: `max_uses` and
+      `search_context_size` are the budget. `scripts/spikes/s5_builtin_tools/`.
 - [ ] **S6 MCP Pro as a toolset.** `MCPServerStreamableHTTP` against
       `mcp.pantalytics.com/mcp` with a Zitadel token from the device flow
       (RFC 8628) started in Odoo; the grant enabled on the Zitadel app;
