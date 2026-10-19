@@ -26,11 +26,14 @@ The constraints below only make sense against the goal. In order:
    runs with memory, bounded by limits, visible in one Runs list with
    their cost. Measured: a continuous thread ticks for a day on staging
    without a hand on it and stops when paused.
-5. **Open source and swappable.** One LGPL-3 module that runs without
-   Pantalytics; Pydantic AI is the one seam to the model world, so when
-   AI changes shape the records and the window stay. Measured: the module
+5. **Open source, swappable, signed in.** One LGPL-3 module; Pydantic AI
+   is the one seam to the model world, so when AI changes shape the
+   records and the window stay. It runs for a database that is connected
+   to Pantalytics, the way Mail Pro does: Connect to Pantalytics in
+   Settings, a code, approve on our site, done. Measured: the module
    installs from the store on Odoo.sh and on Cloudpepper and answers its
-   first question within ten minutes of install, with one key pasted.
+   first question within ten minutes of install, with one connection made
+   and one key pasted.
 
 What success is not: feature parity with Odoo's AI app, a brain on our
 platform, or a second chat beside Discuss.
@@ -69,9 +72,14 @@ AI's, not Odoo's.**
 7. One runtime, four ways to start a `Run`: on demand from the chat,
    scheduled by a cron, triggered by an automation rule, and continuous (a
    thread the cron keeps resuming, with memory). Section 3a.
-8. The platform keeps Mail Pro's role only: pairing for the entitlement and
-   the heartbeat (counts, never a prompt), paid tiers through the signed
-   entitlement. It never sees a message.
+8. **Connecting to Pantalytics is required**, decided 2026-10-19, the
+   same as Mail Pro: the module pairs once (Connect to Pantalytics, a
+   code, approve on our site), heartbeats daily, and runs only on a live
+   signed entitlement; not connected or revoked means "Connect to
+   Pantalytics in Settings" and no run. The platform's role stays Mail
+   Pro's: the entitlement, the heartbeat (counts, never a prompt), paid
+   tiers later. It never sees a message. How this is marketed is a later
+   conversation.
 
 ### Why the first design was dropped
 
@@ -275,7 +283,7 @@ exits non-zero when its claim fails; the result and the date land in
 - [ ] AI fields: Enterprise seam or property fields, metadata ported. PR B
 - [ ] MCP toolsets and the Pantalytics sign-in. PR C
 - [ ] Admin: `apps/ai_pro.py`, pairing and entitlement, Mail Pro's shape.
-      PR D (small)
+      PR D (small), before PR A ships: the module needs it to run at all
 - [ ] Store listing 20.0, humanizer over every string, README rewritten
 
 **Not doing:** extending Odoo 20's AI, voice, attachments, a full-page
@@ -284,8 +292,8 @@ the tool layer, a queue dependency (OCA `queue_job`) in v1.
 
 ## 8. Open for Rutger
 
-- Pricing of the app through the entitlement (what Free gets: one agent,
-  no MCP toolsets?). Not needed before PR D.
+- Pricing and marketing of the app through the entitlement. Later, on
+  purpose; the beta is "connected is entitled", as Mail Pro's.
 - Licence of the public server stays as it is; this module is LGPL-3.
 
 ## 9. Transport note (checked 2026-10-19)

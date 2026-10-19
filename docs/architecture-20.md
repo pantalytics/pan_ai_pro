@@ -145,7 +145,7 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
 | Web search | OpenRouter `web` plugin, or `WebSearchTool` where S5 proves it | on per agent, off by default |
 | Per run | `UsageLimits` on the agent | default 20 requests, 300k tokens, 5 min |
 | Per user | `pan_ai.run` rows | runs per hour per user, a setting; one live run per user |
-| Per database | the signed entitlement | tiers decided later; the beta is "connected is entitled", as Mail Pro |
+| Per database | the signed entitlement, required | not connected or revoked: no run; the beta is "connected is entitled", as Mail Pro; tiers decided later |
 
 ## 7. AI fields
 
@@ -173,11 +173,15 @@ No streaming here: one `agent.run`, one value, a spinner on the field.
 | Odoo ↔ platform | HTTPS JSON, bearer installation key, Ed25519-signed entitlement | Mail Pro's door, unchanged |
 | not used | an SSE route of our own, Odoo's `/mcp`, AG-UI, a platform brain, DBOS | a second channel beside the one the window has; Enterprise-only; a third vocabulary; the configuration lives in two places; its own tables and launch step in the process |
 
-## 9. Open source
+## 9. Open source, and signed in
 
-The whole module is LGPL-3 and runs without Pantalytics: an OpenRouter key
-is all it needs. Pairing adds the entitlement and, with it, whatever the
-paid tier gates. The public MCP server stays as it is.
+The whole module is LGPL-3. It runs for a database that is connected to
+Pantalytics, exactly as Mail Pro does: Connect to Pantalytics once, a
+daily heartbeat, a signed entitlement cached with 14 days of grace. No
+live entitlement, no run: the window and the Runs list say "Connect to
+Pantalytics in Settings". The OpenRouter key is the customer's own and
+stays theirs. What the entitlement gates beyond "connected" is decided
+later. The public MCP server stays as it is.
 
 ## 10. Decisions
 
@@ -194,6 +198,7 @@ paid tier gates. The public MCP server stays as it is.
 | 9 | Triggers are Odoo's automation rules and scheduled actions | a trigger model of our own | 2026-10-19 |
 | 10 | Runs in slices on Odoo's workers, `agent.iter()` plus `ir.cron._trigger()`, MuK AI's loop shape | a daemon, OCA `queue_job`, DBOS durability | 2026-10-19, pending S4 |
 | 11 | `Thread.conversation` is Pydantic AI's `Conversation` | a message model of our own | 2026-10-19 |
+| 12 | Connect to Pantalytics is required to run, as Mail Pro | an optional pairing | 2026-10-19, Rutger |
 
 ## 11. Open
 

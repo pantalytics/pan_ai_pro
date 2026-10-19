@@ -85,6 +85,13 @@ architecture-20.md.
       default model), Limits (runs per user per hour, retention), Danger
       zone (delete all threads). Agents, Toolsets, Tools as list views under
       a Configuration menu
+- [ ] `models/pan_ai_license.py`: Mail Pro's client with the paths
+      swapped (`/api/v1/ai-pro/link/*`, `/api/v1/ai-pro/heartbeat`),
+      pinned Ed25519 public key, 14-day grace. **Required to run:** every
+      run start checks the cached entitlement; not connected or revoked
+      refuses with "Connect to Pantalytics in Settings". Settings > AI Pro
+      gets the Connection row first: Not connected / Connected, Connect to
+      Pantalytics, Disconnect
 - [ ] On Enterprise 20: remove the native AI systray item and command (S1)
 - [ ] retention cron: threads older than the setting, runs kept
 - [ ] tests (Odoo `TransactionCase`): `test_agent_build.py` (record to
@@ -150,9 +157,8 @@ architecture-20.md.
       count, runs in 24 h, errors `[{code, count}]`; nothing that can carry
       a prompt, a record or a thread title); entitlement with `plan`,
       `latest_version`, `message`, same signing key
-- [ ] `models/pan_ai_license.py` in the module: Mail Pro's client with the
-      paths swapped, pinned Ed25519 public key, 14-day grace; a `revoked`
-      entitlement switches the paid tier off and nothing else
+- [ ] the module's client is in PR A (required to run); here the server
+      side, so PR D lands on staging before PR A's gate
 - [ ] instance page: the app tile shows Connected / Not connected and
       Disconnect
 - [ ] tests: `test_ai_pro_door.py`, `test_db_ai_pro.py` (integration)
@@ -168,7 +174,8 @@ architecture-20.md.
       --stop-after-init`) on Community; the tour runs there
 - [ ] `.github/workflows/browser.yml`: Playwright drives the dockerised
       Odoo against `scripts/browser/fake_openrouter.py` (an OpenAI-compatible
-      stub that streams text and one tool call) and a local MCP stub;
+      stub that streams text and one tool call), `fake_platform.py` (start,
+      poll, a signed entitlement with a test key) and a local MCP stub;
       screenshots at desktop and 390 px as the artifact, Mail Pro's
       `check_flow.py` as the shape
 - [ ] `.github/workflows/gitleaks.yml`, copied from admin
@@ -272,15 +279,16 @@ find answered.
 | Step | Gate to pass |
 |---|---|
 | Spikes S1 to S6 | results dated in architecture-20.md |
-| PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan |
+| PR D (platform door) | admin CI green, staging walk: pair a stub, heartbeat, entitlement verifies. Lands first: PR A cannot run without it |
+| PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper connected to staging with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan |
 | PR E (runs) | CI green, a scheduled run and a triggered run seen by hand, a continuous thread watched for a day on staging |
 | PR B (fields) | CI green, Enterprise and Community field each computed once by hand |
 | PR C (MCP toolsets) | CI green, `mcp.pantalytics.com/mcp` as a toolset from a real Odoo, one vault tool called by hand |
-| PR D (platform door) | admin CI green, staging walk: pair a stub, heartbeat, entitlement verifies |
 | Release | tag, store listing, the Ed25519 key check, `20.0` protected |
 
 Each PR is reviewable on its own and leaves production working: without a
-key the module shows "No key" and does nothing else.
+connection the module shows "Connect to Pantalytics" and does nothing
+else; without a key, "No key".
 
 **Not in this plan:** voice, attachments, a full-page chat, our own
 credits, a brain on the platform, Odoo's native `/mcp`, OCA `queue_job`,
