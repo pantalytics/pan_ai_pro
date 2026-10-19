@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install the module's Python dependencies (what Odoo.sh and Cloudpepper do on pull)
-        run: pip install --break-system-packages -r pan_ai_pro/requirements.txt playwright==1.56.0 requests
+        run: pip install --break-system-packages --ignore-installed -r pan_ai_pro/requirements.txt playwright==1.56.0 requests
       - name: Install and run the unit tests
         run: |
           odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
