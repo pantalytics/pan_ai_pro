@@ -12,9 +12,9 @@ import time
 from markdown2 import markdown
 
 from odoo import fields
-from odoo.addons.mail.tools.discuss import Store
 from odoo.tools import html_sanitize
 
+from ..compat import send_fields
 from ..tools import commit
 
 BATCH_SECONDS = 0.1
@@ -96,7 +96,7 @@ class Streamer:
             )
             if status != "interrupted" or text.strip():
                 message.write({"body": body})
-                Store(bus_channel=self.channel).add(message, ["body"])
+                send_fields(self.channel, message, ["body"])
         self.batch.append(
             {"type": "run_finished", "status": status, "error": error, "pending": pending or []}
         )

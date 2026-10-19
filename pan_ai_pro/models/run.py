@@ -21,6 +21,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import config
 
+from ..compat import params
 from ..tools import commit
 
 _logger = logging.getLogger(__name__)
@@ -107,13 +108,11 @@ class Run(models.Model):
     def _check_may_start(self, agent, caller):
         """Every refusal a run start can meet, one shape: a UserError."""
         self.env["pan_ai.license"].require_entitled()
-        if not self.env["ir.config_parameter"].sudo().get_str("pan_ai.openrouter_key"):
+        if not params(self.env).get_str("pan_ai.openrouter_key"):
             raise UserError(_("No OpenRouter key. Add one in Settings > AI Pro."))
         if not agent.may_use(caller):
             raise UserError(_("You may not use the agent %s.", agent.name))
-        per_hour = (
-            self.env["ir.config_parameter"].sudo().get_int("pan_ai.runs_per_user_per_hour", 30)
-        )
+        per_hour = params(self.env).get_int("pan_ai.runs_per_user_per_hour", 30)
         since = fields.Datetime.now() - timedelta(hours=1)
         recent = self.sudo().search_count(
             [("caller_id", "=", caller.id), ("started_at", ">=", since)]

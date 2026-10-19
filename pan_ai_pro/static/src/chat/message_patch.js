@@ -2,14 +2,16 @@
 import { Message } from "@mail/core/common/message";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
+import { useLive } from "@pan_ai_pro/chat/compat";
 
 patch(Message.prototype, {
     setup() {
         super.setup(...arguments);
         this.panAi = useService("pan_ai_pro.run_events");
+        this.panAiStreams = useLive(this.panAi.streams);
     },
     get panAiStream() {
-        return this.panAi.streams[this.message.id];
+        return this.panAiStreams[this.message.id];
     },
     get panAiChannelId() {
         return this.message.thread?.id;

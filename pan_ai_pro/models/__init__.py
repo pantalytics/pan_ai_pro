@@ -1,4 +1,5 @@
 from . import (
+    access,
     agent,
     base,
     discuss_channel,

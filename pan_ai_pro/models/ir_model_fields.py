@@ -51,16 +51,27 @@ class IrModelFields(models.Model):
     )
     pan_ai_is_ai = fields.Boolean(compute="_compute_pan_ai_is_ai", store=True, index=True)
 
+    # Our columns may change on any field, base fields included: they
+    # describe what the agent does, not the field itself.
+    _PAN_AI_COLUMNS = (
+        "pan_ai_prompt",
+        "pan_ai_agent_id",
+        "pan_ai_auto_fill",
+        "pan_ai_auto_update",
+        "pan_ai_use_tools",
+    )
+
     def _get_writable_properties(self):
-        # Our columns may change on any field, base fields included: they
-        # describe what the agent does, not the field itself.
-        return super()._get_writable_properties() + [
-            "pan_ai_prompt",
-            "pan_ai_agent_id",
-            "pan_ai_auto_fill",
-            "pan_ai_auto_update",
-            "pan_ai_use_tools",
-        ]
+        # Odoo 20: the whitelist of properties a base field accepts.
+        return super()._get_writable_properties() + list(self._PAN_AI_COLUMNS)
+
+    def write(self, vals):
+        # Odoo 19 has no such whitelist and refuses every write on a base
+        # field; a write that touches only our columns skips that guard.
+        ours_only = bool(vals) and all(key in self._PAN_AI_COLUMNS for key in vals)
+        if ours_only and not hasattr(super(), "_get_writable_properties"):
+            return models.BaseModel.write(self, vals)
+        return super().write(vals)
 
     @api.depends("pan_ai_prompt")
     def _compute_pan_ai_is_ai(self):

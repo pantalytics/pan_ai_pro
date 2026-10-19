@@ -1,7 +1,7 @@
-# AI Pro for Odoo 20
+# AI Pro for Odoo
 
 Pydantic AI agents and AI fields inside your Odoo, on your own OpenRouter
-key, with any model. Community and Enterprise.
+key, with any model. Odoo 19 and 20, Community and Enterprise, one module.
 
 - **Chat** in Odoo's own chat window, bottom right: streaming answers, tool
   calls you can see, approvals before anything is created or changed, Stop.
@@ -51,6 +51,7 @@ python scripts/browser/check_chat.py http://127.0.0.1:8080 admin admin   # a rea
 
 `scripts/browser/fake_platform.py` and `fake_openrouter.py` stand in for
 the platform and the model host; CI runs the whole thing
-(`.github/workflows/ci.yml`). Odoo 19 stays on the `19.0` branch as it was.
+(`.github/workflows/ci.yml`) on Odoo 19 and 20. The `19.0` branch is the
+old module with its own provider clients; it gets no more changes.
 
 [LGPL-3](LICENSE). Built by [Pantalytics](https://pantalytics.com).

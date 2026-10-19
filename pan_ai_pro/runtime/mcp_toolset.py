@@ -15,11 +15,13 @@ from pydantic_ai.mcp import MCPToolset
 from odoo import _
 from odoo.exceptions import UserError
 
+from ..compat import params
+
 PARAM_ALLOWED_HOSTS = "pan_ai.mcp_allowed_hosts"
 
 
 def allowed_hosts(env):
-    raw = env["ir.config_parameter"].sudo().get_str(PARAM_ALLOWED_HOSTS, "")
+    raw = params(env).get_str(PARAM_ALLOWED_HOSTS, "")
     return {h.strip().lower() for h in raw.split(",") if h.strip()}
 
 
@@ -55,9 +57,7 @@ def check_url(env, url):
     allowed = allowed_hosts(env)
     if host not in allowed:
         raise UserError(_("The MCP host %s is not on the allowed list in Settings > AI Pro.", host))
-    if is_private_host(host) and not env["ir.config_parameter"].sudo().get_bool(
-        "pan_ai.mcp_allow_private_hosts"
-    ):
+    if is_private_host(host) and not params(env).get_bool("pan_ai.mcp_allow_private_hosts"):
         raise UserError(_("The MCP host %s is a private address.", host))
     return host
 

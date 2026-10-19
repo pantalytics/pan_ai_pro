@@ -11,10 +11,10 @@ import logging
 from markupsafe import escape as html_escape
 
 from odoo import _, api, fields, models
-from odoo.addons.mail.tools.discuss import Store
 from odoo.exceptions import AccessError, UserError
 from odoo.tools import html2plaintext
 
+from ..compat import send_fields
 from ..tools import commit
 
 _logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class DiscussChannel(models.Model):
         except UserError as error:
             # The refusal is the agent's answer: in the same bubble, no second one.
             placeholder.sudo().write({"body": html_escape(str(error))})
-            Store(bus_channel=self.sudo()).add(placeholder, ["body"])
+            send_fields(self.sudo(), placeholder, ["body"])
             return
         # The person's message and the placeholder reach the browser now, not
         # at the end of the slice.

@@ -2,7 +2,7 @@
     "name": "AI Pro",
     "summary": "AI agents and AI fields inside Odoo: chat, scheduled and continuous runs, any model through OpenRouter",
     "description": """
-AI Pro for Odoo 20
+AI Pro for Odoo
 ==================
 
 Pydantic AI agents that run inside your Odoo, on your own OpenRouter key,
@@ -18,13 +18,13 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "20.0.1.0.0",
+    "version": "1.1.0",
     "license": "LGPL-3",
     "external_dependencies": {"python": ["pydantic_ai", "markdown2", "cryptography", "requests"]},
     "depends": ["mail", "bus", "base_automation"],
     "data": [
         "security/groups.xml",
-        "security/ir.access.csv",
+        "security/access.xml",
         "data/tools.xml",
         "data/agent.xml",
         "data/ir_cron.xml",

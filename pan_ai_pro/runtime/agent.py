@@ -21,6 +21,7 @@ from pydantic_ai.providers.openrouter import OpenRouterProvider
 from odoo import _, fields
 from odoo.exceptions import UserError
 
+from ..compat import params
 from .deps import OdooDeps
 from .mcp_toolset import build_mcp_toolset
 from .odoo_toolset import build_toolset
@@ -40,7 +41,7 @@ TEST_MODEL = None
 
 
 def openrouter_key(env):
-    key = env["ir.config_parameter"].sudo().get_str("pan_ai.openrouter_key", "")
+    key = params(env).get_str("pan_ai.openrouter_key", "")
     if not key:
         raise UserError(_("No OpenRouter key. Add one in Settings > AI Pro."))
     return key
@@ -49,11 +50,7 @@ def openrouter_key(env):
 def model_for(agent_record, env):
     if TEST_MODEL is not None:
         return TEST_MODEL
-    name = (
-        agent_record.model
-        or env["ir.config_parameter"].sudo().get_str("pan_ai.default_model", "")
-        or DEFAULT_MODEL
-    )
+    name = agent_record.model or params(env).get_str("pan_ai.default_model", "") or DEFAULT_MODEL
     base_url = os.environ.get(ENV_BASE_URL, "").strip()
     if base_url:
         _logger.warning(

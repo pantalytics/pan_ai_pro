@@ -56,10 +56,18 @@ class Tool(models.Model):
         string="Models",
         help="Built-in tools: the models the tool may touch. Empty: any model the user may access.",
     )
+    # The names, stored: the toolset reads them as the run's user, who may
+    # not read ir.model itself (Odoo 19 gives plain users no access to it).
+    model_names = fields.Char(compute="_compute_model_names", store=True, compute_sudo=True)
     requires_approval = fields.Boolean(
         string="Ask before calling",
         help="The person approves each call in the chat before it runs.",
     )
+
+    @api.depends("model_ids.model")
+    def _compute_model_names(self):
+        for tool in self:
+            tool.model_names = ",".join(tool.model_ids.mapped("model")) or False
 
     _name_per_toolset = models.Constraint(
         "UNIQUE(toolset_id, name)", "A tool name must be unique within its toolset."

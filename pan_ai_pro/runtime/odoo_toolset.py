@@ -111,7 +111,7 @@ def _model(ctx: RunContext[OdooDeps], name, tool_row):
     env = ctx.deps.env
     if name not in env:
         raise UserError(f"There is no model named {name}.")
-    allowed = tool_row.model_ids.mapped("model")
+    allowed = [m for m in (tool_row.model_names or "").split(",") if m]
     if allowed and name not in allowed:
         raise UserError(f"This tool may only touch {', '.join(allowed)}.")
     return env[name]

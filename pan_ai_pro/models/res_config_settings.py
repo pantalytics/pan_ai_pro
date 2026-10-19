@@ -8,6 +8,7 @@ key the same way; there was no encryption helper to inherit.
 
 from odoo import api, fields, models
 
+from ..compat import params
 from .license import STATUS_SELECTION
 
 STATE_SELECTION = [
@@ -60,7 +61,7 @@ class ResConfigSettings(models.TransientModel):
     pan_ai_update_available = fields.Char(compute="_compute_pan_ai_link")
 
     def _compute_pan_ai_key(self):
-        key = self.env["ir.config_parameter"].sudo().get_str("pan_ai.openrouter_key", "")
+        key = params(self.env).get_str("pan_ai.openrouter_key", "")
         for record in self:
             record.pan_ai_has_key = bool(key)
             record.pan_ai_key_last4 = key[-4:] if key else ""
@@ -95,14 +96,14 @@ class ResConfigSettings(models.TransientModel):
         super().set_values()
         if self.pan_ai_new_key:
             key = self.pan_ai_new_key.strip()
-            self.env["ir.config_parameter"].sudo().set_str("pan_ai.openrouter_key", key)
+            params(self.env).set_str("pan_ai.openrouter_key", key)
 
     def _reload(self):
         return {"type": "ir.actions.client", "tag": "reload"}
 
     def action_pan_ai_remove_key(self):
         """The kill switch: every new run refuses at once."""
-        self.env["ir.config_parameter"].sudo().set_str("pan_ai.openrouter_key", "")
+        params(self.env).set_str("pan_ai.openrouter_key", "")
         return self._reload()
 
     def action_pan_ai_connect(self):
