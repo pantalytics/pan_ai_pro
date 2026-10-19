@@ -47,6 +47,8 @@ jobs:
       # The image runs Odoo from Debian's packages. A venv over them, like Cloudpepper's,
       # takes the module's requirements without touching Debian's files; playwright gets a
       # venv of its own so its greenlet never shadows the one Debian's gevent was built against.
+      # Odoo runs as `python /usr/bin/odoo`, not `python -m odoo`: the gevent worker is spawned
+      # by re-running argv[0], and a package's __main__.py cannot be re-run as a script.
       - name: Install the module's Python dependencies (what Odoo.sh and Cloudpepper do on pull)
         run: |
           python3 -m venv --without-pip --system-site-packages /opt/venv
@@ -55,7 +57,7 @@ jobs:
           /opt/pw/bin/python -m pip install playwright==1.56.0
       - name: Install and run the unit tests
         run: |
-          /opt/venv/bin/python -m odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
+          /opt/venv/bin/python /usr/bin/odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
             --addons-path=/usr/lib/python3/dist-packages/odoo/addons,$GITHUB_WORKSPACE \
             -i pan_ai_pro --test-enable --test-tags /pan_ai_pro --stop-after-init --without-demo=all \
             --log-level=test 2>&1 | tee odoo-tests.log
@@ -67,7 +69,7 @@ jobs:
           python3 scripts/browser/fake_openrouter.py 8091 & sleep 1
           PAN_AI_PRO_SERVER_URL=http://127.0.0.1:8090 PAN_AI_PRO_PUBLIC_KEY="$(cat /tmp/pub)" \
           PAN_AI_PRO_OPENROUTER_BASE_URL=http://127.0.0.1:8091/v1 \
-          /opt/venv/bin/python -m odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
+          /opt/venv/bin/python /usr/bin/odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
             --addons-path=/usr/lib/python3/dist-packages/odoo/addons,$GITHUB_WORKSPACE \
             --db-filter=^ci$ --workers=2 --max-cron-threads=1 --limit-time-real=30 --limit-time-real-cron=75 \
             --http-port=8069 --gevent-port=8072 --proxy-mode > odoo-server.log 2>&1 &
@@ -86,6 +88,9 @@ jobs:
           assert m["first_delta_latency_ms"] is not None and m["first_delta_latency_ms"] < 300, m
           assert m["max_batch_latency_ms"] < 500, m
           PY
+      - name: The server's log when the browser check failed
+        if: failure()
+        run: tail -n 150 odoo-server.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -93,4 +98,6 @@ jobs:
           path: |
             scripts/browser/shot_*.png
             browser.json
+            odoo-server.log
+            odoo-tests.log
             odoo-server.log
