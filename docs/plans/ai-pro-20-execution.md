@@ -38,7 +38,7 @@ architecture-20.md.
       sent it, slowest batch 97 ms, Stop mid-run, final body written once,
       two messages on the channel. `scripts/spikes/s2_bus_stream/`. Left
       for S4's hosts: the same `measure.py` on Odoo.sh and Cloudpepper.
-- [ ] **S3 The dependency.** `pydantic-ai-slim[openai,mcp]` on Odoo.sh via
+- [x] **S3 The dependency.** `pydantic-ai-slim[openai,mcp]` on Odoo.sh via
       `requirements.txt` and on Cloudpepper; import inside a worker;
       `asyncio.run` per request; memory per worker before and after.
       Half answered 2026-10-19: Cloudpepper attaches a git addons source
