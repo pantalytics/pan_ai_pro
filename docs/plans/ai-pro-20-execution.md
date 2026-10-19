@@ -237,15 +237,18 @@ port (`tests/test_mcp_toolset.py`).
       `check_flow.py` as the shape
 - [x] `.github/workflows/gitleaks.yml`, copied from admin
 - [x] `.github/workflows/release.yml`: a tag `20.0.x.y.z` builds the zip and
-      a GitHub release; the store listing is uploaded by hand
+      a GitHub release; the store listing is uploaded by hand. Also by hand
+      from the Actions tab (Run workflow, the version): the run makes the
+      tag itself, for a session whose git proxy refuses tag pushes
 - [ ] branch protection on `20.0`: CI and browser green required, no force
       push; Dependabot for the Actions, Playwright and `pydantic-ai-slim`
 - [x] `requirements.txt` pinned; a CI step installs exactly it
 
 ### admin (exists, extend)
 
-- [ ] `ci.yml`: the new tests join by glob; `loc_budget` holds; gitleaks
-      unchanged; staging then prod through the existing chain
+- [x] `ci.yml`: the new tests join by glob; `loc_budget` holds; gitleaks
+      unchanged; staging then prod through the existing chain (#484 merged
+      2026-10-19 as `569b15e`)
 - [ ] `tests/e2e/test_ai_pro_pairing.py` against staging: pair a stub
       Odoo, heartbeat, signed entitlement verifies
 
@@ -345,6 +348,28 @@ find answered.
 Each PR is reviewable on its own and leaves production working: without a
 connection the module shows "Connect to Pantalytics" and does nothing
 else; without a key, "No key".
+
+## 9. Rollout, 2026-10-19
+
+- admin [#484](https://github.com/pantalytics/odoo-mcp-pro-admin/pull/484)
+  squashed onto `main` as `569b15e`; the chain CI, Deploy staging, Deploy
+  prod runs on it (results in the Actions tab).
+- module [#4](https://github.com/pantalytics/pan_ai_pro/pull/4) merged onto
+  `20.0` as `2f30171` (a merge commit: the spikes and the plan keep their
+  history); CI runs on `20.0`.
+- release `20.0.1.0.0` through the release workflow's manual run.
+- brand site [#11](https://github.com/pantalytics/pantalytics-brand/pull/11)
+  merged and deployed.
+- issues #1 and #2 closed by the merge; #5 (the S1 and S6 leftovers) stays
+  open for the Cloudpepper dashboard and the Zitadel console.
+- what no session may do: attach a branch to a Cloudpepper instance (the
+  permission gate refuses it, four attempts in two forms). The host walk
+  of section 8, the S3 numbers on a host and the Enterprise bridge
+  measurement are done by hand: attach `pantalytics/pan_ai_pro` at
+  `20.0`, whole repository, to `odoo-20-community-demo` (install
+  `pan_ai_pro`) and to `odoo-20-enterprise-demo` (install
+  `pan_ai_pro_enterprise`), then Settings > AI Pro > Connect to Pantalytics
+  against production.
 
 **Not in this plan:** voice, attachments, a full-page chat, our own
 credits, a brain on the platform, Odoo's native `/mcp`, OCA `queue_job`,

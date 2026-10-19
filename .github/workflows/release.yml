@@ -19,7 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: The version in the manifest is the one released
-        run: grep -q "\"version\": \"${VERSION}\"" pan_ai_pro/__manifest__.py
+        run: |
+          grep -q "\"version\": \"${VERSION}\"" pan_ai_pro/__manifest__.py
       - name: Tag, on a manual run
         if: github.event_name == 'workflow_dispatch'
         run: |
