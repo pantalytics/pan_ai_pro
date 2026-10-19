@@ -34,6 +34,14 @@ architecture-20.md.
 - [ ] **S3 The dependency.** `pydantic-ai-slim[openai,mcp]` on Odoo.sh via
       `requirements.txt` and on Cloudpepper; import inside a worker;
       `asyncio.run` per request; memory per worker before and after.
+      Half answered 2026-10-19: Cloudpepper attaches a git addons source
+      with `auto_requirements` (a `pip install -r requirements.txt` on
+      every pull, venv mode, the default on Odoo 18+), so the module's
+      `requirements.txt` is the install path there as on Odoo.sh; our
+      Cloudpepper instances run `workers = 2` with Odoo's default limits
+      (`limit_time_real` 120 s, `limit_time_real_cron` the same, two cron
+      workers), which the S4 slice budgets fit under. Left: the install
+      itself on both hosts and the memory numbers.
 - [x] **S4 Slices.** Done 2026-10-19 locally on a prefork server
       (`workers = 2`, `limit_time_real = 8`), claim holds: a chat of 5
       slices (first inline, four on crons, wake 122 to 849 ms) outlives
@@ -52,7 +60,12 @@ architecture-20.md.
       `mcp.pantalytics.com/mcp` with a Zitadel token from the device flow
       (RFC 8628) started in Odoo; the grant enabled on the Zitadel app;
       refresh stored encrypted; `tools/list` filtered by
-      `allowed_tool_names`; the SSRF gate on the URL.
+      `allowed_tool_names`; the SSRF gate on the URL. Half answered
+      2026-10-19: our Zitadel instance advertises
+      `device_authorization_endpoint` and the `device_code` grant in its
+      discovery document, so no redirect URI per customer database is
+      needed. Left: the grant enabled on a Zitadel app for the module, the
+      flow from Odoo, the refresh at rest, the filter.
 
 ## 2. Module (`pan_ai_pro` branch `20.0`), PR A: records, runtime, window
 
