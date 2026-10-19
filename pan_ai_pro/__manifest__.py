@@ -18,7 +18,7 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "1.1.0",
+    "version": "2.0.0",
     "license": "LGPL-3",
     "external_dependencies": {"python": ["pydantic_ai", "markdown2", "cryptography", "requests"]},
     "depends": ["mail", "bus", "base_automation"],

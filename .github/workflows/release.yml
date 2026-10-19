@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "The manifest's version, e.g. 1.1.0 (no Odoo prefix: one module for 19 and 20). The run makes the tag."
+        description: "The manifest's version, e.g. 2.0.0 (no Odoo prefix: one module for 19 and 20). The run makes the tag."
         required: true
 
 jobs:
