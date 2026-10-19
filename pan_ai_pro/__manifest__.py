@@ -35,6 +35,7 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
         "views/run_views.xml",
         "views/ir_actions_server_views.xml",
         "views/res_config_settings_views.xml",
+        "views/ir_model_fields_views.xml",
         "views/menus.xml",
     ],
     "assets": {

@@ -10,3 +10,5 @@ access_thread_manager,thread: manager,pan_ai.thread,pan_ai_pro.group_manager,cru
 access_run_own,run: own reads,pan_ai.run,pan_ai_pro.group_user,r,"[('user_id', '=', user.id)]"
 access_run_manager,run: manager,pan_ai.run,pan_ai_pro.group_manager,crud,
 access_license_manager,license: system,pan_ai.license,base.group_system,crud,
+access_field_metadata_user,field state: user reads,pan_ai.field.metadata,pan_ai_pro.group_user,r,
+access_field_metadata_manager,field state: manager,pan_ai.field.metadata,pan_ai_pro.group_manager,crud,

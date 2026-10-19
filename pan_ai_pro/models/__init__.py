@@ -1,7 +1,10 @@
 from . import (
     agent,
+    base,
     discuss_channel,
+    field_metadata,
     ir_actions_server,
+    ir_model_fields,
     license,
     res_config_settings,
     run,

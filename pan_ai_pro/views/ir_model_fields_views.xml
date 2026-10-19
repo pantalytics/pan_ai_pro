@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_model_fields_form_ai" model="ir.ui.view">
+        <field name="name">ir.model.fields.form.pan_ai</field>
+        <field name="model">ir.model.fields</field>
+        <field name="inherit_id" ref="base.view_model_fields_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="AI" name="pan_ai">
+                    <group>
+                        <group>
+                            <field name="pan_ai_prompt" placeholder="A one-line summary of {{ object.name }} for a sales rep."/>
+                            <field name="pan_ai_agent_id"/>
+                            <field name="pan_ai_use_tools"/>
+                        </group>
+                        <group>
+                            <field name="pan_ai_auto_fill"/>
+                            <field name="pan_ai_auto_update"/>
+                            <button name="action_pan_ai_fill_all" type="object" string="Fill empty records now" class="btn-secondary" invisible="not pan_ai_prompt"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="view_ai_fields_list" model="ir.ui.view">
+        <field name="name">ir.model.fields.list.pan_ai</field>
+        <field name="model">ir.model.fields</field>
+        <field name="arch" type="xml">
+            <list create="false">
+                <field name="model_id"/>
+                <field name="name"/>
+                <field name="field_description"/>
+                <field name="ttype"/>
+                <field name="pan_ai_agent_id"/>
+                <field name="pan_ai_auto_fill"/>
+                <field name="pan_ai_auto_update"/>
+                <button name="action_pan_ai_fill_all" type="object" string="Fill now" icon="fa-magic"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_ai_fields" model="ir.actions.act_window">
+        <field name="name">AI fields</field>
+        <field name="res_model">ir.model.fields</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('pan_ai_is_ai', '=', True)]</field>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('view_ai_fields_list')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No AI fields yet</p>
+            <p>Open any stored field under Settings > Technical > Fields, write a prompt on its AI tab, and it becomes one.</p>
+        </field>
+    </record>
+</odoo>

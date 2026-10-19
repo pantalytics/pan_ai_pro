@@ -4,7 +4,13 @@ import asyncio
 import json
 from datetime import timedelta
 
-from pydantic_ai.messages import ToolReturnPart, UserPromptPart
+from pydantic_ai.messages import (
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 
 from odoo import fields
@@ -22,18 +28,34 @@ class FakeModel:
         self.script = script
         self.requests = 0
 
+    def _step(self, messages):
+        # how many tool returns since the last user prompt decides the turn
+        turn = 0
+        for m in messages:
+            for p in getattr(m, "parts", []):
+                if isinstance(p, UserPromptPart):
+                    turn = 0
+                elif isinstance(p, ToolReturnPart):
+                    turn += 1
+        return turn, self.script[min(turn, len(self.script) - 1)]
+
     def build(self):
+        def fn(messages, info):
+            """The non-streamed request (agent.run, as AI fields use it)."""
+            self.requests += 1
+            turn, step = self._step(messages)
+            if isinstance(step, str):
+                return ModelResponse(parts=[TextPart(step)])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name=name, args=args, tool_call_id=f"call_{turn}_{i}")
+                    for i, (name, args) in enumerate(step)
+                ]
+            )
+
         async def stream_fn(messages, info):
             self.requests += 1
-            # how many tool returns since the last user prompt decides the turn
-            turn = 0
-            for m in messages:
-                for p in getattr(m, "parts", []):
-                    if isinstance(p, UserPromptPart):
-                        turn = 0
-                    elif isinstance(p, ToolReturnPart):
-                        turn += 1
-            step = self.script[min(turn, len(self.script) - 1)]
+            turn, step = self._step(messages)
             await asyncio.sleep(0)
             if isinstance(step, str):
                 for tok in step.split(" "):
@@ -46,7 +68,7 @@ class FakeModel:
                 for i, (name, args) in enumerate(step)
             }
 
-        return FunctionModel(stream_function=stream_fn)
+        return FunctionModel(fn, stream_function=stream_fn)
 
 
 class AiProCase(TransactionCase):
