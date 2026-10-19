@@ -398,9 +398,12 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
       first token, no JavaScript errors (the spike's result table)
 - [x] CI: the Odoo job as a matrix on `odoo:19` and `odoo:20`; the release
       tag without prefix
-- [ ] one branch `main` from `20.0`; `19.0` and `20.0` retired after the
-      merge; Cloudpepper attaches `main`; the default branch switched on
-      GitHub (a repository setting, Rutger)
+- [x] one branch `main`: #9 brought the stale `main` (March 2026) up to
+      `20.0`'s head, 2026-10-19; `19.0` and `20.0` stay as history and get
+      no more changes; Cloudpepper attaches `main`; release `1.1.0` cut
+      from it
+- [ ] the default branch switched to `main` on GitHub (a repository
+      setting, Rutger)
 - [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the
       bridge is written against 20's `ai_fields`)
 
