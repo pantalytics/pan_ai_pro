@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Two worker crons: every slice past the first runs on one of them,
+         woken with _trigger(). Two, so one long slice does not hold the
+         other threads (plan: S4). Their minute schedule is the safety net. -->
+    <record id="cron_worker_1" model="ir.cron">
+        <field name="name">AI Pro: worker 1</field>
+        <field name="model_id" ref="model_pan_ai_run"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_run_slices()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="priority">5</field>
+    </record>
+    <record id="cron_worker_2" model="ir.cron">
+        <field name="name">AI Pro: worker 2</field>
+        <field name="model_id" ref="model_pan_ai_run"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_run_slices()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="priority">5</field>
+    </record>
+    <record id="cron_stuck" model="ir.cron">
+        <field name="name">AI Pro: mark stuck runs</field>
+        <field name="model_id" ref="model_pan_ai_run"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_mark_stuck()</field>
+        <field name="interval_number">10</field>
+        <field name="interval_type">minutes</field>
+        <field name="user_id" ref="base.user_root"/>
+    </record>
+    <record id="cron_retention" model="ir.cron">
+        <field name="name">AI Pro: delete old chats</field>
+        <field name="model_id" ref="model_pan_ai_thread"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_retention()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+    </record>
+    <record id="cron_heartbeat" model="ir.cron">
+        <field name="name">AI Pro: Pantalytics heartbeat</field>
+        <field name="model_id" ref="model_pan_ai_license"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_heartbeat()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="priority">200</field>
+    </record>
+    <record id="cron_fields" model="ir.cron">
+        <field name="name">AI Pro: compute AI fields</field>
+        <field name="model_id" ref="base.model_ir_model_fields"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_fill_ai_fields()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+    </record>
+</odoo>

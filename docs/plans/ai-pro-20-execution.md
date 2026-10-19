@@ -1,0 +1,409 @@
+# AI Pro 20: execution plan
+
+Status: go 2026-10-19 (Rutger: "werk hele plan uit"); PR D, A and E built the same day, this file ticked as they land. Companion to
+[ai-pro-20.md](ai-pro-20.md) (the why) and
+[../architecture-20.md](../architecture-20.md) (the shape). This file is the
+checklist; tick boxes in commits. Rewritten the same day for the in-Odoo
+design with Pydantic AI's vocabulary.
+
+## 0. Ground rules
+
+- Pydantic AI's names everywhere: `Agent`, `Model`, `Toolset`, `Tool`,
+  `Run`, `Thread.messages`, `UsageLimits`, `deps`, `output_type`,
+  `requires_approval`, `run_stream_events`. A field that has a Pydantic AI
+  name gets that name.
+- No `sudo` in a tool. No second cursor inside a tool. No fallback: a
+  missing key, a refused host, a bad schema is a loud error.
+- 500 lines per Python file, ruff, no em dashes, copy through the
+  humanizer. The repo's `scripts/checks/` are copied from admin.
+
+## 1. Spikes, one week, nothing else ships before they are done
+
+Each is a directory under `scripts/spikes/<name>/` with a README that exits
+non-zero when its claim fails; result and date go into
+architecture-20.md.
+
+- [x] **S1 Enterprise 20 seam.** Done 2026-10-19 over RPC against the
+      Enterprise 20 demo on Cloudpepper (commit `6ad61cf43dcd2`), claim
+      holds: the widget and the nightly cron both end in
+      `get_ai_field_value(fname, changes)` on `base`, which calls the
+      private `_fill_ai_field`, which calls IAP through
+      `odoo.addons.ai.utils.ai_utils` (`get_completions_sync`); we inherit
+      `_fill_ai_field`. Registry names: systray `ai.systray_action`,
+      command providers `ask_ai` and `chat_with_agent`, service
+      `aiChatLauncher`. `scripts/spikes/s1_seam/README.md` has the log
+      lines and what stays installed on the demo.
+- [x] **S2 Streaming through the bus into a `mail` message.** Done
+      2026-10-19 locally, claim holds: first token 50 ms after the server
+      sent it, slowest batch 97 ms, Stop mid-run, final body written once,
+      two messages on the channel. `scripts/spikes/s2_bus_stream/`. Left
+      for S4's hosts: the same `measure.py` on Odoo.sh and Cloudpepper.
+- [x] **S3 The dependency.** `pydantic-ai-slim[openai,mcp]` on Odoo.sh via
+      `requirements.txt` and on Cloudpepper; import inside a worker;
+      `asyncio.run` per request; memory per worker before and after.
+      Half answered 2026-10-19: Cloudpepper attaches a git addons source
+      with `auto_requirements` (a `pip install -r requirements.txt` on
+      every pull, venv mode, the default on Odoo 18+), so the module's
+      `requirements.txt` is the install path there as on Odoo.sh; our
+      Cloudpepper instances run `workers = 2` with Odoo's default limits
+      (`limit_time_real` 120 s, `limit_time_real_cron` the same, two cron
+      workers), which the S4 slice budgets fit under. Left: the install
+      itself on both hosts and the memory numbers.
+- [x] **S4 Slices.** Done 2026-10-19 locally on a prefork server
+      (`workers = 2`, `limit_time_real = 8`), claim holds: a chat of 5
+      slices (first inline, four on crons, wake 122 to 849 ms) outlives
+      the HTTP limit; a worker killed at 75 s in a tool is followed by the
+      other, which finishes the thread; a continuous thread keeps its
+      memory over 3 ticks. Five findings in
+      `scripts/spikes/s4_slices/README.md` (the boundary carries
+      `node.request`; `limit_time_real_cron` floor about 70 s; one wake runs
+      every claimable slice; a busy-worker trigger waits up to 60 s; a
+      claim fence and `next_tick_at` are needed). Left for the hosts:
+      Odoo.sh and Cloudpepper limits and cron worker counts; compaction.
+- [x] **S5 Built-in tools.** Done 2026-10-19: web search streams on
+      Sonnet 5.5, GPT 5.6 and Gemini 3.8 through Pydantic AI's `WebSearch`
+      capability on OpenRouter's server tool (the same tool as `:online`);
+      code execution is refused by Pydantic AI's OpenRouter model on every
+      model, so v1 is web search only. Search results cost 8 to 13k input
+      tokens per question on Sonnet and GPT: `max_uses` and
+      `search_context_size` are the budget. `scripts/spikes/s5_builtin_tools/`.
+- [x] **S6 MCP Pro as a toolset.** Withdrawn 2026-10-19 (decision 14):
+      AI Pro and MCP Pro are two products, AI Pro never calls
+      `mcp.pantalytics.com`, nobody signs in to Zitadel from Odoo. Measured
+      before the withdrawal: a native app with the device-code grant
+      issues a user code in 556 ms, and Zitadel's `/device` page is its
+      login v1 regardless of the app's login version, so a Microsoft
+      sign-in there needs the v1 callback in Azure. The app `pan-ai-pro`
+      created for it is deactivated (the PAT cannot delete).
+      `scripts/spikes/s6_device_flow/`.
+
+## 2. Module (`pan_ai_pro` branch `20.0`), PR A: records, runtime, window
+
+- [ ] branch `20.0` from an empty tree; `19.0` untouched. Manifest
+      depends on `web`, `mail`, `base_setup`, `base_automation`; external
+      dependency `pydantic_ai`; `requirements.txt` for Odoo.sh
+- [x] `security/ir.access.csv` (Odoo 20 merged ACLs and record rules into
+      `ir.access`: `id,name,model_id,group_id/id,operation,domain`)
+- [x] `models/agent.py`, `toolset.py`, `tool.py`, `thread.py`, `run.py`
+      as architecture-20.md section 2 lists them; `res_config_settings.py`
+      (OpenRouter key encrypted with the 19.0 helper, default model,
+      retention, allowed MCP hosts)
+- [x] `data/tools.xml`: the built-in `Tools` (search, read, read_group,
+      create, write, open menu, compute date), each with its JSON schema
+      and `requires_approval` on create and write
+- [x] `runtime/agent.py` `build_agent(record)`; `runtime/deps.py`
+      `OdooDeps`; `runtime/odoo_toolset.py` (`FunctionToolset` over
+      `deps.env`, server actions with "Use in AI" included by their AI
+      schema); `runtime/limits.py`; `runtime/stream.py` (events to JSON
+      lines, the approval interrupt, cancel)
+- [x] `runtime/slices.py`: the loop on `agent.iter()` with the slice
+      budget, persist `thread.conversation`, resume; `runtime/stream.py`
+      batches events to the bus; `models/run.py` with `kind`, slices,
+      worker claim and heartbeat; approval resume with
+      `deferred_tool_results` from the card's RPC
+- [ ] (moved to PR E) scheduled, triggered and continuous runs
+- [x] `models/discuss_channel.py`: channel type `ai`, one channel per
+      (user, agent), the agent's partner, `message_post` starts the run;
+      `static/src/chat/`: patches on `mail`'s `Message` (streaming body,
+      `ToolRow`, `ApprovalCard`), `Composer` (Stop, the "+" actions through
+      `mail.composer/actions`), `ChatWindow` header (New chat, agent
+      picker); `Systray` icon and Ctrl+K "Ask AI"; `run_events.js` (the bus
+      handler); `markdown.js` (no HTML pass-through, links `rel=noopener`)
+- [x] Settings > AI Pro: Model (key: Connected / No key, Replace, Remove;
+      default model), Limits (runs per user per hour, retention), Danger
+      zone (delete all threads). Agents, Toolsets, Tools as list views under
+      a Configuration menu
+- [x] `models/pan_ai_license.py`: Mail Pro's client with the paths
+      swapped (`/api/v1/ai-pro/link/*`, `/api/v1/ai-pro/heartbeat`),
+      pinned Ed25519 public key, 14-day grace. **Required to run:** every
+      run start checks the cached entitlement; not connected or revoked
+      refuses with "Connect to Pantalytics in Settings". Settings > AI Pro
+      gets the Connection row first: Not connected / Connected, Connect to
+      Pantalytics, Disconnect
+- [ ] (left) On Enterprise 20: remove the systray item `ai.systray_action`, the
+      command providers `ask_ai` and `chat_with_agent` (S1); leave the
+      `ai_char` widgets and `ai.client_tools` alone
+- [x] retention cron: threads older than the setting, runs kept
+- [x] tests (Odoo `TransactionCase`): `test_agent_build.py` (record to
+      `Agent`), `test_odoo_toolset.py` (ACL respected, AccessError
+      returned as tool error, no sudo), `test_run_stream.py` (fake model:
+      text, tool call, interrupt, resume, cancel, a second slice),
+      `test_channel.py` (portal user cannot post on an `ai` channel,
+      groups), `test_retention.py`; one Odoo tour: open, send, stream,
+      approve, stop
+
+## 2a. Module, PR E: scheduled, triggered and continuous runs
+
+Built 2026-10-19 inside PR A's branch (one module, one PR for now):
+`ir.actions.server` state "Run AI agent", `pan_ai.thread._start_due_ticks`,
+`Run.kind`. Tests in `tests/test_runs.py`.
+
+- [x] server action "Run agent" (agent, prompt with record context, post
+      the answer to, create an activity): automation rules and scheduled
+      actions call it; `Run.kind` = `triggered` or `scheduled`, `user` =
+      the rule's or action's user, never the superuser
+- [x] two worker crons (`data/ir_cron.xml`), `_trigger()`-woken, a claim
+      per thread (an atomic row update, `SerializationFailure` caught),
+      heartbeat on every flush, stale recovery, a claim token checked
+      before every write (the fence, S4 finding 5), one wake runs every
+      claimable slice within `limit_time_real_cron` minus a margin (S4
+      findings 2 and 3)
+- [x] continuous threads: `continuous`, the watch (model, domain, cursor,
+      interval of at least a minute), `next_tick_at` that the claim
+      respects (S4 finding 5), the per-tick prompt ("since your last tick:
+      N records changed, here they are"), Pause and Stop on the thread's
+      form, a history processor that compacts past a token budget
+- [x] the Runs list view: kind, agent, user, status, cost, duration; a
+      thread's form shows its runs
+- [ ] tests: a scheduled run posts its answer, a triggered run gets the
+      record, a continuous thread ticks twice and compacts, a paused thread
+      does not tick, two workers never share a thread
+
+## 3. Module, PR B: AI fields
+
+Built 2026-10-19 in PR A's branch, smaller than planned: a prompt on any
+stored field (`ir.model.fields`, AI tab), state rows, auto fill and auto
+update, one `agent.run` with the field's schema (`runtime/field.py`).
+The Community "property AI type" and the 19.0 widget were not ported: the
+field's own form and the AI fields list are the surface for now. The
+Enterprise seam is `pan_ai_pro_enterprise` (auto installs with
+`ai_fields`), not measured on a real Enterprise 20 yet.
+
+- [x] Enterprise: inherit `_fill_ai_field` on `base` (the seam S1 found:
+      widget and the `AI Fields: Compute AI fields` cron both end there)
+      and run the field's `Agent`; Odoo's widget, cron, Studio panel and
+      the `ir.model.fields` AI columns stay as they are, our metadata
+      model from 19.0 beside them
+- [ ] Community: property fields gain an AI type (prompt, `/field`
+      references, output type), same metadata, same widget
+- [x] `runtime/field.py`: one `agent.run` with `output_type` = the field's
+      schema, no toolsets unless the field says so, 60 s
+- [x] tests with a fake model, both editions' paths
+
+## 4. Module, PR C: generic MCP toolsets
+
+Built 2026-10-19 in PR A's branch, bearer token only: `pan_ai.toolset`
+kind `mcp` (url, token, allowed tool names, prefix), `runtime/mcp_toolset.py`
+on Pydantic AI's `MCPToolset`, the host gate (allowed hosts in Settings,
+private addresses refused), tested against a real MCP server on a local
+port (`tests/test_mcp_toolset.py`).
+
+- [x] `runtime/mcp_toolset.py`: `MCPServerStreamableHTTP(url, headers)`
+      per `pan_ai.toolset` of kind `mcp`, `FilteredToolset` on
+      `allowed_tool_names`, `tool_prefix`, `requires_approval` per tool;
+      the SSRF gate (copied from the public server) on every URL, plus the
+      allowed hosts setting
+- [x] auth `bearer` only: one token per toolset row, encrypted, pasted by
+      a Settings administrator. No token per user, no Zitadel, no MCP Pro
+      (decision 14)
+- [x] the window's tool rows show the tool's name (the prefix carries the server's)
+- [x] tests: a local MCP server in the test (the public `mcp` package),
+      filter, prefix, refused host, token refresh
+
+## 5. Platform (admin), PR D: Mail Pro's door for AI Pro
+
+- [x] `apps/__init__.py`: `AI_PRO = "ai_pro"`, in `PAIRED`, `APP_NAMES`,
+      `RETURN_PATHS`
+- [x] `apps/ai_pro.py`: `register_link_routes` on `/api/v1/ai-pro/link`;
+      heartbeat `/api/v1/ai-pro/heartbeat` through `door.admit` with its own
+      request model (db uuid, module and Odoo version, edition, agents
+      count, runs in 24 h, errors `[{code, count}]`; nothing that can carry
+      a prompt, a record or a thread title); entitlement with `plan`,
+      `latest_version`, `message`, same signing key
+- [x] the module's client is in PR A (required to run); here the server
+      side, so PR D lands on staging before PR A's gate
+- [x] instance page: the app tile shows Connected / Not connected and
+      Disconnect
+- [x] tests: `test_ai_pro_door.py`, `test_db_ai_pro.py` (integration)
+
+## 6. CI/CD
+
+### pan_ai_pro (none today, add)
+
+- [x] `.github/workflows/ci.yml`: ruff format and check; `no_em_dash`,
+      `loc_budget` (scripts copied from admin); Odoo 20 install and tests in
+      Docker (`odoo:20` image, `postgres:16` service, `pip install -r
+      requirements.txt`, `odoo -i pan_ai_pro --test-enable
+      --stop-after-init`) on Community; the tour runs there
+- [x] (inside `ci.yml`, one workflow) `.github/workflows/browser.yml`: Playwright drives the dockerised
+      Odoo (a real server, not `HttpCase`: its `TestCursor` defers the bus
+      to the end of the request, so latency there is fiction, S2) against
+      `scripts/browser/fake_openrouter.py` (an OpenAI-compatible stub that
+      streams text and one tool call), `fake_platform.py` (start, poll, a
+      signed entitlement with a test key) and a local MCP stub; asserts
+      the S2 numbers (first token under 300 ms after send by the server,
+      slowest batch under 500 ms);
+      screenshots at desktop and 390 px as the artifact, Mail Pro's
+      `check_flow.py` as the shape
+- [x] `.github/workflows/gitleaks.yml`, copied from admin
+- [x] `.github/workflows/release.yml`: a tag `20.0.x.y.z` builds the zip and
+      a GitHub release; the store listing is uploaded by hand. Also by hand
+      from the Actions tab (Run workflow, the version): the run makes the
+      tag itself, for a session whose git proxy refuses tag pushes
+- [ ] branch protection on `20.0`: CI and browser green required, no force
+      push; Dependabot for the Actions, Playwright and `pydantic-ai-slim`
+- [x] `requirements.txt` pinned; a CI step installs exactly it
+
+### admin (exists, extend)
+
+- [x] `ci.yml`: the new tests join by glob; `loc_budget` holds; gitleaks
+      unchanged; staging then prod through the existing chain (#484 merged
+      2026-10-19 as `569b15e`)
+- [ ] `tests/e2e/test_ai_pro_pairing.py` against staging: pair a stub
+      Odoo, heartbeat, signed entitlement verifies
+
+### The contract between the two
+
+- [x] `pan_ai_pro/docs/protocol.md`: the pairing paths, the heartbeat
+      body, the entitlement fields, the public key. Fixtures in
+      `contract/*.json` in the module repo, pinned by commit in admin's
+      `tests/fixtures/ai_pro/`; a field added on one side without the
+      fixture fails the other side's CI
+
+## 7. Security checklist, every PR
+
+Run the `security-review` skill on each PR; these are the items it must
+find answered.
+
+**Rights**
+- [ ] every tool runs on `deps.env`, the caller's; no `sudo`, no
+      `with_user`; a test greps the runtime for both
+- [ ] `AccessError` inside a tool is the tool's error to the model, never
+      caught into a wider path; the restricted-user test (a sales user sees
+      only his orders) is a `TransactionCase`
+- [ ] create and write tools carry `requires_approval`; the resume is
+      validated against the pending `tool_call_id` on the thread, never
+      trusted from the client; Skip is recorded
+- [ ] the controller admits internal users only, with CSRF; portal and
+      public users get 403; the agent's groups are checked per run
+- [ ] triggered runs (automation rules) run as the rule's user, never as
+      the superuser; a rule saved by a non-administrator cannot pick an
+      agent above its groups
+
+**Secrets at rest**
+- [ ] OpenRouter key: encrypted with the 19.0 helper, system group only,
+      shown as last four, never logged, never in a bus message
+- [ ] MCP bearer tokens (PR C): same helper, deleted on toolset delete
+- [ ] the Ed25519 public key in the module is the one
+      `signing.public_key_b64()` prints on prod; the release checklist
+      checks it
+
+**Input**
+- [ ] tool results and record content are data: the agent's base
+      instructions say so; an injection test case in `test_run_stream.py`
+      (a record whose text says "ignore your rules")
+- [ ] prompt size capped (16 kB), thread length capped, `output_type`
+      schemas validated before a run; one 400 shape for every bad body
+- [ ] the markdown renderer escapes HTML; no `innerHTML` of model output;
+      links `rel="noopener noreferrer"`; record cards built from ids, not
+      from model text
+
+**Network**
+- [ ] every MCP URL passes `_is_unreachable_host` and the allowed hosts
+      setting before any connection; redirects not followed
+- [ ] OpenRouter is the only model host; the base URL is a constant
+- [ ] no route of our own streams anything; the bus and `mail`'s own
+      controllers carry it, same-origin as always
+
+**Limits**
+- [ ] `UsageLimits` per agent (requests, tokens, time) enforced by
+      Pydantic AI; runs per user per hour and one live run per user
+      enforced by the controller; both refusals have one shape
+- [ ] a slice cannot outlive `limit_time_real` or `limit_time_real_cron`:
+      the slice budget is read from the config at runtime and capped
+      below it, as MuK does; a run past its total budget stops with an
+      error the thread shows
+- [ ] continuous threads: a watch domain is validated against the
+      model's ACL for the thread's user; a tick that finds nothing makes
+      no model call; a thread whose user is deactivated is paused
+
+**Supply chain**
+- [ ] `requirements.txt` pinned, Dependabot on it; gitleaks on both repos;
+      Actions pinned to major versions
+
+**Privacy**
+- [ ] heartbeat and telemetry carry counts, tool names, outcomes and
+      cost; never a prompt, a record, a thread title or a user's name (the
+      request model is the boundary, as Mail Pro's)
+- [ ] threads deleted by the retention cron; "Delete all threads" in the
+      danger zone; the privacy page lists AI Pro
+
+**Operations**
+- [ ] a stuck run is visible in `pan_ai.run` with `status = running` past
+      its limit and a cron marks it failed
+- [ ] kill switch: Remove the key stops every new run at once
+
+## 8. Order and gates
+
+| Step | Gate to pass |
+|---|---|
+| Spikes S1 to S6 | results dated in architecture-20.md |
+| PR D (platform door) | admin CI green, staging walk: pair a stub, heartbeat, entitlement verifies. Lands first: PR A cannot run without it. 2026-10-19: walked on production instead (section 9), staging does not route the API |
+| PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper connected to staging with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan. 2026-10-19: the browser check and the suite are green locally (`scripts/browser/shot_desktop.png`); attaching this branch to a Cloudpepper instance from the session was refused by its permission gate, so the Cloudpepper walk is Rutger's |
+| PR E (runs) | CI green, a scheduled run and a triggered run seen by hand, a continuous thread watched for a day on staging |
+| PR B (fields) | CI green, Enterprise and Community field each computed once by hand |
+| PR C (generic MCP toolsets, if ever) | CI green, one public MCP server as a toolset from a real Odoo, one tool called by hand |
+| Release | tag, store listing, the Ed25519 key check, `20.0` protected |
+
+Each PR is reviewable on its own and leaves production working: without a
+connection the module shows "Connect to Pantalytics" and does nothing
+else; without a key, "No key".
+
+## 9. Rollout, 2026-10-19
+
+- admin [#484](https://github.com/pantalytics/odoo-mcp-pro-admin/pull/484)
+  squashed onto `main` as `569b15e`; the chain CI, Deploy staging, Deploy
+  prod runs on it (results in the Actions tab).
+- module [#4](https://github.com/pantalytics/pan_ai_pro/pull/4) merged onto
+  `20.0` as `2f30171` (a merge commit: the spikes and the plan keep their
+  history); CI runs on `20.0`.
+- release `20.0.1.0.0` through the release workflow's manual run.
+- brand site [#11](https://github.com/pantalytics/pantalytics-brand/pull/11)
+  merged and deployed.
+- issues #1 and #2 closed by the merge; #5 (the S1 and S6 leftovers) stays
+  open for the Cloudpepper dashboard and the Zitadel console.
+- what no session may do: attach a branch to a Cloudpepper instance (the
+  permission gate refuses it, four attempts in two forms). The host walk
+  of section 8, the S3 numbers on a host and the Enterprise bridge
+  measurement are done by hand: attach `pantalytics/pan_ai_pro` at
+  `20.0`, whole repository, to `odoo-20-community-demo` (install
+  `pan_ai_pro`) and to `odoo-20-enterprise-demo` (install
+  `pan_ai_pro_enterprise`), then Settings > AI Pro > Connect to Pantalytics
+  against production.
+
+## 10. PR F: one module for Odoo 19 and 20, Community and Enterprise
+
+Asked 2026-10-19 after the rollout ("one module that works on 19, 20,
+Community and Enterprise"). Decision 17 in architecture-20.md; the
+measurements in `scripts/spikes/s7_one_module/README.md`.
+
+- [x] S7: the 20.0 module on a real Odoo 19 (`odoo/odoo` 19.0 clone): five
+      breaks, all small, listed in the spike
+- [x] manifest version without the Odoo prefix (`1.1.0`); Odoo prefixes its
+      own serie, 19 refuses a `20.0.` version outright
+- [x] `pan_ai_pro/compat.py`: `params(env)` with 20's typed getters on 19's
+      `get_param`; the one file that may branch on the version
+- [x] `models/access.py` + `security/access.xml`: the access rows created
+      for `ir.access` (20) or `ir.model.access` + `ir.rule` (19), same xml
+      ids as the 20.0 CSV; the CSV is gone
+- [x] `ir.model.fields.write`: our columns on base fields pass 19's guard
+- [x] `pan_ai.tool.model_names` (stored, sudo compute): the toolset no
+      longer reads `ir.model` as the run's user (19 gives users no access)
+- [x] "Run AI agent" asks AI Pro access and read on the records, not write
+      on the model (both versions check the same way)
+- [x] the suite green on 19 and 20 (46 tests each, measured locally); the
+      Store push, the systray condition and the mail store's thread model
+      through `static/src/chat/compat.js` and `compat.send_fields`
+- [x] the chat in a real browser on 19 (Owl 2) through `check_chat.py`: 29 ms
+      first token, no JavaScript errors (the spike's result table)
+- [x] CI: the Odoo job as a matrix on `odoo:19` and `odoo:20`; the release
+      tag without prefix
+- [ ] one branch `main` from `20.0`; `19.0` and `20.0` retired after the
+      merge; Cloudpepper attaches `main`; the default branch switched on
+      GitHub (a repository setting, Rutger)
+- [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the
+      bridge is written against 20's `ai_fields`)
+
+**Not in this plan:** voice, attachments, a full-page chat, our own
+credits, a brain on the platform, Odoo's native `/mcp`, OCA `queue_job`,
+SSO into the customer's Odoo.

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Settings > AI Pro. Odoo's own settings markup, four blocks in the
+         order a person needs them: the connection (without it nothing runs),
+         the model, the limits, and last the danger zone. -->
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.pan_ai_pro</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="AI Pro" string="AI Pro" name="pan_ai_pro" groups="base.group_system"
+                     logo="/pan_ai_pro/static/description/icon.png">
+                    <field name="pan_ai_state" invisible="1"/>
+                    <field name="pan_ai_has_key" invisible="1"/>
+
+                    <block title="Pantalytics" name="pan_ai_account_block">
+                        <setting id="pan_ai_account_setting" string="Pantalytics account"
+                                 help="Agents run only on a connected Odoo. Counts go out once a day, never a prompt or a record.">
+                            <div invisible="pan_ai_state != 'not_connected'" class="mt-2">
+                                <button name="action_pan_ai_connect" type="object"
+                                        string="Connect to Pantalytics" class="btn-primary"/>
+                            </div>
+                            <div invisible="pan_ai_state != 'pending'" class="mt-2">
+                                <div>Approve the connection in the Pantalytics tab that just opened. It shows this code:
+                                    <field name="pan_ai_user_code" nolabel="1" readonly="1" class="fw-bold d-inline ms-1"/>
+                                </div>
+                                <div class="text-muted">No tab? <field name="pan_ai_verify_url" widget="url" nolabel="1" readonly="1"
+                                                   options="{'website_path': False}" text="Open it again" class="d-inline"/></div>
+                                <div class="mt-2">
+                                    <button name="action_pan_ai_check" type="object" string="Check approval" class="btn-primary"/>
+                                    <button name="action_pan_ai_disconnect" type="object" string="Cancel" class="btn-link"/>
+                                </div>
+                            </div>
+                            <div invisible="pan_ai_state != 'connected'" class="mt-2">
+                                <span class="text-success">Connected</span><span invisible="not pan_ai_connected_by"> by
+                                    <field name="pan_ai_connected_by" nolabel="1" readonly="1" class="d-inline"/></span>
+                                <div invisible="not pan_ai_update_available" class="text-muted">
+                                    Version <field name="pan_ai_update_available" nolabel="1" readonly="1" class="d-inline"/> is available.
+                                </div>
+                            </div>
+                            <div invisible="pan_ai_state != 'broken'" class="mt-2">
+                                <div class="text-danger">
+                                    <field name="pan_ai_link_status" nolabel="1" readonly="1" class="d-inline"/>.
+                                    <field name="pan_ai_message" nolabel="1" readonly="1" class="d-inline"/>
+                                </div>
+                                <div class="mt-2">
+                                    <button name="action_pan_ai_connect" type="object" string="Connect to Pantalytics" class="btn-primary"/>
+                                </div>
+                            </div>
+                            <div invisible="not pan_ai_last_error" class="mt-2 text-warning">
+                                <field name="pan_ai_last_error" nolabel="1" readonly="1"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="Model" name="pan_ai_model_block">
+                        <setting id="pan_ai_key_setting" string="OpenRouter key"
+                                 help="One key for every model. Get one at openrouter.ai/keys.">
+                            <div invisible="not pan_ai_has_key" class="mt-2">
+                                <span class="text-success">Connected</span>
+                                <span class="text-muted">, ends in <field name="pan_ai_key_last4" nolabel="1" readonly="1" class="d-inline"/></span>
+                            </div>
+                            <div class="mt-2">
+                                <field name="pan_ai_new_key" nolabel="1" password="True" class="w-100"
+                                       placeholder="Paste a key and save"/>
+                            </div>
+                            <div invisible="not pan_ai_has_key" class="mt-2">
+                                <button name="action_pan_ai_remove_key" type="object" string="Remove key" class="btn-link"
+                                        confirm="Remove the OpenRouter key? Every agent stops at once until a new key is saved."/>
+                            </div>
+                        </setting>
+                        <setting id="pan_ai_model_setting" string="Default model"
+                                 help="An OpenRouter model id. An agent can pick its own.">
+                            <field name="pan_ai_default_model" nolabel="1" placeholder="anthropic/claude-sonnet-5.5"/>
+                        </setting>
+                    </block>
+
+                    <block title="Limits" name="pan_ai_limits_block">
+                        <setting id="pan_ai_runs_setting" string="Runs per person per hour" help="0 is no limit.">
+                            <field name="pan_ai_runs_per_user_per_hour" nolabel="1"/>
+                        </setting>
+                        <setting id="pan_ai_retention_setting" string="Keep chats for" help="Days. Older chats are deleted nightly; runs are kept.">
+                            <field name="pan_ai_retention_days" nolabel="1"/>
+                        </setting>
+                        <setting id="pan_ai_mcp_hosts_setting" string="Allowed MCP hosts" help="An MCP toolset connects only to a host named here. Comma separated.">
+                            <field name="pan_ai_mcp_allowed_hosts" nolabel="1" placeholder="mcp.example.com"/>
+                        </setting>
+                    </block>
+
+                    <block title="Danger zone" name="pan_ai_danger_block">
+                        <setting id="pan_ai_delete_setting" string="Delete all chats" help="Every thread and chat window, for everyone. Runs are kept.">
+                            <button name="action_pan_ai_delete_threads" type="object" string="Delete all chats" class="btn-secondary mt-2"
+                                    confirm="Delete all chats? Every thread of every person is removed. Runs are kept."/>
+                        </setting>
+                        <setting id="pan_ai_disconnect_setting" string="Disconnect from Pantalytics"
+                                 help="Agents stop until you connect again. The module stays installed."
+                                 invisible="pan_ai_state != 'connected'">
+                            <button name="action_pan_ai_disconnect" type="object" string="Disconnect" class="btn-secondary mt-2"
+                                    confirm="Disconnect this Odoo from Pantalytics? Agents stop until you connect it again."/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

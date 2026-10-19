@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- The one toolset every agent starts with: the ORM, as the person. -->
+    <record id="toolset_odoo" model="pan_ai.toolset">
+        <field name="name">Odoo</field>
+        <field name="description">Look up, aggregate, create and update records, as the person who asks.</field>
+    </record>
+    <record id="tool_describe_model" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">describe_model</field>
+        <field name="builtin">describe_model</field>
+        <field name="sequence">1</field>
+        <field name="description">Describe an Odoo model: its fields, their types, labels, selection values and relations. Call it before searching a model you have not used in this conversation.</field>
+    </record>
+    <record id="tool_search_records" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">search_records</field>
+        <field name="builtin">search_records</field>
+        <field name="sequence">2</field>
+        <field name="description">Search records of a model with an Odoo domain and read the fields you name. Returns at most `limit` records (default 20, max 200) with their ids.</field>
+    </record>
+    <record id="tool_read_records" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">read_records</field>
+        <field name="builtin">read_records</field>
+        <field name="sequence">3</field>
+        <field name="description">Read the named fields of records you already know the ids of.</field>
+    </record>
+    <record id="tool_read_group" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">read_group</field>
+        <field name="builtin">read_group</field>
+        <field name="sequence">4</field>
+        <field name="description">Count or sum records grouped by one or more fields, like a pivot. Use it for totals instead of reading every record.</field>
+    </record>
+    <record id="tool_create_record" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">create_record</field>
+        <field name="builtin">create_record</field>
+        <field name="sequence">5</field>
+        <field name="requires_approval" eval="True"/>
+        <field name="description">Create one record with the given field values. The person approves the call first.</field>
+    </record>
+    <record id="tool_write_record" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">write_record</field>
+        <field name="builtin">write_record</field>
+        <field name="sequence">6</field>
+        <field name="requires_approval" eval="True"/>
+        <field name="description">Update the given fields of one record. The person approves the call first.</field>
+    </record>
+    <record id="tool_open_record" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">open_record</field>
+        <field name="builtin">open_record</field>
+        <field name="sequence">7</field>
+        <field name="description">Show the person a record (model and id) or a list (model and domain) in Odoo. Use it when they ask to see or open something.</field>
+    </record>
+    <record id="tool_today" model="pan_ai.tool">
+        <field name="toolset_id" ref="toolset_odoo"/>
+        <field name="name">today</field>
+        <field name="builtin">today</field>
+        <field name="sequence">8</field>
+        <field name="description">The current date and time in the person's time zone, and the start of this week, month and year. Call it before any date arithmetic.</field>
+    </record>
+</odoo>

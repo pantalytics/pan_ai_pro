@@ -1,0 +1,29 @@
+# Gitleaks config — extends the built-in ruleset.
+# Docs: https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for test fixtures and dummy values"
+
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''(^|/)tests/.*''',
+  '''(^|/)comms/.*''',
+  '''(^|/)\.env\.example$''',
+]
+
+regexes = [
+  '''sk_test_dummy''',
+  '''sk_live_abc123''',
+  '''sk_test_pre_migration''',
+  # Documented Zitadel local-test masterkey placeholder; not a real secret.
+  '''MustBe32CharactersLong1234567890''',
+  # Deliberately invalid bearers in the deploy smoke tests (both expect 401).
+  '''smoke-test-not-a-key''',
+  '''smoke-test-not-a-token''',
+  # CloudPepper's id for its GitHub App credential (deploy/env.staging, env.prod).
+  # A reference, not a secret: only our CloudPepper API key can use it.
+  '''019f2263-0c56-712e-805d-70834cffef8e''',
+]

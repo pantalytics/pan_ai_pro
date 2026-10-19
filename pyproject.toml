@@ -1,0 +1,19 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["scripts/spikes"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pan_ai_pro"]
+section-order = ["future", "standard-library", "third-party", "odoo", "first-party", "local-folder"]
+
+[tool.ruff.lint.isort.sections]
+odoo = ["odoo"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"__manifest__.py" = ["B018"]

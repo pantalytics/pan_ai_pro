@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The access rows live in models/access.py, loaded for the access
+         model this Odoo has (ir.access on 20, ir.model.access and ir.rule
+         on 19). -->
+    <function model="pan_ai.access" name="install" eval="[[]]"/>
+</odoo>

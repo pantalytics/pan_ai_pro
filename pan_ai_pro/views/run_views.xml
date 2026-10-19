@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_run_list" model="ir.ui.view">
+        <field name="name">pan_ai.run.list</field>
+        <field name="model">pan_ai.run</field>
+        <field name="arch" type="xml">
+            <list create="false" decoration-danger="status == 'failed'" decoration-info="status in ('running', 'interrupted')">
+                <field name="started_at"/>
+                <field name="kind"/>
+                <field name="agent_id"/>
+                <field name="user_id"/>
+                <field name="status"/>
+                <field name="slices" optional="hide"/>
+                <field name="requests"/>
+                <field name="input_tokens" optional="hide"/>
+                <field name="output_tokens" optional="hide"/>
+                <field name="cost" sum="Cost"/>
+                <field name="duration" widget="float_time"/>
+                <field name="error" optional="show"/>
+                <button name="action_stop" type="object" string="Stop" icon="fa-stop" invisible="status not in ('running', 'interrupted')"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_run_form" model="ir.ui.view">
+        <field name="name">pan_ai.run.form</field>
+        <field name="model">pan_ai.run</field>
+        <field name="arch" type="xml">
+            <form create="false">
+                <header>
+                    <button name="action_stop" type="object" string="Stop" invisible="status not in ('running', 'interrupted')"/>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="thread_id"/>
+                            <field name="agent_id"/>
+                            <field name="kind"/>
+                            <field name="user_id"/>
+                            <field name="caller_id"/>
+                        </group>
+                        <group>
+                            <field name="started_at"/>
+                            <field name="finished_at"/>
+                            <field name="slices"/>
+                            <field name="requests"/>
+                            <field name="input_tokens"/>
+                            <field name="output_tokens"/>
+                            <field name="cost"/>
+                            <field name="worker" groups="base.group_no_one"/>
+                        </group>
+                    </group>
+                    <field name="error" invisible="not error"/>
+                    <notebook>
+                        <page string="Answer" name="answer"><field name="text" nolabel="1" readonly="1"/></page>
+                        <page string="Tool calls" name="tools"><field name="tool_log" nolabel="1" readonly="1"/></page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_run" model="ir.actions.act_window">
+        <field name="name">Runs</field>
+        <field name="res_model">pan_ai.run</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
