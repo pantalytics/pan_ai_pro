@@ -338,7 +338,7 @@ find answered.
 | Step | Gate to pass |
 |---|---|
 | Spikes S1 to S6 | results dated in architecture-20.md |
-| PR D (platform door) | admin CI green, staging walk: pair a stub, heartbeat, entitlement verifies. Lands first: PR A cannot run without it |
+| PR D (platform door) | admin CI green, staging walk: pair a stub, heartbeat, entitlement verifies. Lands first: PR A cannot run without it. 2026-10-19: walked on production instead (section 9), staging does not route the API |
 | PR A (records, runtime, window) | module CI and browser check green, security checklist, a real Odoo 20 Community on Cloudpepper connected to staging with a real OpenRouter key, the whole chat by hand in Odoo's chat window and in Discuss, screenshots dated in the plan. 2026-10-19: the browser check and the suite are green locally (`scripts/browser/shot_desktop.png`); attaching this branch to a Cloudpepper instance from the session was refused by its permission gate, so the Cloudpepper walk is Rutger's |
 | PR E (runs) | CI green, a scheduled run and a triggered run seen by hand, a continuous thread watched for a day on staging |
 | PR B (fields) | CI green, Enterprise and Community field each computed once by hand |
