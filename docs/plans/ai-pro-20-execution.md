@@ -23,9 +23,16 @@ Each is a directory under `scripts/spikes/<name>/` with a README that exits
 non-zero when its claim fails; result and date go into
 architecture-20.md.
 
-- [ ] **S1 Enterprise 20 seam.** On a 20 Enterprise staging database
-      (Cloudpepper): where `ai_fields` asks for a value, the registry names
-      of the native AI systray item and the Ctrl+K command.
+- [x] **S1 Enterprise 20 seam.** Done 2026-10-19 over RPC against the
+      Enterprise 20 demo on Cloudpepper (commit `6ad61cf43dcd2`), claim
+      holds: the widget and the nightly cron both end in
+      `get_ai_field_value(fname, changes)` on `base`, which calls the
+      private `_fill_ai_field`, which calls IAP through
+      `odoo.addons.ai.utils.ai_utils` (`get_completions_sync`); we inherit
+      `_fill_ai_field`. Registry names: systray `ai.systray_action`,
+      command providers `ask_ai` and `chat_with_agent`, service
+      `aiChatLauncher`. `scripts/spikes/s1_seam/README.md` has the log
+      lines and what stays installed on the demo.
 - [x] **S2 Streaming through the bus into a `mail` message.** Done
       2026-10-19 locally, claim holds: first token 50 ms after the server
       sent it, slowest batch 97 ms, Stop mid-run, final body written once,
@@ -114,7 +121,9 @@ architecture-20.md.
       refuses with "Connect to Pantalytics in Settings". Settings > AI Pro
       gets the Connection row first: Not connected / Connected, Connect to
       Pantalytics, Disconnect
-- [ ] On Enterprise 20: remove the native AI systray item and command (S1)
+- [ ] On Enterprise 20: remove the systray item `ai.systray_action`, the
+      command providers `ask_ai` and `chat_with_agent` (S1); leave the
+      `ai_char` widgets and `ai.client_tools` alone
 - [ ] retention cron: threads older than the setting, runs kept
 - [ ] tests (Odoo `TransactionCase`): `test_agent_build.py` (record to
       `Agent`), `test_odoo_toolset.py` (ACL respected, AccessError
@@ -149,9 +158,11 @@ architecture-20.md.
 
 ## 3. Module, PR B: AI fields
 
-- [ ] Enterprise: route `ai_fields` to the field's `Agent` through the seam
-      S1 found; the 19.0 metadata model, cron, Studio panel and widget
-      ported as they are
+- [ ] Enterprise: inherit `_fill_ai_field` on `base` (the seam S1 found:
+      widget and the `AI Fields: Compute AI fields` cron both end there)
+      and run the field's `Agent`; Odoo's widget, cron, Studio panel and
+      the `ir.model.fields` AI columns stay as they are, our metadata
+      model from 19.0 beside them
 - [ ] Community: property fields gain an AI type (prompt, `/field`
       references, output type), same metadata, same widget
 - [ ] `runtime/field.py`: one `agent.run` with `output_type` = the field's

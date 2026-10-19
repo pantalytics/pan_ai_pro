@@ -155,7 +155,7 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
 ```
 Enterprise 20 (Studio or property AI field)      Community 20 (property AI field)
    ai_fields asks for a value                        our own property type "AI"
-          │ (seam: spike S1)                                │
+          │ (seam: `_fill_ai_field` on `base`, S1)          │
           ▼                                                 ▼
    the field's Agent (per field, or the default one), output_type = the
    field's schema, no toolsets unless the field says so, 60 s limit
@@ -202,6 +202,7 @@ later. The public MCP server stays as it is.
 | 10 | Runs in slices on Odoo's workers, `agent.iter()` plus `ir.cron._trigger()`, MuK AI's loop shape | a daemon, OCA `queue_job`, DBOS durability | 2026-10-19, **S4 measured the same day** on a prefork server: a chat of 5 slices outlives an 8 s HTTP limit, cron wake 122 to 849 ms, a killed worker's thread is reclaimed, a continuous thread keeps its memory (`scripts/spikes/s4_slices/`) |
 | 11 | `Thread.conversation` is Pydantic AI's `Conversation` | a message model of our own | 2026-10-19 |
 | 12 | Connect to Pantalytics is required to run, as Mail Pro | an optional pairing | 2026-10-19, Rutger |
+| 13 | On Enterprise 20, AI fields keep Odoo's widget, cron and Studio panel; we inherit `_fill_ai_field` on `base` and remove `ai.systray_action`, `ask_ai` and `chat_with_agent` from the registries | replacing `ai_fields`, or patching `ai.utils` | 2026-10-19, **S1 measured the same day** on the Enterprise demo: widget and cron both end in `get_ai_field_value` then `_fill_ai_field` then IAP `get_completions_sync`; `ai.agent` has no provider or model field (`scripts/spikes/s1_seam/`) |
 
 ## 11. Open
 
@@ -209,6 +210,10 @@ later. The public MCP server stays as it is.
   S2 done 2026-10-19 (decision 4). One rule from it: latency is measured
   against a real server with Playwright, never in `HttpCase`, whose
   `TestCursor` defers the bus to the end of the request.
+  S1 done 2026-10-19 (decision 13). One thing it showed beyond its
+  claim: Odoo 20's `ai.session` is itself a slice loop (`loop_state`,
+  `request_round`, `resume_token`, `pending_tool_call`), the same shape
+  as decision 10.
   S4 done 2026-10-19 (decision 10). Rules from it: the slice boundary is
   before the next model request and carries `node.request`; the cron slice
   budget is the host's `limit_time_real_cron` minus a margin, and that
