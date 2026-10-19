@@ -3,6 +3,38 @@
 Status: research done 2026-10-19; design flipped the same day (section 1).
 Spikes first (section 6). Nothing built.
 
+## 0. What success looks like
+
+The constraints below only make sense against the goal. In order:
+
+1. **The Enterprise AI button, on Community, and better.** A person on
+   Odoo Community opens a chat bottom-right that answers from their own
+   data, streams while it thinks, shows what it is doing, asks before it
+   writes, and can be stopped. Measured: first token on screen under a
+   second after the model's first byte; a restricted user never sees a
+   record the chat shows that Odoo would not.
+2. **A stronger engine than Odoo's, on the customer's own key.** Any model
+   through OpenRouter, web search, code execution where the model has it,
+   MCP servers as toolsets. No credits, no proxy of ours, no model picked
+   for them. Measured: switching model is one field; the bill is on the
+   customer's OpenRouter account and nowhere else.
+3. **AI fields that stay right.** A field knows when its inputs changed,
+   when a person overrode it, and fills itself in the background when
+   asked. Measured: the 19.0 metadata behaviour, unchanged, on both
+   editions.
+4. **Agents that work unattended.** Scheduled, triggered and continuous
+   runs with memory, bounded by limits, visible in one Runs list with
+   their cost. Measured: a continuous thread ticks for a day on staging
+   without a hand on it and stops when paused.
+5. **Open source and swappable.** One LGPL-3 module that runs without
+   Pantalytics; Pydantic AI is the one seam to the model world, so when
+   AI changes shape the records and the window stay. Measured: the module
+   installs from the store on Odoo.sh and on Cloudpepper and answers its
+   first question within ten minutes of install, with one key pasted.
+
+What success is not: feature parity with Odoo's AI app, a brain on our
+platform, or a second chat beside Discuss.
+
 ## 1. Decision
 
 **Pydantic AI runs inside Odoo, in this module. The vocabulary is Pydantic
