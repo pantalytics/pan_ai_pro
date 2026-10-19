@@ -399,9 +399,13 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
 - [x] CI: the Odoo job as a matrix on `odoo:19` and `odoo:20`; the release
       tag without prefix
 - [x] one branch `main`: #9 brought the stale `main` (March 2026) up to
-      `20.0`'s head, 2026-10-19; `19.0` and `20.0` stay as history and get
-      no more changes; Cloudpepper attaches `main`; release `1.1.0` cut
-      from it
+      `20.0`'s head, 2026-10-19; release `1.1.0` cut from it. Rutger, the
+      same evening: Odoo.sh and Cloudpepper attach a branch named after the
+      Odoo version, so `19.0` and `20.0` stay and mirror `main` on every
+      push (`.github/workflows/mirror.yml`, a force push: the old `19.0`
+      history is the retired provider clients). Nobody commits to a mirror;
+      odoo.pantalytics.com keeps its `19.0` attachment and gets the module
+      on its next pull
 - [ ] the default branch switched to `main` on GitHub (a repository
       setting, Rutger)
 - [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the

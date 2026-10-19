@@ -430,8 +430,15 @@ class License(models.Model):
 
     @api.model
     def _module_version(self):
+        """The module's own version, as the manifest and the releases name it.
+
+        Odoo stores the installed version with its serie in front (`19.0.1.1.0`
+        for a manifest that says `1.1.0`); the platform's latest_version has
+        no such prefix, so the two compare only without it.
+        """
         module = self.env["ir.module.module"].sudo().search([("name", "=", "pan_ai_pro")], limit=1)
-        return module.installed_version or ""
+        installed = module.installed_version or ""
+        return installed.removeprefix(f"{release.serie}.")
 
     def _notify(self, message, kind="info"):
         return {
