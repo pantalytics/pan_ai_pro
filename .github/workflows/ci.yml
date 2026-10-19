@@ -83,7 +83,9 @@ jobs:
           c = xmlrpc.client.ServerProxy("http://127.0.0.1:8080/xmlrpc/2/common"); uid = c.authenticate("ci", "admin", "admin", {})
           o = xmlrpc.client.ServerProxy("http://127.0.0.1:8080/xmlrpc/2/object")
           print(o.execute_kw("ci", uid, "admin", "pan_ai.license", "accept_key", ["mp_fake_" + "a" * 40]))
-          o.execute_kw("ci", uid, "admin", "ir.config_parameter", "set_str", ["pan_ai.openrouter_key", "sk-or-ci"])
+          # a record write: 19 has set_param, 20 has set_str, both have write
+          ids = o.execute_kw("ci", uid, "admin", "ir.config_parameter", "search", [[["key", "=", "pan_ai.openrouter_key"]]])
+          o.execute_kw("ci", uid, "admin", "ir.config_parameter", "write", [ids, {"value": "sk-or-ci"}]) if ids else o.execute_kw("ci", uid, "admin", "ir.config_parameter", "create", [{"key": "pan_ai.openrouter_key", "value": "sk-or-ci"}])
           PY
           /opt/pw/bin/python scripts/browser/check_chat.py http://127.0.0.1:8080 admin admin "How many contacts are there?" | tee browser.json
           python3 - <<'PY'
