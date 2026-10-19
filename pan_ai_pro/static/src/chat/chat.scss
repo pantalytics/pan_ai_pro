@@ -1,0 +1,57 @@
+// AI Pro in Odoo's own chat window. Odoo-native where possible
+// (brand.pantalytics.com, Product UI): no new chrome, the accent only on
+// the one primary action, status in colour, motion only on transform and
+// opacity.
+$pan-ai-accent: #9b99ff;
+
+.pan-ai-stream {
+    .pan-ai-text {
+        white-space: pre-wrap;
+    }
+    .pan-ai-tool {
+        line-height: 1.6;
+        .pan-ai-tool-summary::before {
+            content: "·";
+            margin: 0 0.25rem;
+        }
+    }
+    .pan-ai-tool-busy {
+        animation: pan-ai-pulse 1s ease-in-out infinite;
+    }
+    .pan-ai-thinking::after {
+        content: "…";
+        animation: pan-ai-pulse 1s ease-in-out infinite;
+    }
+    .pan-ai-approval-card {
+        border-color: $pan-ai-accent !important;
+        .pan-ai-approval-args {
+            max-height: 6rem;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+    }
+}
+// The brand's own app icon (brand.pantalytics.com, app icons: one ring, one
+// object, one accent), the same file the Apps page and the menu show.
+.pan-ai-systray .pan-ai-systray-icon {
+    height: 22px;
+    width: 22px;
+    border-radius: 50%;
+    vertical-align: middle;
+}
+@keyframes pan-ai-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pan-ai-tool-busy, .pan-ai-thinking::after { animation: none; }
+}
+// Tables in an agent's answer: Odoo's sanitizer keeps the table, not its look.
+.o-mail-Message-richBody table {
+    border-collapse: collapse;
+    margin: 0.25rem 0;
+    th, td {
+        border: 1px solid var(--border-color, #dee2e6);
+        padding: 0.15rem 0.5rem;
+    }
+}

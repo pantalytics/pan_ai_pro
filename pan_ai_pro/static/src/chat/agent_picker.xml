@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="pan_ai_pro.AgentPicker">
+        <Dialog title="'Agents'" size="'sm'" footer="false">
+            <div class="pan-ai-picker list-group">
+                <t t-foreach="this.props.agents" t-as="agent" t-key="agent.id">
+                    <button class="list-group-item list-group-item-action" t-on-click="() => this.pick(agent)">
+                        <div class="fw-bold" t-out="agent.name"/>
+                        <div t-if="agent.description" class="small text-muted" t-out="agent.description"/>
+                    </button>
+                </t>
+                <div t-if="!this.props.agents.length" class="text-muted small p-2">No agent is open to you.</div>
+            </div>
+        </Dialog>
+    </t>
+</templates>

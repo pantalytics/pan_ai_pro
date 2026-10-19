@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="partner_agent" model="res.partner">
+        <field name="name">AI Pro</field>
+        <field name="active" eval="False"/>
+    </record>
+</odoo>

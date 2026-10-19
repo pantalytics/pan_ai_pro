@@ -1,0 +1,22 @@
+name: release
+
+on:
+  push:
+    tags: ['20.0.*']
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: The version in the manifest is the tag
+        run: |
+          grep -q "\"version\": \"${GITHUB_REF_NAME}\"" pan_ai_pro/__manifest__.py
+      - run: |
+          zip -r pan_ai_pro-${GITHUB_REF_NAME}.zip pan_ai_pro pan_ai_pro_enterprise -x '*/__pycache__/*' '*/tests/*'
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: pan_ai_pro-*.zip
+          generate_release_notes: true

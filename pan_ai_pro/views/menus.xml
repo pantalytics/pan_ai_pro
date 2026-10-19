@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_root" name="AI Pro" sequence="80" web_icon="pan_ai_pro,static/description/icon.png" groups="pan_ai_pro.group_user"/>
+    <menuitem id="menu_agents" name="Agents" parent="menu_root" action="action_agent" sequence="10"/>
+    <menuitem id="menu_threads" name="Threads" parent="menu_root" action="action_thread" sequence="20"/>
+    <menuitem id="menu_runs" name="Runs" parent="menu_root" action="action_run" sequence="30"/>
+    <menuitem id="menu_configuration" name="Configuration" parent="menu_root" sequence="90" groups="pan_ai_pro.group_manager"/>
+    <menuitem id="menu_toolsets" name="Toolsets" parent="menu_configuration" action="action_toolset" sequence="10"/>
+    <menuitem id="menu_tools" name="Tools" parent="menu_configuration" action="action_tool" sequence="20"/>
+    <menuitem id="menu_ai_fields" name="AI fields" parent="menu_configuration" action="action_ai_fields" sequence="30"/>
+    <record id="action_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'module': 'pan_ai_pro'}</field>
+    </record>
+    <menuitem id="menu_settings" name="Settings" parent="menu_configuration" action="action_settings" sequence="90" groups="base.group_system"/>
+</odoo>
