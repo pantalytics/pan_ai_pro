@@ -10,7 +10,7 @@ the superuser: a scheduled action set to run as OdooBot refuses.
 """
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from ..tools import commit
 
@@ -40,6 +40,18 @@ class IrActionsServer(models.Model):
         for action in self.filtered(lambda a: a.state == "pan_ai_run"):
             if not action.pan_ai_agent_id or not action.pan_ai_prompt:
                 raise UserError(_("Run AI agent needs an agent and a prompt."))
+
+    def _can_execute_action_on_records(self, records):
+        # Odoo asks write access on the model for any server action. An AI run
+        # reads the records and posts on them as the person who asked, so it
+        # asks what it uses: AI Pro access and read on the records.
+        self.ensure_one()
+        if self.sudo().state != "pan_ai_run":
+            return super()._can_execute_action_on_records(records)
+        if not self.env.user.has_group("pan_ai_pro.group_user"):
+            raise AccessError(_("You don't have enough access rights to run this action."))
+        if records.ids:
+            records.check_access("read")
 
     def _run_action_pan_ai_run_multi(self, eval_context=None):
         """One run per record, or one run without a record. The first slice

@@ -35,6 +35,8 @@ import requests
 from odoo import _, api, fields, models, release
 from odoo.exceptions import AccessError, UserError
 
+from ..compat import params
+
 _logger = logging.getLogger(__name__)
 
 SERVER_URL = "https://mcp.pantalytics.com"
@@ -162,7 +164,7 @@ class License(models.Model):
             LINK_PREFIX + "/start",
             {
                 "db_uuid": self._db_uuid(),
-                "odoo_url": self.env["ir.config_parameter"].sudo().get_str("web.base.url", ""),
+                "odoo_url": params(self.env).get_str("web.base.url", ""),
                 "module_version": self._module_version(),
             },
         )
@@ -424,7 +426,7 @@ class License(models.Model):
 
     @api.model
     def _db_uuid(self):
-        return self.env["ir.config_parameter"].sudo().get_str("database.uuid", "")
+        return params(self.env).get_str("database.uuid", "")
 
     @api.model
     def _module_version(self):

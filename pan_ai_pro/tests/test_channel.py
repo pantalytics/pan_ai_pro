@@ -1,5 +1,6 @@
 from odoo.exceptions import AccessError
 
+from ..compat import params
 from .common import AiProCase
 
 
@@ -43,7 +44,7 @@ class TestChannel(AiProCase):
         self.fake(["ok"])
         channel, thread = self.chat(text="hi")
         run = thread.run_ids[:1]
-        self.env["ir.config_parameter"].sudo().set_str("pan_ai.retention_days", "1")
+        params(self.env).set_str("pan_ai.retention_days", "1")
         thread.sudo().write({"last_activity": "2020-01-01 00:00:00"})
         self.env["pan_ai.thread"]._cron_retention()
         self.assertFalse(thread.exists())

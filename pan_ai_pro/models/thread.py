@@ -16,6 +16,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.fields import Domain
 
+from ..compat import params
 from ..tools import commit
 
 _logger = logging.getLogger(__name__)
@@ -104,7 +105,7 @@ class Thread(models.Model):
 
     @api.model
     def _cron_retention(self):
-        days = self.env["ir.config_parameter"].sudo().get_int("pan_ai.retention_days", 90)
+        days = params(self.env).get_int("pan_ai.retention_days", 90)
         if days <= 0:
             return
         cutoff = fields.Datetime.subtract(fields.Datetime.now(), days=days)

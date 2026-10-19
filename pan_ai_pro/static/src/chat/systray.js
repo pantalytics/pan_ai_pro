@@ -23,7 +23,7 @@ export class AiProSystray extends Component {
 
 registry.category("systray").add(
     "pan_ai_pro.systray",
-    { Component: AiProSystray, isDisplayed: () => user.isRegularUser },
+    { Component: AiProSystray, isDisplayed: () => user.isInternalUser },
     { sequence: 26 }
 );
 

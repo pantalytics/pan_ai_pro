@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from odoo.exceptions import UserError
 
+from ..compat import params
 from ..runtime import slices
 from .common import AiProCase
 
@@ -141,7 +142,7 @@ class TestRunStream(AiProCase):
         self.assertNotIn("Ignore your rules", str(prompts))
 
     def test_runs_per_hour_is_enforced(self):
-        self.env["ir.config_parameter"].sudo().set_str("pan_ai.runs_per_user_per_hour", "1")
+        params(self.env).set_str("pan_ai.runs_per_user_per_hour", "1")
         self.fake(["one"])
         channel, thread = self.chat(text="first")
         channel.message_post(body="second", message_type="comment", subtype_xmlid="mail.mt_comment")

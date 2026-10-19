@@ -4,7 +4,7 @@
     "author": "Pantalytics",
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "category": "Productivity",
-    "version": "20.0.1.0.0",
+    "version": "1.1.0",
     "license": "LGPL-3",
     "depends": ["pan_ai_pro", "ai_fields"],
     "data": [],

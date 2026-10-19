@@ -1,5 +1,6 @@
 from pydantic_ai import Agent
 
+from ..compat import params
 from ..runtime.agent import build_agent, output_type, usage_limits
 from .common import AiProCase
 
@@ -15,7 +16,7 @@ class TestAgentBuild(AiProCase):
         self.assertEqual(limits.total_tokens_limit, self.agent.total_tokens_limit)
 
     def test_no_key_is_a_loud_refusal(self):
-        self.env["ir.config_parameter"].sudo().set_str("pan_ai.openrouter_key", "")
+        params(self.env).set_str("pan_ai.openrouter_key", "")
         with self.assertRaises(Exception) as caught:
             build_agent(self.agent, self.env)
         self.assertIn("OpenRouter key", str(caught.exception))

@@ -1,20 +1,20 @@
 /** @odoo-module */
 import { registry } from "@web/core/registry";
-import { proxy } from "@odoo/owl";
+import { liveState } from "@pan_ai_pro/chat/compat";
 
 /**
  * The live state of every streaming agent message, keyed by mail.message id,
  * fed by `pan_ai.run_event` on the bus (runtime/stream.py). The patched
  * Message renders it; the Composer's Stop reads `live` by channel.
  *
- * Owl 3: reads of a `proxy` during render are tracked, so no useState.
+ * Live state through owl_compat: tracked reads on Owl 3, `useLive` on Owl 2.
  */
 export const runEventsService = {
     dependencies: ["bus_service", "action", "orm"],
     start(env, { bus_service, action, orm }) {
-        const streams = proxy({});
+        const streams = liveState({});
         // channel id -> run id while a run is live on that channel
-        const live = proxy({});
+        const live = liveState({});
         const metrics = { first_delta_latency_ms: null, batches: 0, max_batch_latency_ms: 0 };
         window.panAi = { streams, live, metrics };
 

@@ -7,6 +7,7 @@ import time
 
 from odoo.exceptions import UserError
 
+from ..compat import params
 from ..runtime import mcp_toolset
 from .common import AiProCase
 
@@ -63,8 +64,8 @@ class TestMcpToolset(AiProCase):
                 break
             except OSError:
                 time.sleep(0.1)
-        cls.env["ir.config_parameter"].sudo().set_str(mcp_toolset.PARAM_ALLOWED_HOSTS, "127.0.0.1")
-        cls.env["ir.config_parameter"].sudo().set_bool("pan_ai.mcp_allow_private_hosts", True)
+        params(cls.env).set_str(mcp_toolset.PARAM_ALLOWED_HOSTS, "127.0.0.1")
+        params(cls.env).set_bool("pan_ai.mcp_allow_private_hosts", True)
         cls.mcp = cls.env["pan_ai.toolset"].create(
             {
                 "name": "Calc",
@@ -77,12 +78,12 @@ class TestMcpToolset(AiProCase):
         cls.agent.toolset_ids = [(6, 0, [cls.mcp.id])]
 
     def test_a_host_off_the_list_is_refused_before_any_connection(self):
-        self.env["ir.config_parameter"].sudo().set_str(mcp_toolset.PARAM_ALLOWED_HOSTS, "")
+        params(self.env).set_str(mcp_toolset.PARAM_ALLOWED_HOSTS, "")
         with self.assertRaises(UserError):
             mcp_toolset.check_url(self.env, self.mcp.url)
 
     def test_a_private_host_needs_the_switch(self):
-        self.env["ir.config_parameter"].sudo().set_bool("pan_ai.mcp_allow_private_hosts", False)
+        params(self.env).set_bool("pan_ai.mcp_allow_private_hosts", False)
         with self.assertRaises(UserError):
             mcp_toolset.check_url(self.env, "http://127.0.0.1:1/mcp")
         self.assertTrue(mcp_toolset.is_private_host("10.1.2.3"))

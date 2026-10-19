@@ -371,6 +371,39 @@ else; without a key, "No key".
   `pan_ai_pro_enterprise`), then Settings > AI Pro > Connect to Pantalytics
   against production.
 
+## 10. PR F: one module for Odoo 19 and 20, Community and Enterprise
+
+Asked 2026-10-19 after the rollout ("one module that works on 19, 20,
+Community and Enterprise"). Decision 17 in architecture-20.md; the
+measurements in `scripts/spikes/s7_one_module/README.md`.
+
+- [x] S7: the 20.0 module on a real Odoo 19 (`odoo/odoo` 19.0 clone): five
+      breaks, all small, listed in the spike
+- [x] manifest version without the Odoo prefix (`1.1.0`); Odoo prefixes its
+      own serie, 19 refuses a `20.0.` version outright
+- [x] `pan_ai_pro/compat.py`: `params(env)` with 20's typed getters on 19's
+      `get_param`; the one file that may branch on the version
+- [x] `models/access.py` + `security/access.xml`: the access rows created
+      for `ir.access` (20) or `ir.model.access` + `ir.rule` (19), same xml
+      ids as the 20.0 CSV; the CSV is gone
+- [x] `ir.model.fields.write`: our columns on base fields pass 19's guard
+- [x] `pan_ai.tool.model_names` (stored, sudo compute): the toolset no
+      longer reads `ir.model` as the run's user (19 gives users no access)
+- [x] "Run AI agent" asks AI Pro access and read on the records, not write
+      on the model (both versions check the same way)
+- [x] the suite green on 19 and 20 (46 tests each, measured locally); the
+      Store push, the systray condition and the mail store's thread model
+      through `static/src/chat/compat.js` and `compat.send_fields`
+- [x] the chat in a real browser on 19 (Owl 2) through `check_chat.py`: 29 ms
+      first token, no JavaScript errors (the spike's result table)
+- [x] CI: the Odoo job as a matrix on `odoo:19` and `odoo:20`; the release
+      tag without prefix
+- [ ] one branch `main` from `20.0`; `19.0` and `20.0` retired after the
+      merge; Cloudpepper attaches `main`; the default branch switched on
+      GitHub (a repository setting, Rutger)
+- [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the
+      bridge is written against 20's `ai_fields`)
+
 **Not in this plan:** voice, attachments, a full-page chat, our own
 credits, a brain on the platform, Odoo's native `/mcp`, OCA `queue_job`,
 SSO into the customer's Odoo.

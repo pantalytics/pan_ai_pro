@@ -20,6 +20,9 @@ class TestRuns(AiProCase):
         )
 
     def test_a_triggered_run_gets_the_record_and_posts_the_answer(self):
+        # The answer is posted as the person; Odoo 19 lets a plain user post
+        # a note only on a record they may write, so Sam manages contacts.
+        self.user.write({"group_ids": [(4, self.env.ref("base.group_partner_manager").id)]})
         self.fake(["A fine contact."])
         action = self._action(pan_ai_post=True)
         partner = self.user.partner_id

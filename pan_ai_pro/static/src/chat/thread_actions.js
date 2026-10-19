@@ -1,17 +1,18 @@
 /** @odoo-module */
 import { registerThreadAction } from "@mail/core/common/thread_actions";
 import { _t } from "@web/core/l10n/translation";
+import { channelType, threadModel } from "@pan_ai_pro/chat/compat";
 
 /** Open a channel: the chat window bottom right, or the pane when inside Discuss. */
 export async function openChannel(store, channelId) {
-    const thread = await store["mail.thread"].getOrFetch({ model: "discuss.channel", id: channelId });
+    const thread = await threadModel(store).getOrFetch({ model: "discuss.channel", id: channelId });
     if (thread) {
         await thread.open({ focus: true });
     }
     return thread;
 }
 
-const onAiChannel = ({ thread }) => thread?.channel?.channel_type === "ai";
+const onAiChannel = ({ thread }) => channelType(thread) === "ai";
 
 // A fresh thread with the same agent: the old chat stays in Threads.
 registerThreadAction("pan-ai-new-chat", {

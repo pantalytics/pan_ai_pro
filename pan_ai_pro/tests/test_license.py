@@ -13,6 +13,7 @@ from odoo import fields
 from odoo.exceptions import UserError
 from odoo.tests import TransactionCase
 
+from ..compat import params
 from ..models import license as license_model
 
 
@@ -26,7 +27,7 @@ class TestLicense(TransactionCase):
         self.public_b64 = base64.b64encode(public).decode()
         self.env["pan_ai.license"].sudo().search([]).unlink()
         self.link = self.env["pan_ai.license"].sudo().create({"status": "active", "key": "mp_x"})
-        self.db_uuid = self.env["ir.config_parameter"].sudo().get_str("database.uuid")
+        self.db_uuid = params(self.env).get_str("database.uuid")
 
     def _signed(self, **overrides):
         payload = {

@@ -2,13 +2,15 @@
 HTTP workers (8069), as Caddy or nginx would in production. Needed for a
 prefork server (workers > 0), which is what the time limits apply to.
 
-    python proxy.py 8080
+    python proxy.py 8080 [http_port] [websocket_port]   # defaults 8069 and 8072
 """
 
 import asyncio
 import sys
 
 LISTEN = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+HTTP = int(sys.argv[2]) if len(sys.argv) > 2 else 8069
+WEBSOCKET = int(sys.argv[3]) if len(sys.argv) > 3 else 8072
 
 
 async def pipe(r, w):
@@ -27,7 +29,7 @@ async def pipe(r, w):
 
 async def handle(reader, writer):
     head = await reader.read(65536)
-    port = 8072 if head.startswith(b"GET /websocket") else 8069
+    port = WEBSOCKET if head.startswith(b"GET /websocket") else HTTP
     try:
         ur, uw = await asyncio.open_connection("127.0.0.1", port)
     except OSError:
