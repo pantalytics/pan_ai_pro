@@ -90,23 +90,33 @@ platform resumes the same run; the stream continues
 ## 4. Identity and rights
 
 ```
-Odoo user ──(first chat)──► pan_ai_pro mints res.users.apikeys (scope rpc)
+Odoo user ──(first open)──► "Sign in with Pantalytics" (popup, Zitadel)
+                              │  platform links zitadel_sub to
+                              │  (installation, odoo uid), joins them to
+                              │  the workspace as User
                               │
-                              └──► platform stores it as this user's
-                                   connection on the paired instance
-                                   (encrypted, like every Odoo key we hold)
+pan_ai_pro mints res.users.apikeys (scope rpc) ──► platform stores it as
+                                                   the member's connection
+                                                   on the paired instance
+                                                   (Fernet, like every key)
 
-agent run ─ toolset pinned to that connection ─► Odoo external API
-                                                  as that user: ACLs and
-                                                  record rules apply
+every open: window → Odoo /pan_ai/token → platform → 15 min member token
+
+agent run ─ McpToolset pinned to that connection, run as that member ─►
+            Odoo external API as that user: ACLs and record rules apply;
+            daily limit, seat tier and usage log as any MCP Pro session
 ```
 
+- A chat is an MCP Pro session. A chat user is a workspace member, on Free
+  until upgraded. Nothing is added to the membership model.
 - The AI sees what its person sees. No service account, no sudo, no
   "AI user" with its own rights.
 - Disconnect in the panel, or uninstall in Odoo, revokes the installation;
-  the next heartbeat gets `revoked`, every per-user key is deleted.
-- Who may chat: every internal Odoo user on a connected instance. Who may
-  connect: an Odoo administrator, who is also a workspace administrator.
+  the next heartbeat gets `revoked`, every link and minted key is deleted.
+- Who may chat: every internal Odoo user on a connected instance who signed
+  in with Pantalytics. Who may connect: an Odoo administrator, who is also
+  a workspace administrator; the pairing approval says whether users of
+  that Odoo may join the workspace.
 
 ## 5. Money and limits
 
@@ -116,7 +126,7 @@ agent run ─ toolset pinned to that connection ─► Odoo external API
 | Web search | OpenRouter `web` plugin per run | on by default, a few tenths of a cent per request |
 | Per run | `runner.py` `UsageLimits` | 20 requests, 300k tokens, 10 min, as agents have today |
 | Per workspace | `agent_runs` | cost per run recorded; the LLMs section shows the month |
-| Seats | open | an Odoo user who chats is not a workspace member (plan, section 8) |
+| Seats | `workspace_members` | a chat user is a member: Free with the daily limit, Pro or Max when upgraded |
 
 ## 6. AI fields
 
@@ -162,13 +172,12 @@ field. Web search off unless the field's prompt turns it on.
 | 1 | Brain on the platform | Pydantic AI inside the Odoo process | 2026-10-19 |
 | 2 | Our own window, same on both editions | extending Odoo 20's AI chat | 2026-10-19 |
 | 3 | AG-UI over request-scoped SSE | Vercel data stream, WebSocket, Odoo bus | 2026-10-19 |
-| 4 | Tools run as the Odoo user, key minted per user | one installation key with admin rights | 2026-10-19 |
+| 4 | A chat user is a workspace member (Pantalytics sign-in), key minted per user | a shadow user per Odoo uid; one installation key with admin rights | 2026-10-19 |
 | 5 | Threads on the platform | `pan_ai.message` in Odoo | 2026-10-19 |
 | 6 | Workspace's OpenRouter key, no credits | our own credits with margin | 2026-10-13 (agents plan) |
 | 7 | AI fields metadata ported from 19.0 as is | redesign | 2026-10-19 |
 
 ## 10. Open
 
-- Seats: does an Odoo user who chats count? Assumption: no while in beta.
 - Licence of the brain (section 8).
 - Spike results (plan, section 6) may move boxes; each result lands here.
