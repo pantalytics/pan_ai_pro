@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['*']
+
+jobs:
+  lint:
+    name: ruff and checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install "ruff>=0.15.10,<0.16"
+      - run: ruff format --check --diff .
+      - run: ruff check . --output-format=github
+      - run: python scripts/checks/no_em_dash.py
+      - run: python scripts/checks/loc_budget.py
+
+  tests:
+    name: Odoo 20 install and tests
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    container:
+      image: odoo:20
+      options: --user root
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install the module's Python dependencies (what Odoo.sh and Cloudpepper do on pull)
+        run: pip install --break-system-packages -r pan_ai_pro/requirements.txt playwright==1.56.0 requests
+      - name: Install and run the unit tests
+        run: |
+          odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
+            --addons-path=/usr/lib/python3/dist-packages/odoo/addons,$GITHUB_WORKSPACE \
+            -i pan_ai_pro --test-enable --test-tags /pan_ai_pro --stop-after-init --without-demo=all \
+            --log-level=test 2>&1 | tee odoo-tests.log
+          grep -qE "0 failed, 0 error\(s\)" odoo-tests.log
+      - name: Browser check against a real server and the stubs
+        run: |
+          python -m playwright install --with-deps chromium
+          python scripts/browser/fake_platform.py 8090 /tmp/pub & sleep 1
+          python scripts/browser/fake_openrouter.py 8091 & sleep 1
+          PAN_AI_PRO_SERVER_URL=http://127.0.0.1:8090 PAN_AI_PRO_PUBLIC_KEY="$(cat /tmp/pub)" \
+          PAN_AI_PRO_OPENROUTER_BASE_URL=http://127.0.0.1:8091/v1 \
+          odoo -d ci --db_host=postgres --db_user=odoo --db_password=odoo \
+            --addons-path=/usr/lib/python3/dist-packages/odoo/addons,$GITHUB_WORKSPACE \
+            --db-filter=^ci$ --workers=2 --max-cron-threads=1 --limit-time-real=30 --limit-time-real-cron=75 \
+            --http-port=8069 --gevent-port=8072 --proxy-mode > odoo-server.log 2>&1 &
+          python scripts/browser/proxy.py 8080 & sleep 10
+          python - <<'PY'
+          import xmlrpc.client
+          c = xmlrpc.client.ServerProxy("http://127.0.0.1:8080/xmlrpc/2/common"); uid = c.authenticate("ci", "admin", "admin", {})
+          o = xmlrpc.client.ServerProxy("http://127.0.0.1:8080/xmlrpc/2/object")
+          print(o.execute_kw("ci", uid, "admin", "pan_ai.license", "accept_key", ["mp_fake_" + "a" * 40]))
+          o.execute_kw("ci", uid, "admin", "ir.config_parameter", "set_str", ["pan_ai.openrouter_key", "sk-or-ci"])
+          PY
+          python scripts/browser/check_chat.py http://127.0.0.1:8080 admin admin "How many contacts are there?" | tee browser.json
+          python - <<'PY'
+          import json; d = json.load(open("browser.json"))
+          m = d["metrics"]; assert not d["js_errors"], d["js_errors"]
+          assert m["first_delta_latency_ms"] is not None and m["first_delta_latency_ms"] < 300, m
+          assert m["max_batch_latency_ms"] < 500, m
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser
+          path: |
+            scripts/browser/shot_*.png
+            browser.json
+            odoo-server.log

@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Fail if an em-dash (U+2014) appears in user-facing prose.
+
+Em-dashes are a tell-tale sign of unedited AI text; we use a hyphen, comma, or
+period instead (see .claude/rules/conventions.md).
+
+Scope is deliberately narrow: only prose files where every line is content
+(newsletters and the changelog). Templates are excluded because they mix code,
+comments, and copy, which a plain scan cannot tell apart.
+
+Usage:
+    python scripts/checks/no_em_dash.py [path ...]
+
+With no args it checks the default prose paths. Exits non-zero on any hit.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+EM_DASH = "—"
+
+DEFAULT_PATHS = [
+    "README.md",
+    "docs",
+    "pan_ai_pro/views",
+    "pan_ai_pro/data",
+    "pan_ai_pro/static/src",
+]
+
+
+def iter_files(paths: list[str]):
+    for raw in paths:
+        p = Path(raw)
+        if p.is_dir():
+            yield from sorted(p.rglob("*.md"))
+        elif p.is_file():
+            yield p
+
+
+def main(argv: list[str]) -> int:
+    paths = argv[1:] or DEFAULT_PATHS
+    hits: list[str] = []
+    for f in iter_files(paths):
+        try:
+            text = f.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if EM_DASH in line:
+                hits.append(f"{f}:{lineno}: {line.strip()}")
+
+    if hits:
+        print("Em-dash found in user-facing text (use a hyphen, comma, or period):")
+        for h in hits:
+            print(f"  {h}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

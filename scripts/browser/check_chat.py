@@ -43,6 +43,9 @@ def main():
         page.wait_for_selector(".pan-ai-systray", timeout=60000)
         page.click(".pan-ai-systray button")
         page.wait_for_selector(".o-mail-ChatWindow .o-mail-Composer-input", timeout=30000)
+        # the bus runs in a shared worker; give its websocket a moment, or the
+        # first batches of a fast answer are sent before anybody listens
+        page.wait_for_timeout(1500)
         page.fill(".o-mail-ChatWindow .o-mail-Composer-input", PROMPT)
         before = page.evaluate(
             "document.querySelectorAll('.o-mail-ChatWindow .o-mail-Message').length"

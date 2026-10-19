@@ -161,16 +161,24 @@ Built 2026-10-19 inside PR A's branch (one module, one PR for now):
 
 ## 3. Module, PR B: AI fields
 
-- [ ] Enterprise: inherit `_fill_ai_field` on `base` (the seam S1 found:
+Built 2026-10-19 in PR A's branch, smaller than planned: a prompt on any
+stored field (`ir.model.fields`, AI tab), state rows, auto fill and auto
+update, one `agent.run` with the field's schema (`runtime/field.py`).
+The Community "property AI type" and the 19.0 widget were not ported: the
+field's own form and the AI fields list are the surface for now. The
+Enterprise seam is `pan_ai_pro_enterprise` (auto installs with
+`ai_fields`), not measured on a real Enterprise 20 yet.
+
+- [x] Enterprise: inherit `_fill_ai_field` on `base` (the seam S1 found:
       widget and the `AI Fields: Compute AI fields` cron both end there)
       and run the field's `Agent`; Odoo's widget, cron, Studio panel and
       the `ir.model.fields` AI columns stay as they are, our metadata
       model from 19.0 beside them
 - [ ] Community: property fields gain an AI type (prompt, `/field`
       references, output type), same metadata, same widget
-- [ ] `runtime/field.py`: one `agent.run` with `output_type` = the field's
+- [x] `runtime/field.py`: one `agent.run` with `output_type` = the field's
       schema, no toolsets unless the field says so, 60 s
-- [ ] tests with a fake model, both editions' paths
+- [x] tests with a fake model, both editions' paths
 
 ## 4. Module, PR C (last, only when a customer asks): generic MCP toolsets
 
@@ -206,12 +214,12 @@ Built 2026-10-19 inside PR A's branch (one module, one PR for now):
 
 ### pan_ai_pro (none today, add)
 
-- [ ] `.github/workflows/ci.yml`: ruff format and check; `no_em_dash`,
+- [x] `.github/workflows/ci.yml`: ruff format and check; `no_em_dash`,
       `loc_budget` (scripts copied from admin); Odoo 20 install and tests in
       Docker (`odoo:20` image, `postgres:16` service, `pip install -r
       requirements.txt`, `odoo -i pan_ai_pro --test-enable
       --stop-after-init`) on Community; the tour runs there
-- [ ] `.github/workflows/browser.yml`: Playwright drives the dockerised
+- [x] (inside `ci.yml`, one workflow) `.github/workflows/browser.yml`: Playwright drives the dockerised
       Odoo (a real server, not `HttpCase`: its `TestCursor` defers the bus
       to the end of the request, so latency there is fiction, S2) against
       `scripts/browser/fake_openrouter.py` (an OpenAI-compatible stub that
@@ -221,12 +229,12 @@ Built 2026-10-19 inside PR A's branch (one module, one PR for now):
       slowest batch under 500 ms);
       screenshots at desktop and 390 px as the artifact, Mail Pro's
       `check_flow.py` as the shape
-- [ ] `.github/workflows/gitleaks.yml`, copied from admin
-- [ ] `.github/workflows/release.yml`: a tag `20.0.x.y.z` builds the zip and
+- [x] `.github/workflows/gitleaks.yml`, copied from admin
+- [x] `.github/workflows/release.yml`: a tag `20.0.x.y.z` builds the zip and
       a GitHub release; the store listing is uploaded by hand
 - [ ] branch protection on `20.0`: CI and browser green required, no force
       push; Dependabot for the Actions, Playwright and `pydantic-ai-slim`
-- [ ] `requirements.txt` pinned; a CI step installs exactly it
+- [x] `requirements.txt` pinned; a CI step installs exactly it
 
 ### admin (exists, extend)
 
@@ -237,7 +245,7 @@ Built 2026-10-19 inside PR A's branch (one module, one PR for now):
 
 ### The contract between the two
 
-- [ ] `pan_ai_pro/docs/protocol.md`: the pairing paths, the heartbeat
+- [x] `pan_ai_pro/docs/protocol.md`: the pairing paths, the heartbeat
       body, the entitlement fields, the public key. Fixtures in
       `contract/*.json` in the module repo, pinned by commit in admin's
       `tests/fixtures/ai_pro/`; a field added on one side without the
