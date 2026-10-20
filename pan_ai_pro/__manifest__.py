@@ -1,17 +1,50 @@
 {
     "name": "AI Pro",
-    "summary": "AI agents and AI fields inside Odoo: chat, scheduled and continuous runs, any model through OpenRouter",
+    "summary": "Chat with AI agents in Odoo, let them run on schedules and rules, and fill fields with AI. Any model, your own OpenRouter key",
     "description": """
 AI Pro for Odoo
-==================
+===============
 
-Pydantic AI agents that run inside your Odoo, on your own OpenRouter key,
-with any model. An agent chats in Odoo's own chat window, runs on a
-schedule, answers an automation rule, or watches records continuously.
-Every tool runs through the ORM as the person who asked, or as a dedicated
-user you set up, so Odoo's access rights are the agent's rights.
+AI agents that live inside your Odoo and work with your real data.
 
-Works on Community and Enterprise. Requires a connection to Pantalytics
+Chat
+----
+Ask from Odoo's own chat window, the sparkle top right or Ctrl+K "Ask AI".
+Answers stream in, every tool call is shown, and nothing is created or
+changed until you press Allow. Stop works mid-answer. Pick the agent per
+conversation.
+
+Agents
+------
+Each agent has its own instructions, model, tools, limits and web search.
+It runs as the person who asks, or as a dedicated Odoo user you set up, so
+Odoo's groups and record rules decide what it may see and touch.
+
+Tools
+-----
+Built-in tools search, read, total, create, update and open records. Any
+server action marked "Use in AI" becomes a tool, and any MCP server can be
+added as a toolset. Tools that change data ask for approval by default.
+
+Automations
+-----------
+The server action "Run AI agent" works in automation rules and scheduled
+actions. The answer lands as a note in the record's chatter, or as an
+activity. A continuous thread watches a model and acts when records change.
+
+AI fields
+---------
+Put a prompt on any stored field and the agent fills it. Auto fill empty
+records, auto update values whose inputs changed, and a value a person typed
+stays. On Enterprise, Odoo's own AI fields run on AI Pro's agents.
+
+Control
+-------
+Every run is logged with its tokens and cost. Limits per run and per user,
+a retention period, and an allow list for MCP hosts.
+
+Odoo 19 and 20, Community and Enterprise. Bring your own OpenRouter key and
+use any model. Requires a connection to Pantalytics
 (Settings > AI Pro > Connect to Pantalytics).
 """,
     "author": "Pantalytics",

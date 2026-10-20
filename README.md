@@ -1,20 +1,29 @@
 # AI Pro for Odoo
 
-Pydantic AI agents and AI fields inside your Odoo, on your own OpenRouter
-key, with any model. Odoo 19 and 20, Community and Enterprise, one module.
+AI agents that live inside your Odoo and work with your real data. Bring
+your own OpenRouter key and use any model. Odoo 19 and 20, Community and
+Enterprise, one module.
 
-- **Chat** in Odoo's own chat window, bottom right: streaming answers, tool
-  calls you can see, approvals before anything is created or changed, Stop.
-  The sparkle top right, or Ctrl+K "Ask AI".
-- **Agents are identities.** An agent runs as the person who asks, or as a
-  dedicated Odoo user you set up. Its groups, record rules and roles are the
-  agent's reach. Every tool runs through the ORM; nothing is sudo'ed.
-- **Runs on a schedule, on a rule, or continuously.** The server action
-  "Run AI agent" works in automation rules and scheduled actions. A
-  continuous thread watches a model and wakes up when records change.
-- **AI fields.** Write a prompt on any stored field; the agent fills it.
-  Auto fill for empty records, auto update nightly for values whose inputs
-  changed, a value a person typed is left alone.
+- **Chat.** Ask from Odoo's own chat window: the sparkle top right, or
+  Ctrl+K "Ask AI". Answers stream in, tool calls are shown, nothing is
+  created or changed until you press Allow, and Stop works mid-answer.
+- **Agents.** Each agent has its own instructions, model, tools, limits and
+  web search. It runs as the person who asks, or as a dedicated Odoo user
+  you set up. That user's groups and record rules are the agent's reach.
+  Every tool runs through the ORM; nothing is sudo'ed.
+- **Tools.** Built-ins search, read, total, create, update and open records.
+  A server action marked "Use in AI" becomes a tool, and any MCP server can
+  be added as a toolset. Tools that change data ask for approval.
+- **Automations.** The server action "Run AI agent" works in automation
+  rules and scheduled actions, and posts its answer in the record's chatter
+  or as an activity. A continuous thread watches a model and wakes up when
+  records change.
+- **AI fields.** Write a prompt on any stored field and the agent fills it.
+  Auto fill for empty records, auto update for values whose inputs changed,
+  and a value a person typed is left alone. On Enterprise, Odoo's own AI
+  fields run on AI Pro (`pan_ai_pro_enterprise`).
+- **Control.** Every run is logged with its tokens and cost. Limits per run
+  and per user per hour, a retention period, an allow list for MCP hosts.
 - **Open source** (LGPL-3). A connection to Pantalytics is required to run
   (Settings > AI Pro > Connect to Pantalytics), the same pairing as Mail Pro.
 
