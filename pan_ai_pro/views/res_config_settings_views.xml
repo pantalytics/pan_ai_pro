@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
+<!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo>
     <!-- Settings > AI Pro. Odoo's own settings markup, four blocks in the
          order a person needs them: the connection (without it nothing runs),

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """One slice of a run: `agent.iter()` up to a time budget, the messages
 persisted, the rest handed to a worker cron. The shape S4 measured.
 

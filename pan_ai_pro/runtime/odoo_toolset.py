@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The Odoo toolset: `pan_ai.tool` rows as Pydantic AI tools over the run
 user's `env`. ACLs and record rules apply because the env is the user's; an
 AccessError is returned to the model as the tool's error, never caught into

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The way back from the Pantalytics approval page: collect the key, land on
 the settings page. An ordinary link to this Odoo, not an OAuth redirect."""
 

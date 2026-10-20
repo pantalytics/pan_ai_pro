@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Spike S2: a `discuss.channel` of type `ai`, a fake Pydantic AI model that
 streams, and the run's events batched over the bus into the agent's message.
 

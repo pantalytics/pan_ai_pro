@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The chat: a `discuss.channel` of type `ai`, one per (person, agent, thread).
 
 The person types in Odoo's own chat window; `message_post` starts a run on

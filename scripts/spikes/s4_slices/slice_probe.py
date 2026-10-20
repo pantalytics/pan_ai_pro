@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 import asyncio, json, time
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ToolReturnPart, PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta, FunctionToolCallEvent, FunctionToolResultEvent

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The platform's address and key, and the signature check: the pure
 half of `license.py`, kept apart so the model file stays readable."""
 

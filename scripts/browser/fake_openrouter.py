@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """An OpenAI-compatible stand-in for openrouter.ai, for a browser check and
 CI: streams one tool call (search_records on res.partner) on the first
 request of a conversation and a short markdown answer on the next, token

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Tools run on the caller's env: ACLs hold, an AccessError is the tool's
 error to the model, nothing is sudo'ed."""
 

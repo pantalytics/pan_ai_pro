@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """One AI field value: one `agent.run` with `output_type` = the field's
 schema, no toolsets unless the field says so, 60 seconds, no streaming. The
 agent runs as `user`; what it reads of the record is what that user may

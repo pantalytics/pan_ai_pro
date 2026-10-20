@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """`build_agent(record, env)`: the `pan_ai.agent` row as a Pydantic AI `Agent`.
 
 A dozen lines, as the architecture promised: the model on OpenRouter with

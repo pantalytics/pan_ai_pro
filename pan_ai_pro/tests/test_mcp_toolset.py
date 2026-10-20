@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """An MCP server as a toolset: the gate on the host, the bearer token, the
 filter, a tool call through a real MCP server on a local port."""
 

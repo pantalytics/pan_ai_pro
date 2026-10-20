@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The two Odoo versions through one door: the config parameters and the bus."""
 
 from ..compat import params

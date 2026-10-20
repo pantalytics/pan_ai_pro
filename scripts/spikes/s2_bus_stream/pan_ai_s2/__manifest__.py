@@ -1,7 +1,9 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 {
     "name": "AI Pro spike S2: streaming through the bus into a mail message",
     "version": "20.0.0.1.0",
-    "license": "LGPL-3",
+    "license": "Other proprietary",
     "depends": ["mail", "bus"],
     "data": ["data/partner.xml"],
     "assets": {

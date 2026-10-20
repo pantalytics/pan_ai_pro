@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """S5: which built-in tools stream through Pydantic AI on OpenRouter, per model.
 
     OPENROUTER_API_KEY=... python probe.py
