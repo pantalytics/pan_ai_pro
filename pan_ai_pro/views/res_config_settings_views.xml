@@ -2,9 +2,10 @@
 <!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
 <!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo>
-    <!-- Settings > AI Pro. Odoo's own settings markup, four blocks in the
-         order a person needs them: the connection (without it nothing runs),
-         the model, the limits, and last the danger zone. -->
+    <!-- Settings > AI Pro. A setup checklist on top, the same shape as Mail
+         Pro's: one line per step, a dot for where it stands, its name, the
+         answer, and under it what to do. Below it the limits and the danger
+         zone, once there is something to limit. -->
     <record id="res_config_settings_view_form" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.inherit.pan_ai_pro</field>
         <field name="model">res.config.settings</field>
@@ -14,67 +15,140 @@
                 <app data-string="AI Pro" string="AI Pro" name="pan_ai_pro" groups="base.group_system"
                      logo="/pan_ai_pro/static/description/icon.png">
                     <field name="pan_ai_state" invisible="1"/>
+                    <field name="pan_ai_entitled" invisible="1"/>
                     <field name="pan_ai_has_key" invisible="1"/>
+                    <field name="pan_ai_has_chatted" invisible="1"/>
 
-                    <block title="Pantalytics" name="pan_ai_account_block">
-                        <setting id="pan_ai_account_setting" string="Pantalytics account"
-                                 help="Agents run only on a connected Odoo.">
-                            <div invisible="pan_ai_state != 'not_connected'" class="mt-2">
+                    <block title="Setup" name="pan_ai_setup_block">
+                    <div class="col-12 o_setting_box o_pan_ai_steps">
+
+                    <!-- Step 1. One action per state. Amber while it waits
+                         for the person, red once a connection broke. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done"
+                              invisible="not pan_ai_entitled"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_wait" role="img" aria-label="Needs you" title="Needs you"
+                              invisible="pan_ai_entitled or pan_ai_state not in ('pending', 'connected')"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_broken" role="img" aria-label="Broken" title="Broken"
+                              invisible="pan_ai_state != 'broken'"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_todo" role="img" aria-label="To do" title="To do"
+                              invisible="pan_ai_state != 'not_connected'"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">1. Pantalytics account</span>
+                                <span class="o_pan_ai_step_value" invisible="pan_ai_state != 'not_connected'">Not connected</span>
+                                <span class="o_pan_ai_step_value" invisible="pan_ai_state != 'pending'">Waiting for approval</span>
+                                <span class="o_pan_ai_step_value" invisible="not pan_ai_entitled">Connected</span>
+                                <span class="o_pan_ai_step_value" invisible="pan_ai_entitled or pan_ai_state != 'connected'">No plan</span>
+                                <span class="o_pan_ai_step_value" invisible="pan_ai_state != 'broken'">
+                                    <field name="pan_ai_link_status" nolabel="1" readonly="1" class="d-inline"/>
+                                </span>
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state not in ('not_connected', 'broken')">
+                                AI Pro runs on an Odoo instance that is connected to a Pantalytics account.
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state != 'broken' or not pan_ai_message">
+                                <field name="pan_ai_message" nolabel="1" readonly="1"/>
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state not in ('not_connected', 'broken')">
                                 <button name="action_pan_ai_connect" type="object"
                                         string="Connect to Pantalytics" class="btn-primary"/>
                             </div>
-                            <div invisible="pan_ai_state != 'pending'" class="mt-2">
-                                <div>Approve the connection in the Pantalytics tab that just opened. It shows this code:
-                                    <field name="pan_ai_user_code" nolabel="1" readonly="1" class="fw-bold d-inline ms-1"/>
-                                </div>
-                                <div class="text-muted">No tab? <field name="pan_ai_verify_url" widget="url" nolabel="1" readonly="1"
-                                                   options="{'website_path': False}" text="Open it again" class="d-inline"/></div>
-                                <div class="mt-2">
-                                    <button name="action_pan_ai_check" type="object" string="Check approval" class="btn-primary"/>
-                                    <button name="action_pan_ai_disconnect" type="object" string="Cancel" class="btn-link"/>
-                                </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state != 'pending'">
+                                Approve the connection in the Pantalytics tab that just opened. It shows this code:
+                                <field name="pan_ai_user_code" nolabel="1" readonly="1" class="fw-bold d-inline ms-1"/>
                             </div>
-                            <div invisible="pan_ai_state != 'connected'" class="mt-2">
-                                <span class="text-success">Connected</span><span invisible="not pan_ai_connected_by"> by
-                                    <field name="pan_ai_connected_by" nolabel="1" readonly="1" class="d-inline"/></span>
-                                <div invisible="not pan_ai_update_available" class="text-muted">
-                                    Version <field name="pan_ai_update_available" nolabel="1" readonly="1" class="d-inline"/> is available.
-                                </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state != 'pending'">
+                                No tab? <field name="pan_ai_verify_url" widget="url" nolabel="1" readonly="1"
+                                               options="{'website_path': False}" text="Open it again" class="d-inline"/>
                             </div>
-                            <div invisible="pan_ai_state != 'broken'" class="mt-2">
-                                <div class="text-danger">
-                                    <field name="pan_ai_link_status" nolabel="1" readonly="1" class="d-inline"/>.
-                                    <field name="pan_ai_message" nolabel="1" readonly="1" class="d-inline"/>
-                                </div>
-                                <div class="mt-2">
-                                    <button name="action_pan_ai_connect" type="object" string="Connect to Pantalytics" class="btn-primary"/>
-                                </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state != 'pending'">
+                                <button name="action_pan_ai_check" type="object" string="Check approval" class="btn-primary"/>
+                                <button name="action_pan_ai_disconnect" type="object" string="Cancel" class="btn-link"/>
                             </div>
-                            <div invisible="not pan_ai_last_error" class="mt-2 text-warning">
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_entitled or pan_ai_state != 'connected'">
+                                <field name="pan_ai_why_not" nolabel="1" readonly="1"/>
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_entitled or pan_ai_state != 'connected'">
+                                <button name="action_pan_ai_check" type="object" string="Check again" class="btn-secondary"/>
+                            </div>
+                            <div class="o_pan_ai_step_msg text-muted" invisible="not pan_ai_entitled or not pan_ai_connected_by">
+                                By <field name="pan_ai_connected_by" nolabel="1" readonly="1" class="d-inline"/>
+                                <span invisible="not pan_ai_update_available">. Version
+                                    <field name="pan_ai_update_available" nolabel="1" readonly="1" class="d-inline"/> is available.</span>
+                            </div>
+                            <div class="o_pan_ai_step_msg o_pan_ai_msg_warn" invisible="not pan_ai_last_error">
                                 <field name="pan_ai_last_error" nolabel="1" readonly="1"/>
                             </div>
-                        </setting>
-                    </block>
+                        </div>
+                    </div>
 
-                    <block title="Model" name="pan_ai_model_block">
-                        <setting id="pan_ai_key_setting" string="OpenRouter key"
-                                 help="One key for every model, from openrouter.ai/keys.">
-                            <div invisible="not pan_ai_has_key" class="mt-2">
-                                <span class="text-success">Saved</span>
-                                <span class="text-muted">, ends in <field name="pan_ai_key_last4" nolabel="1" readonly="1" class="d-inline"/></span>
+                    <!-- Nothing below exists until step 1 is done: a step you
+                         cannot finish reads as the thing that is broken. -->
+                    <div invisible="not pan_ai_entitled">
+
+                    <!-- Step 2. The key is typed here, and the page's Save
+                         keeps it. The default model sits with it: both are
+                         answered on openrouter.ai. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done"
+                              invisible="not pan_ai_has_key"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_todo" role="img" aria-label="To do" title="To do"
+                              invisible="pan_ai_has_key"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">2. OpenRouter key</span>
+                                <span class="o_pan_ai_step_value" invisible="pan_ai_has_key">No key</span>
+                                <span class="o_pan_ai_step_value" invisible="not pan_ai_has_key">
+                                    Saved, ends in <field name="pan_ai_key_last4" nolabel="1" readonly="1" class="d-inline"/>
+                                </span>
                             </div>
-                            <div class="mt-2">
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_has_key">
+                                One key for every model. Create one at
+                                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>,
+                                paste it here and save.
+                            </div>
+                            <div class="o_pan_ai_step_msg">
                                 <field name="pan_ai_new_key" nolabel="1" password="True" class="w-100"
                                        placeholder="Paste a key and save"/>
                             </div>
-                        </setting>
-                        <setting id="pan_ai_model_setting" string="Default model"
-                                 help="An OpenRouter model id; an agent can pick its own.">
-                            <field name="pan_ai_default_model" placeholder="anthropic/claude-sonnet-5.5"/>
-                        </setting>
+                            <div class="o_pan_ai_step_msg o_pan_ai_step_field">
+                                <label for="pan_ai_default_model" string="Default model"/>
+                                <field name="pan_ai_default_model" placeholder="anthropic/claude-sonnet-5.5"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3. A finished chat proves the account, the key
+                         and the model in one go. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done"
+                              invisible="not pan_ai_has_chatted"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_todo" role="img" aria-label="To do" title="To do"
+                              invisible="pan_ai_has_chatted"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">3. First chat</span>
+                                <span class="o_pan_ai_step_value" invisible="pan_ai_has_chatted">Not yet</span>
+                                <span class="o_pan_ai_step_value" invisible="not pan_ai_has_chatted">Done</span>
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_has_chatted or not pan_ai_has_key">
+                                Ask the agent something, like how many contacts there are.
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_has_chatted or not pan_ai_has_key">
+                                <button name="action_pan_ai_open_chat" type="object" string="Open chat" class="btn-primary"/>
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_has_key">
+                                Save a key first.
+                            </div>
+                        </div>
+                    </div>
+
+                    </div>
+                    </div>
                     </block>
 
-                    <block title="Limits" name="pan_ai_limits_block">
+                    <block title="Limits" name="pan_ai_limits_block" invisible="not pan_ai_entitled">
                         <setting id="pan_ai_runs_setting" string="Chats per person per hour" help="0 is no limit.">
                             <field name="pan_ai_runs_per_user_per_hour"/>
                         </setting>
@@ -86,7 +160,7 @@
                         </setting>
                     </block>
 
-                    <block title="Danger zone" name="pan_ai_danger_block">
+                    <block title="Danger zone" name="pan_ai_danger_block" invisible="pan_ai_state != 'connected'">
                         <setting id="pan_ai_remove_key_setting" string="Remove the OpenRouter key"
                                  invisible="not pan_ai_has_key">
                             <button name="action_pan_ai_remove_key" type="object" string="Remove key" class="btn-secondary mt-2"
@@ -96,8 +170,7 @@
                             <button name="action_pan_ai_delete_threads" type="object" string="Delete all threads" class="btn-secondary mt-2"
                                     confirm="Delete all threads? Every thread of every person is removed, with its runs."/>
                         </setting>
-                        <setting id="pan_ai_disconnect_setting" string="Disconnect from Pantalytics"
-                                 invisible="pan_ai_state != 'connected'">
+                        <setting id="pan_ai_disconnect_setting" string="Disconnect from Pantalytics">
                             <button name="action_pan_ai_disconnect" type="object" string="Disconnect" class="btn-secondary mt-2"
                                     confirm="Disconnect this Odoo from Pantalytics? Agents stop until you connect it again."/>
                         </setting>

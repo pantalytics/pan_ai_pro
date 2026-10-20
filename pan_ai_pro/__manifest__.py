@@ -45,6 +45,7 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
     "assets": {
         "web.assets_backend": [
             "pan_ai_pro/static/src/chat/**/*",
+            "pan_ai_pro/static/src/settings/**/*",
         ],
     },
     "images": ["static/description/banner.png"],

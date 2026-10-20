@@ -1,6 +1,10 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
-"""Settings > AI Pro: the connection, the model, the limits, the danger zone.
+"""Settings > AI Pro: the setup checklist, the limits, the danger zone.
+
+Three steps, in the order a person has to take them: connect to Pantalytics,
+save an OpenRouter key, have a first chat. Until the first is done nothing
+else is on the page (or in the menu, `ir_ui_menu.py`).
 
 The OpenRouter key is stored in `ir.config_parameter` (`pan_ai.openrouter_key`),
 readable by `base.group_system` only, never shown back: the page says
@@ -62,10 +66,16 @@ class ResConfigSettings(models.TransientModel):
     pan_ai_message = fields.Char(compute="_compute_pan_ai_link")
     pan_ai_connected_by = fields.Char(compute="_compute_pan_ai_link")
     pan_ai_update_available = fields.Char(compute="_compute_pan_ai_link")
+    pan_ai_entitled = fields.Boolean(compute="_compute_pan_ai_link")
+    pan_ai_why_not = fields.Char(compute="_compute_pan_ai_link")
+    # Step 3: a run that finished proves the connection, the key and the model.
+    pan_ai_has_chatted = fields.Boolean(compute="_compute_pan_ai_key")
 
     def _compute_pan_ai_key(self):
         key = params(self.env).get_str("pan_ai.openrouter_key", "")
+        chatted = bool(self.env["pan_ai.run"].sudo().search_count([("status", "=", "ok")], limit=1))
         for record in self:
+            record.pan_ai_has_chatted = chatted
             record.pan_ai_has_key = bool(key)
             record.pan_ai_key_last4 = key[-4:] if key else ""
 
@@ -80,16 +90,20 @@ class ResConfigSettings(models.TransientModel):
         else:
             state = status
         installed = self.env["pan_ai.license"]._module_version()
-        latest = link and link.latest_version
+        latest = link.latest_version
+        entitled = bool(link) and link.is_entitled()
+        why_not = link._why_not_entitled() if link and not entitled else False
         for record in self:
+            record.pan_ai_entitled = entitled
+            record.pan_ai_why_not = why_not
             record.pan_ai_state = state
             record.pan_ai_link_status = status
-            record.pan_ai_user_code = link and link.user_code
-            record.pan_ai_verify_url = link and link.verify_url
-            record.pan_ai_last_error = link and link.last_error
-            record.pan_ai_message = link and link.message
-            who = link and link.connected_user_id
-            when = link and link.connected_on
+            record.pan_ai_user_code = link.user_code
+            record.pan_ai_verify_url = link.verify_url
+            record.pan_ai_last_error = link.last_error
+            record.pan_ai_message = link.message
+            who = link.connected_user_id
+            when = link.connected_on
             record.pan_ai_connected_by = (
                 f"{who.name}, {fields.Date.to_string(when)}" if who and when else False
             )
@@ -125,6 +139,15 @@ class ResConfigSettings(models.TransientModel):
         self._pan_ai_check_admin()
         link = self.env["pan_ai.license"].current()
         return (link and link.action_check_approval()) or self._reload()
+
+    def action_pan_ai_open_chat(self):
+        """Step 3: the chat window with the default agent."""
+        channel_id = self.env["discuss.channel"].pan_ai_open()
+        return {
+            "type": "ir.actions.client",
+            "tag": "pan_ai_pro.open_chat",
+            "params": {"channel_id": channel_id},
+        }
 
     def action_pan_ai_disconnect(self):
         self._pan_ai_check_admin()

@@ -142,6 +142,11 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   toolsets, tools and AI fields: the AI Pro Administrator group
   (`pan_ai_pro.group_manager`). Settings, the OpenRouter key and the
   connection to Pantalytics: Settings administrators (`base.group_system`).
+- Onboarding: Settings > AI Pro is a checklist of three steps (Pantalytics
+  account, OpenRouter key, first chat). Until the Odoo is entitled the AI Pro
+  menu is Settings only, for Settings administrators, and gone for everybody
+  else (`models/ir_ui_menu.py`); the sparkle and Ctrl+K "Ask AI" wait for the
+  key too (`session.pan_ai_chat_ready`, `models/ir_http.py`).
 - No Odoo user ever signs in to Zitadel from Odoo. The module's one
   sign-in is Connect to Pantalytics, once per database, by a Settings
   administrator, Mail Pro's pairing (decision 14). An MCP toolset holds

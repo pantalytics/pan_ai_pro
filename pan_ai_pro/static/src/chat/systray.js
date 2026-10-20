@@ -6,7 +6,11 @@ import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { user } from "@web/core/user";
+import { session } from "@web/session";
 import { openChannel } from "@pan_ai_pro/chat/thread_actions";
+
+/** The chat's ways in show once setup is done: connected and a key saved (`ir_http.py`). */
+const chatReady = () => user.isInternalUser && Boolean(session.pan_ai_chat_ready);
 
 /** The sparkle top right: one click opens the chat with the default agent. */
 export class AiProSystray extends Component {
@@ -25,7 +29,7 @@ export class AiProSystray extends Component {
 
 registry.category("systray").add(
     "pan_ai_pro.systray",
-    { Component: AiProSystray, isDisplayed: () => user.isInternalUser },
+    { Component: AiProSystray, isDisplayed: chatReady },
     { sequence: 26 }
 );
 
@@ -33,6 +37,9 @@ registry.category("systray").add(
 // provide(options) inside a scope where useService works.
 registry.category("command_provider").add("pan_ai_pro", {
     provide(first) {
+        if (!chatReady()) {
+            return [];
+        }
         const env = first?.services ? first : null;
         const orm = env ? env.services.orm : useService("orm");
         const store = env ? env.services["mail.store"] : useService("mail.store");
