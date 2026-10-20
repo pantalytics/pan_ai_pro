@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Elastic-2.0
 """An MCP server as a toolset: Pydantic AI's `MCPToolset` over HTTP, the
 row's bearer token, its tools filtered by name and prefixed. Before any
-connection the host passes the gate: it must be on the allowed list in
-Settings (`pan_ai.mcp_allowed_hosts`), and a private, loopback or link-local
+connection the host passes the gate: it must be on the allowed list
+(`pan_ai.mcp_allowed_hosts`, Allow this host on the tool group), and a private, loopback or link-local
 address is refused unless the config parameter `pan_ai.mcp_allow_private_hosts`
 is true (set by hand, for a test or a server on the same network). Redirects
 are not followed.
@@ -60,7 +60,12 @@ def check_url(env, url):
         raise UserError(_("The MCP server URL must be an http(s) URL with a host."))
     allowed = allowed_hosts(env)
     if host not in allowed:
-        raise UserError(_("The MCP host %s is not on the allowed list in Settings > AI Pro.", host))
+        raise UserError(
+            _(
+                "The MCP host %s is not allowed. A Settings administrator ticks Allow this host on the tool group.",
+                host,
+            )
+        )
     if is_private_host(host) and not params(env).get_bool("pan_ai.mcp_allow_private_hosts"):
         raise UserError(_("The MCP host %s is a private address.", host))
     return host
