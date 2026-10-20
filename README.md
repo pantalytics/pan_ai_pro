@@ -1,8 +1,9 @@
 # AI Pro for Odoo
 
-AI agents that live inside your Odoo and work with your real data. Bring
-your own OpenRouter key and use any model. Odoo 19 and 20, Community and
-Enterprise, one module.
+AI agents in Odoo, with you in control. Bring your own OpenRouter key
+and pick any model. Give agents your own tools: server actions and any MCP
+server. Decide what each agent may touch, approve every change, and see
+what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
 
 - **Chat.** Ask from Odoo's own chat window: the sparkle top right, or
   Ctrl+K "Ask AI". Answers stream in, tool calls are shown, nothing is

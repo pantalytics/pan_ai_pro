@@ -1,11 +1,18 @@
 {
     "name": "AI Pro",
-    "summary": "Chat with AI agents in Odoo, let them run on schedules and rules, and fill fields with AI. Any model, your own OpenRouter key",
+    "summary": "AI agents in Odoo that you control: your own key, any model, your own tools, approvals and a log of every run",
     "description": """
 AI Pro for Odoo
 ===============
 
-AI agents that live inside your Odoo and work with your real data.
+AI agents in Odoo, with you in control.
+
+- Your key: bring your own OpenRouter key and pick any model per agent.
+- Your tools: Odoo's records, your own server actions and any MCP server.
+- Your rules: each agent runs with an Odoo user's rights, asks before it
+  creates or changes a record, and logs what every run did and cost.
+
+Community and Enterprise, Odoo 19 and 20.
 
 Chat
 ----
@@ -43,8 +50,7 @@ Control
 Every run is logged with its tokens and cost. Limits per run and per user,
 a retention period, and an allow list for MCP hosts.
 
-Odoo 19 and 20, Community and Enterprise. Bring your own OpenRouter key and
-use any model. Requires a connection to Pantalytics
+Requires a connection to Pantalytics
 (Settings > AI Pro > Connect to Pantalytics).
 """,
     "author": "Pantalytics",
@@ -76,7 +82,12 @@ use any model. Requires a connection to Pantalytics
             "pan_ai_pro/static/src/chat/**/*",
         ],
     },
-    "images": ["static/description/banner.png"],
+    "images": [
+        "static/description/banner.png",
+        "static/description/chat_screenshot.png",
+        "static/description/agent_screenshot.png",
+        "static/description/ai_field_screenshot.png",
+    ],
     "installable": True,
     "application": True,
     "auto_install": False,
