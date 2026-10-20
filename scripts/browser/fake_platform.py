@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """A stand-in for mcp.pantalytics.com, for a browser check and CI: the
 pairing (start, poll: approved at once) and the AI Pro heartbeat, answered
 with an entitlement signed by a key made at start.

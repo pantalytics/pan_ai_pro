@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """`pan_ai.agent`: one Pydantic AI `Agent`, as a record.
 
 The names are Pydantic AI's (model, instructions, toolsets, output_type,

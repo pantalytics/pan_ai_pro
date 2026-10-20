@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
+<!-- SPDX-License-Identifier: Elastic-2.0 -->
 <templates xml:space="preserve">
     <t t-name="pan_ai_pro.AgentPicker">
         <Dialog title="'Agents'" size="'sm'" footer="false">

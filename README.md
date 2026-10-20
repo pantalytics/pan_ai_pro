@@ -25,8 +25,9 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
   fields run on AI Pro (`pan_ai_pro_enterprise`).
 - **Control.** Every run is logged with its tokens and cost. Limits per run
   and per user per hour, a retention period, an allow list for MCP hosts.
-- **Open source** (LGPL-3). A connection to Pantalytics is required to run
-  (Settings > AI Pro > Connect to Pantalytics), the same pairing as Mail Pro.
+- **Source available** under the Elastic License 2.0. A connection to
+  Pantalytics is required to run (Settings > AI Pro > Connect to
+  Pantalytics), the same pairing as Mail Pro.
 
 ## Install
 
@@ -67,4 +68,26 @@ the platform and the model host; CI runs the whole thing
 because Odoo.sh and Cloudpepper attach a branch named after the Odoo
 version. Nobody commits to a mirror.
 
-[LGPL-3](LICENSE). Built by [Pantalytics](https://pantalytics.com).
+## License
+
+AI Pro is not open source. You can read the code, run it on your own Odoo
+and change it for your own use. That is where it stops. Under the
+[Elastic License 2.0](LICENSE) you may not:
+
+- offer AI Pro, or a modified copy, to others as a hosted or managed service;
+- remove, disable or work around the connection to Pantalytics, or anything
+  that connection unlocks;
+- remove or hide the copyright and license notices, including the header at
+  the top of every file.
+
+Doing any of these ends your license. From then on every copy you run or
+hand out is copyright infringement, and we will treat it that way.
+
+Every installation pairs with Pantalytics and reports in daily, and every
+file carries our notice. A copy that has the check taken out still reads as
+ours. We look for copies, on the Odoo app store and on GitHub, and we
+enforce.
+
+Want to resell or bundle AI Pro? Talk to us first:
+[rutger@pantalytics.com](mailto:rutger@pantalytics.com). Built by
+[Pantalytics](https://pantalytics.com). See [NOTICE](NOTICE).

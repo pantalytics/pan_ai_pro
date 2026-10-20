@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 {
     "name": "AI Pro",
     "summary": "AI agents in Odoo that you control: your own key, any model, your own tools, approvals and a log of every run",
@@ -57,9 +59,11 @@ Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "2.0.0",
-    "license": "LGPL-3",
-    "external_dependencies": {"python": ["pydantic_ai", "markdown2", "cryptography", "requests"]},
+    "version": "2.1.0",
+    "license": "Other proprietary",
+    "external_dependencies": {
+        "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]
+    },
     "depends": ["mail", "bus", "base_automation"],
     "data": [
         "security/groups.xml",

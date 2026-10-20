@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Route /websocket to Odoo's gevent worker (8072) and everything else to the
 HTTP workers (8069), as Caddy or nginx would in production. Needed for a
 prefork server (workers > 0), which is what the time limits apply to.

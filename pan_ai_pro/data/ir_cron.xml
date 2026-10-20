@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
+<!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo noupdate="1">
     <!-- Two worker crons: every slice past the first runs on one of them,
          woken with _trigger(). Two, so one long slice does not hold the

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The module's access rows, created for whichever access model this Odoo has.
 
 Odoo 20 keeps rights and record rules in one model, `ir.access`, with a

@@ -1,4 +1,6 @@
 /** @odoo-module */
+// Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+// SPDX-License-Identifier: Elastic-2.0
 import { registerThreadAction, threadActionsRegistry } from "@mail/core/common/thread_actions";
 import { _t } from "@web/core/l10n/translation";
 import { AgentPicker } from "@pan_ai_pro/chat/agent_picker";

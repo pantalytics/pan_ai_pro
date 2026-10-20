@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Every model: a person's edit of an AI field is remembered, and a change to
 an input of an AI field marks the value stale. Also the method a button or
 Enterprise's own AI-field button lands on."""

@@ -1,4 +1,6 @@
 /** @odoo-module */
+// Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+// SPDX-License-Identifier: Elastic-2.0
 import { registry } from "@web/core/registry";
 
 // Enterprise 20 ships its own AI button and Ctrl+K entries (S1: registry

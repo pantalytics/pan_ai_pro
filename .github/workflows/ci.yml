@@ -24,6 +24,7 @@ jobs:
       - run: ruff check . --output-format=github
       - run: python scripts/checks/no_em_dash.py
       - run: python scripts/checks/loc_budget.py
+      - run: python scripts/checks/license_header.py
 
   tests:
     name: Odoo ${{ matrix.odoo }} install and tests

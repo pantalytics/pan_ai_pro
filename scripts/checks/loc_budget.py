@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Fail if a Python file grows past its line budget.
 
 Default budget is 500 lines per file (see .claude/rules/conventions.md). Files

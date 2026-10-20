@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Settings > AI Pro: the connection, the model, the limits, the danger zone.
 
 The OpenRouter key is stored in `ir.config_parameter` (`pan_ai.openrouter_key`),
