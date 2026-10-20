@@ -46,6 +46,14 @@ def main():
         # outside Discuss, so the chat opens as a window bottom right
         page.goto(f"{BASE}/odoo/settings")
         page.wait_for_selector(".pan-ai-systray", timeout=60000)
+        # the checklist, for the eye: a screenshot, never a failed check
+        try:
+            page.click(".settings_tab [data-key=pan_ai_pro]", timeout=10000)
+            page.wait_for_selector(".o_pan_ai_steps", timeout=10000)
+            page.wait_for_timeout(500)
+            page.screenshot(path=str(HERE / "shot_settings.png"))
+        except Exception:  # noqa: BLE001
+            pass
         page.click(".pan-ai-systray button")
         page.wait_for_selector(".o-mail-ChatWindow .o-mail-Composer-input", timeout=30000)
         # the bus runs in a shared worker; give its websocket a moment, or the

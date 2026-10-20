@@ -29,6 +29,19 @@ STATE_SELECTION = [
 BROKEN = ("revoked", "invalid")
 
 
+def _newer(latest, installed):
+    """Is `latest` a later release than `installed`? Only then is it news: a
+    platform that still names an older release must not offer a downgrade."""
+
+    def parts(version):
+        try:
+            return tuple(int(p) for p in (version or "").split("."))
+        except ValueError:
+            return ()
+
+    return bool(parts(latest)) and parts(latest) > parts(installed)
+
+
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
@@ -96,7 +109,7 @@ class ResConfigSettings(models.TransientModel):
             record.pan_ai_connected_by = (
                 f"{who.name}, {fields.Date.to_string(when)}" if who and when else False
             )
-            record.pan_ai_update_available = latest if latest and latest != installed else False
+            record.pan_ai_update_available = latest if _newer(latest, installed) else False
 
     def set_values(self):
         super().set_values()
@@ -122,6 +135,18 @@ class ResConfigSettings(models.TransientModel):
             "res_model": "res.config.settings",
             "view_mode": "form",
             "views": [(self.env.ref("pan_ai_pro.res_config_settings_view_openrouter").id, "form")],
+            "target": "new",
+        }
+
+    def action_pan_ai_account(self):
+        """Step 1's arrow: who connected and when, and Disconnect, in a dialog."""
+        self._pan_ai_check_admin()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Pantalytics account"),
+            "res_model": "res.config.settings",
+            "view_mode": "form",
+            "views": [(self.env.ref("pan_ai_pro.res_config_settings_view_account").id, "form")],
             "target": "new",
         }
 
