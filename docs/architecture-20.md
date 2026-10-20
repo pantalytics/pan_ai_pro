@@ -191,9 +191,11 @@ value like any other.
 | Odoo ↔ platform | HTTPS JSON, bearer installation key, Ed25519-signed entitlement | Mail Pro's door, unchanged |
 | not used | an SSE route of our own, Odoo's `/mcp`, AG-UI, a platform brain, DBOS | a second channel beside the one the window has; Enterprise-only; a third vocabulary; the configuration lives in two places; its own tables and launch step in the process |
 
-## 9. Open source, and signed in
+## 9. Source available, and signed in
 
-The whole module is LGPL-3. It runs for a database that is connected to
+The whole module is under the Elastic License 2.0 since 2.1.0 (2.0.0 and
+earlier were LGPL-3). Read it, run it, change it for yourself; no hosted
+service, no removing the connection, no removing the notices. It runs for a database that is connected to
 Pantalytics, exactly as Mail Pro does: Connect to Pantalytics once, a
 daily heartbeat, a signed entitlement cached with 14 days of grace. No
 live entitlement, no run: the window and the Runs list say "Connect to
@@ -222,6 +224,7 @@ later. The public MCP server stays as it is.
 | 14 | AI Pro and MCP Pro are two products: AI Pro never calls `mcp.pantalytics.com`, no Zitadel sign-in from Odoo, the only sign-in is Connect to Pantalytics (Mail Pro's pairing); MCP servers in general stay a later, bearer-token toolset | decision 7 | 2026-10-19, Rutger, after S6: Zitadel's device page is its login v1, whose Microsoft callback Azure does not know, and a sign-in per user was never the product (`scripts/spikes/s6_device_flow/`) |
 | 13 | On Enterprise 20, AI fields keep Odoo's widget, cron and Studio panel; we inherit `_fill_ai_field` on `base` and remove `ai.systray_action`, `ask_ai` and `chat_with_agent` from the registries | replacing `ai_fields`, or patching `ai.utils` | 2026-10-19, **S1 measured the same day** on the Enterprise demo: widget and cron both end in `get_ai_field_value` then `_fill_ai_field` then IAP `get_completions_sync`; `ai.agent` has no provider or model field (`scripts/spikes/s1_seam/`) |
 | 17 | One module for Odoo 19 and 20, Community and Enterprise, on one branch: a manifest version without the Odoo prefix, `compat.py` for the two APIs that differ (`ir.config_parameter` typed getters, the base-field write guard), the access rows created for whichever access model the server has (`models/access.py`), CI on `odoo:19` and `odoo:20`; `19.0` and `20.0` are mirrors of `main` for the hosts that attach by version | a branch per Odoo version with its own code, the 19.0 clients kept alive beside the rebuild | 2026-10-19, Rutger; S7 measured the breaks the same day (`scripts/spikes/s7_one_module/`) |
+| 18 | Elastic License 2.0 from 2.1.0, `Other proprietary` in the manifests, a copyright and SPDX header in every source file (checked by `scripts/checks/license_header.py`), a warning at the license gate | LGPL-3, which let anyone strip the Pantalytics connection and resell the module | 2026-10-20, Rutger |
 
 The brand's Product UI rules, applied item by item: [brand.md](brand.md).
 

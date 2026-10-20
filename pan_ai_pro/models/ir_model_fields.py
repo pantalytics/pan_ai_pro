@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """AI fields: a field whose value an agent writes. The prompt, the agent and
 the two switches live on `ir.model.fields`, so any stored field of any model
 can become one (Settings > Technical > Fields, or AI Pro > Configuration >

@@ -1,11 +1,13 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 {
     "name": "AI Pro for Enterprise",
     "summary": "Enterprise 20's AI fields computed by AI Pro's agents; Odoo's AI button replaced by AI Pro's",
     "author": "Pantalytics",
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "category": "Productivity",
-    "version": "2.0.0",
-    "license": "LGPL-3",
+    "version": "2.1.0",
+    "license": "Other proprietary",
     "depends": ["pan_ai_pro", "ai_fields"],
     "data": [],
     "assets": {

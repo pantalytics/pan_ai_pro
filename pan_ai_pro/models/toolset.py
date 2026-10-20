@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """`pan_ai.toolset`: a Pydantic AI `Toolset`, as a record. Two kinds: Odoo
 tools (function tools over the ORM, the rows in `tool_ids`) and an MCP
 server (any server speaking MCP over HTTP, one bearer token per row, the

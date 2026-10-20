@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Run events to the browser: batched over the bus into the agent's message.
 
 `Streamer` collects Pydantic AI's events as small JSON dicts and sends them

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Spike S1. Installed on a 20 Enterprise database we own, this hook zips the
 source of the AI modules on disk (never anything from the database) into
 one attachment reachable with an access token, and logs the URL. Nothing

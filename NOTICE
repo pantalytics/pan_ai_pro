@@ -1,0 +1,23 @@
+AI Pro for Odoo
+Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+
+This software is licensed under the Elastic License 2.0 (see LICENSE). It is
+source available, not open source.
+
+Versions up to and including 2.0.0 were published under LGPL-3. Every later
+version is published only under the Elastic License 2.0.
+
+The license does not allow you to:
+
+  1. provide the software, or a derivative of it, to third parties as a
+     hosted or managed service;
+  2. move, change, disable or circumvent the connection to Pantalytics
+     (the license key functionality in pan_ai.license), or remove or hide
+     any functionality that connection protects;
+  3. alter, remove or obscure this notice, the LICENSE file or the
+     copyright and SPDX header in any file.
+
+Breaking any of these ends your license automatically. Use after that point
+is infringement of Pantalytics' copyright.
+
+Commercial licenses, reselling and partner terms: rutger@pantalytics.com

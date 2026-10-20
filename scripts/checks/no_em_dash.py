@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Fail if an em-dash (U+2014) appears in user-facing prose.
 
 Em-dashes are a tell-tale sign of unedited AI text; we use a hyphen, comma, or

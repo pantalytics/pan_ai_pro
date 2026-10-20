@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Per record, per AI field: is the value stale (an input changed since it
 was computed) and did a person edit it (then the AI leaves it alone). The
 19.0 model, renamed."""

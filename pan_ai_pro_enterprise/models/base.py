@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The seam spike S1 found on Enterprise 20: Odoo's own AI-field widget and
 its nightly cron both end in `get_ai_field_value` and then `_fill_ai_field`
 on `base`, which calls IAP. Here `_fill_ai_field` runs AI Pro's agent

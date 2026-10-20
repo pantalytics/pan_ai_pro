@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """AI fields: a prompt on a field, a value from the agent, the state rows."""
 
 from .common import AiProCase

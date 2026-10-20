@@ -1,4 +1,6 @@
 /** @odoo-module */
+// Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+// SPDX-License-Identifier: Elastic-2.0
 import { registerComposerAction } from "@mail/core/common/composer_actions";
 import { _t } from "@web/core/l10n/translation";
 import { actionIcon, channelType } from "@pan_ai_pro/chat/compat";

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Server actions and the agent.
 
 Two directions. A server action as a tool: `pan_ai.tool` rows point at an

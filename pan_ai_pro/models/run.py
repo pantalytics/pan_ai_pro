@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """`pan_ai.run`: one `agent.run`, in slices on Odoo's workers.
 
 A run starts from a chat message, a scheduled action, an automation rule or

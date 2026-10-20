@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Read the zip the probe produced and print what S1 asks for.
 
     python analyse.py pan_ai_s1_seam.zip

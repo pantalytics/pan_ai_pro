@@ -1,4 +1,6 @@
 /** @odoo-module */
+// Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+// SPDX-License-Identifier: Elastic-2.0
 import { Component } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";

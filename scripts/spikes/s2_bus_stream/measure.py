@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Measure the S2 claim against a real Odoo server (not HttpCase: its
 TestCursor turns commits into savepoints, so bus rows and the NOTIFY land at
 the end of the request and every batch arrives at once).
