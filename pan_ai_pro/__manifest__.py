@@ -22,7 +22,9 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
     "category": "Productivity",
     "version": "2.1.0",
     "license": "Other proprietary",
-    "external_dependencies": {"python": ["pydantic_ai", "markdown2", "cryptography", "requests"]},
+    "external_dependencies": {
+        "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]
+    },
     "depends": ["mail", "bus", "base_automation"],
     "data": [
         "security/groups.xml",
