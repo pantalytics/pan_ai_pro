@@ -147,6 +147,14 @@ class IrModelFields(models.Model):
             registry._pan_ai_column_ready = True
         return ready
 
+    def _register_hook(self):
+        # On this model, not on `base`: a hook hung on `base` runs only if
+        # every module loaded after this one calls super() in its own, and
+        # on staging-pantalytics (317 modules) it never ran, 2026-10-20.
+        # Here this module's class is first in line.
+        self._pan_ai_add_missing_columns()
+        return super()._register_hook()
+
     @api.model
     def _pan_ai_add_missing_columns(self):
         """A host pulls the code first and upgrades later (Cloudpepper,
@@ -154,10 +162,9 @@ class IrModelFields(models.Model):
         upgrade the registry declares this module's columns on tables that do
         not have them, and every read of ir.model.fields, which every /web
         request makes, fails with a 500. So the bare columns are added at
-        registry load (models/base.py, before any other model's hook runs);
-        the upgrade adds the index, the foreign key and the data. Idempotent
-        and safe under several workers loading at once. Returns the
-        (table, column) pairs added."""
+        registry load (the hook above); the upgrade adds the index, the
+        foreign key and the data. Idempotent and safe under several workers
+        loading at once. Returns the (table, column) pairs added."""
         cr = self.env.cr
         added = []
         for name in self.pool.models:
