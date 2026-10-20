@@ -95,6 +95,7 @@ Requires a connection to Pantalytics
         "static/description/agent_screenshot.png",
         "static/description/ai_field_screenshot.png",
     ],
+    "uninstall_hook": "uninstall_hook",
     "installable": True,
     "application": True,
     "auto_install": False,
