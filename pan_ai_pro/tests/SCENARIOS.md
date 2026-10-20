@@ -22,3 +22,4 @@ and Enterprise; upgrade from the 1.x module on 19 Enterprise.
 | Onboarding and menus | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | test_onboarding |
 | Multi-company | ✓ | – | – | ✓ | ✓ | ✓ | – | test_runs::test_a_run_sees_every_company_of_its_user |
 | Install, upgrade from 1.6.1, upgrade in place | ✓ | – | – | – | ✓ | ✓ | – | local matrix (not in CI); pan_ai_pro_enterprise installed on upgrade (#25) |
+| Uninstall: no traceback, no `pan_ai.*` or `x_ai.*` settings left; upgrade from 1.6.1 drops the 1.x leftovers | ✓ | – | – | – | ✓ | ✓ | – | test_uninstall, migrations/2.2.1 (local matrix) |
