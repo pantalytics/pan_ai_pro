@@ -52,7 +52,11 @@ class Agent(models.Model):
         ondelete="restrict",
     )
     instructions = fields.Text(default=DEFAULT_INSTRUCTIONS)
-    toolset_ids = fields.Many2many("pan_ai.toolset", string="Toolsets")
+    toolset_ids = fields.Many2many(
+        "pan_ai.toolset",
+        string="Tool groups",
+        help="What the agent may use: Odoo records, server actions, a connected server.",
+    )
     output_type = fields.Text(
         help="A JSON schema the answer must match; empty is free text.",
     )
@@ -91,9 +95,14 @@ class Agent(models.Model):
     group_ids = fields.Many2many(
         "res.groups",
         string="Who may use it",
-        help="Empty: every AI Pro user.",
+        help="Empty: every Member.",
     )
 
+    status = fields.Selection(
+        [("ready", "Ready"), ("no_tools", "No tools")],
+        compute="_compute_status",
+        help="No tools: the agent can only answer from what it already knows.",
+    )
     thread_count = fields.Integer(compute="_compute_counts")
     run_count = fields.Integer(compute="_compute_counts")
 
@@ -121,6 +130,12 @@ class Agent(models.Model):
                 raise ValidationError(
                     _("Limits must be at least 1 request, 1000 tokens and 10 seconds.")
                 )
+
+    @api.depends("toolset_ids.active", "web_search")
+    def _compute_status(self):
+        for agent in self:
+            has_tools = agent.web_search or agent.toolset_ids.filtered("active")
+            agent.status = "ready" if has_tools else "no_tools"
 
     def _compute_counts(self):
         threads = self.env["pan_ai.thread"]._read_group(
@@ -185,7 +200,7 @@ class Agent(models.Model):
     def action_open_threads(self):
         return {
             "type": "ir.actions.act_window",
-            "name": _("Threads"),
+            "name": _("Conversations"),
             "res_model": "pan_ai.thread",
             "view_mode": "list,form",
             "domain": [("agent_id", "=", self.id)],
@@ -195,7 +210,7 @@ class Agent(models.Model):
     def action_open_runs(self):
         return {
             "type": "ir.actions.act_window",
-            "name": _("Runs"),
+            "name": _("Activity"),
             "res_model": "pan_ai.run",
             "view_mode": "list,form",
             "domain": [("agent_id", "=", self.id)],

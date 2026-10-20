@@ -15,9 +15,16 @@ class TestOnboarding(AiProCase):
     def disconnect(self):
         self.license.write({"status": "not_connected", "key": False, "plan": False})
 
-    def test_connected_shows_the_app(self):
-        self.assertIn("pan_ai_pro.menu_agents", self.menus(self.user))
-        self.assertIn("pan_ai_pro.menu_toolsets", self.menus(self.env.ref("base.user_admin")))
+    def test_connected_shows_the_app_to_administrators(self):
+        admin = self.menus(self.env.ref("base.user_admin"))
+        self.assertIn("pan_ai_pro.menu_agents", admin)
+        self.assertIn("pan_ai_pro.menu_toolsets", admin)
+        self.assertNotIn("pan_ai_pro.menu_threads", admin)
+        self.assertNotIn("pan_ai_pro.menu_tools", admin)
+
+    def test_a_member_asks_from_the_chat_and_never_sees_the_app(self):
+        self.assertEqual(self.menus(self.user), set())
+        self.assertTrue(self.ready(self.user))
 
     def test_not_connected_admin_sees_settings_only(self):
         self.disconnect()
@@ -31,10 +38,11 @@ class TestOnboarding(AiProCase):
         self.assertEqual(self.menus(self.user), set())
 
     def test_reconnecting_brings_the_menu_back(self):
+        admin = self.env.ref("base.user_admin")
         self.disconnect()
-        self.menus(self.user)  # cached as hidden
+        self.menus(admin)  # cached as hidden
         self.license.write({"status": "active", "key": "mp_test", "plan": "beta"})
-        self.assertIn("pan_ai_pro.menu_agents", self.menus(self.user))
+        self.assertIn("pan_ai_pro.menu_agents", self.menus(admin))
 
     def ready(self, user):
         return self.env["ir.http"].with_user(user)._pan_ai_chat_ready()

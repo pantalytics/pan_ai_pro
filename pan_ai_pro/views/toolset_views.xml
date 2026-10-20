@@ -33,13 +33,13 @@
                         </group>
                         <group string="MCP server" invisible="kind != 'mcp'">
                             <field name="url" required="kind == 'mcp'" placeholder="https://example.com/mcp"/>
-                            <field name="bearer_token" password="True" groups="base.group_system"/>
+                            <field name="bearer_token" string="Key" password="True" groups="base.group_system"/>
                             <field name="allowed_tool_names" placeholder="search, read"/>
                             <field name="tool_prefix" placeholder="crm"/>
                         </group>
                     </group>
-                    <field name="tool_ids" invisible="kind != 'odoo'">
-                        <list editable="bottom">
+                    <field name="tool_ids" invisible="kind != 'odoo'" string="Tools">
+                        <list>
                             <field name="sequence" widget="handle"/>
                             <field name="name"/>
                             <field name="source"/>
@@ -55,8 +55,11 @@
         </field>
     </record>
     <record id="action_toolset" model="ir.actions.act_window">
-        <field name="name">Toolsets</field>
+        <field name="name">Tool groups</field>
         <field name="res_model">pan_ai.toolset</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p>A tool group is a set of tools an agent may use. None yet.</p>
+        </field>
     </record>
 </odoo>

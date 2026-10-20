@@ -13,7 +13,7 @@ from odoo.exceptions import ValidationError
 
 class Toolset(models.Model):
     _name = "pan_ai.toolset"
-    _description = "AI toolset"
+    _description = "AI tool group"
     _order = "name"
 
     name = fields.Char(required=True)
@@ -38,6 +38,7 @@ class Toolset(models.Model):
     bearer_token = fields.Char(
         groups="base.group_system",
         copy=False,
+        string="Key",
         help="Sent as Authorization: Bearer; empty for a server without authentication.",
     )
     allowed_tool_names = fields.Char(help="Comma separated; empty is every tool the server offers.")

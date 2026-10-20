@@ -39,7 +39,7 @@ KINDS = [
 
 class Thread(models.Model):
     _name = "pan_ai.thread"
-    _description = "AI thread"
+    _description = "AI conversation"
     _order = "last_activity desc, id desc"
 
     name = fields.Char(required=True, default=lambda self: _("New thread"))
@@ -67,7 +67,7 @@ class Thread(models.Model):
         digits=(16, 6), default=0.0, help="Across all runs, as OpenRouter reports it."
     )
     last_activity = fields.Datetime(default=fields.Datetime.now, index=True)
-    run_ids = fields.One2many("pan_ai.run", "thread_id", string="Runs")
+    run_ids = fields.One2many("pan_ai.run", "thread_id", string="Activity")
     run_count = fields.Integer(compute="_compute_run_count")
     live_run_id = fields.Many2one("pan_ai.run", compute="_compute_live_run")
 

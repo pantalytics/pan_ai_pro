@@ -123,7 +123,7 @@ class DiscussChannel(models.Model):
         if not prompt:
             return
         if not thread.run_ids:
-            # The first prompt names the thread in the Threads list.
+            # The first prompt names the thread in the Conversations list.
             thread.sudo().write({"name": prompt[:60] + ("..." if len(prompt) > 60 else "")})
         Run = self.env["pan_ai.run"]
         placeholder = self._pan_ai_agent_message(thread.agent_id, _("Thinking"))

@@ -9,7 +9,7 @@
     <!-- Who may chat with an agent and read their own threads. Every internal
          user by default; an agent's own "Who may use it" narrows further. -->
     <record id="group_user" model="res.groups">
-        <field name="name">User</field>
+        <field name="name">Member</field>
         <field name="privilege_id" ref="privilege_ai_pro"/>
     </record>
     <!-- Every internal user may chat; an agent's "Who may use it" narrows. -->

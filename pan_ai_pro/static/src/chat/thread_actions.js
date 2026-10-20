@@ -17,7 +17,7 @@ export async function openChannel(store, channelId) {
 
 const onAiChannel = ({ thread }) => channelType(thread) === "ai";
 
-// A fresh thread with the same agent: the old chat stays in Threads.
+// A fresh thread with the same agent: the old chat stays in Conversations.
 registerThreadAction("pan-ai-new-chat", {
     condition: onAiChannel,
     icon: actionIcon("add", "fa fa-fw fa-plus"),

@@ -48,8 +48,7 @@
         <field name="domain">[('pan_ai_is_ai', '=', True)]</field>
         <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('view_ai_fields_list')})]"/>
         <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">No AI fields yet</p>
-            <p>Write a prompt on the AI tab of any stored field (Settings > Technical > Fields, in developer mode).</p>
+            <p>No AI fields yet. Add a prompt on a field's AI tab, in developer mode.</p>
         </field>
     </record>
 </odoo>
