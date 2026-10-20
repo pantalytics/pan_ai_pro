@@ -65,8 +65,8 @@ python scripts/browser/check_chat.py http://127.0.0.1:8080 admin admin   # a rea
 
 `scripts/browser/fake_platform.py` and `fake_openrouter.py` stand in for
 the platform and the model host; CI runs the whole thing
-(`.github/workflows/ci.yml`) on Odoo 19 and 20. Work lands on `19.0`,
-the default branch; `20.0` mirrors it on every push
+(`.github/workflows/ci.yml`) on Odoo 19 and 20. Work lands on `main`;
+a release is a merge from `main` into `19.0`, and `20.0` mirrors `19.0` on every push
 (`.github/workflows/mirror.yml`), because Odoo.sh and Cloudpepper attach a
 branch named after the Odoo version. Nobody commits to `20.0`.
 
