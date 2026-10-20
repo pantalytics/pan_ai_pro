@@ -9,7 +9,7 @@ record. The run carries the rule's or the scheduled action's user, never
 the superuser: a scheduled action set to run as OdooBot refuses.
 """
 
-from odoo import _, api, fields, models
+from odoo import SUPERUSER_ID, _, api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from ..tools import commit
@@ -52,10 +52,9 @@ class IrActionsServer(models.Model):
         (a cron) takes its first slice here, the rest on the worker crons. A
         triggered run (an automation in somebody's request, the Action menu)
         goes to the workers whole: the person's transaction is theirs."""
-        from ..runtime import slices
 
         self.ensure_one()
-        if self.env.uid == self.env.ref("base.user_root").id or self.env.su and self.env.uid == 1:
+        if self.env.uid == SUPERUSER_ID:
             raise UserError(
                 _(
                     "Run AI agent must run as a real user, not as OdooBot. Pick a user on the action."
@@ -98,9 +97,7 @@ class IrActionsServer(models.Model):
                 run._wake_worker()
                 continue
             commit(self.env)
-            token = run._claim()
-            if token:
-                slices.run_slice(run, token, where="inline" if inline else "cron")
+            run._run_now("inline" if inline else "cron")
         return False
 
     def _pan_ai_render(self, record):

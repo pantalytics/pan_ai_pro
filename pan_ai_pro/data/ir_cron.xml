@@ -52,7 +52,7 @@
         <field name="priority">200</field>
     </record>
     <record id="cron_fields" model="ir.cron">
-        <field name="name">AI Pro: compute AI fields</field>
+        <field name="name">AI Pro: fill AI fields</field>
         <field name="model_id" ref="base.model_ir_model_fields"/>
         <field name="state">code</field>
         <field name="code">model._cron_fill_ai_fields()</field>

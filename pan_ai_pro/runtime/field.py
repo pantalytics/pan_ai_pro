@@ -7,16 +7,17 @@ read.
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
+import time
+from datetime import timedelta
 
-from pydantic_ai import Agent, UsageLimits
+from pydantic_ai import UsageLimits
 from pydantic_ai.output import StructuredDict
 
 from odoo import _, fields
 from odoo.exceptions import UserError
 
 from ..tools import commit
-from .agent import context_instructions, model_for, model_settings, toolset_for
+from .agent import build_agent
 from .deps import OdooDeps
 
 _logger = logging.getLogger(__name__)
@@ -139,38 +140,41 @@ def _agent_for(ir_field, env):
     return agent_record.with_env(env)
 
 
-def fill(records, ir_field, caller, by_hand=False):
+def fill(records, ir_field, caller, by_hand=False, deadline=None):
     """Compute `ir_field` for `records` as `caller` (or the agent's dedicated
     user). `by_hand`: a person pressed a button, so their hourly cap applies
-    and the runs are theirs; a cron's fills have no caller. Returns how many
-    values were written; the state rows say why not."""
+    and the runs are theirs; a cron's fills have no caller. `deadline`: a
+    monotonic time past which the rest is left for the next wake. Returns
+    how many values were written; the state rows say why not."""
     env0 = records.env
     agent_record = _agent_for(ir_field, env0)
     env0["pan_ai.run"]._check_may_start(agent_record, caller, "triggered", by_hand=by_hand)
     run_user = agent_record.run_user(caller)
     env = records.env(user=run_user.id)
-    agent = Agent(
-        model_for(agent_record, env),
-        instructions=[INSTRUCTIONS, agent_record.instructions or "", context_instructions],
-        toolsets=[toolset_for(ts, env) for ts in agent_record.toolset_ids if ts.active]
-        if ir_field.pan_ai_use_tools
-        else [],
-        output_type=StructuredDict(schema_for(ir_field)),
-        model_settings=model_settings(agent_record),
-        deps_type=OdooDeps,
+    agent = build_agent(
+        agent_record.with_env(env),
+        env,
+        output=StructuredDict(schema_for(ir_field)),
+        prefix=INSTRUCTIONS,
+        with_tools=ir_field.pan_ai_use_tools,
         name=f"{agent_record.name} (field)",
     )
     Metadata = env["pan_ai.field.metadata"]
     done = 0
+
+    def state(record, **values):
+        Metadata._set(ir_field.model, [record.id], ir_field.name, **values)
+
+    def failed(run, record, error, code, **values):
+        run._finish("failed", error=error[:250], code=code)
+        state(record, last_error=run.error, **values)
+
     for record in records.with_env(env):
+        if deadline is not None and time.monotonic() >= deadline:
+            break
         if not record.has_access("write"):
             # Recorded, so the nightly batch does not pick it again tomorrow.
-            Metadata._set(
-                ir_field.model,
-                [record.id],
-                ir_field.name,
-                last_error=_("%s may not write this record.", run_user.name)[:250],
-            )
+            state(record, last_error=_("%s may not write this record.", run_user.name)[:250])
             continue
         run = (
             env["pan_ai.run"]
@@ -188,7 +192,6 @@ def fill(records, ir_field, caller, by_hand=False):
         deps = OdooDeps(
             env=env, user=run_user.with_env(env), run=run, thread=run.thread_id, record=record
         )
-        started = datetime.utcnow()
         try:
             result = asyncio.run(
                 asyncio.wait_for(
@@ -201,12 +204,9 @@ def fill(records, ir_field, caller, by_hand=False):
                 )
             )
         except TimeoutError:
-            run._finish(
-                "failed",
-                error=_("The model did not answer within %s seconds.", TIMEOUT),
-                code="timeout",
+            failed(
+                run, record, _("The model did not answer within %s seconds.", TIMEOUT), "timeout"
             )
-            Metadata._set(ir_field.model, [record.id], ir_field.name, last_error=run.error)
             continue
         except Exception as error:  # noqa: BLE001 - every outcome lands on the run and the state row
             _logger.warning(
@@ -216,8 +216,7 @@ def fill(records, ir_field, caller, by_hand=False):
                 record.id,
                 error,
             )
-            run._finish("failed", error=str(error)[:250], code="model")
-            Metadata._set(ir_field.model, [record.id], ir_field.name, last_error=str(error)[:250])
+            failed(run, record, str(error), "model")
             continue
         output = result.output
         usage = result.usage
@@ -227,37 +226,21 @@ def fill(records, ir_field, caller, by_hand=False):
                 "input_tokens": usage.input_tokens,
                 "output_tokens": usage.output_tokens,
                 "text": json.dumps(output, ensure_ascii=False)[:4000],
-                "finished_at": fields.Datetime.now(),
-                "started_at": started,
             }
         )
         if output.get("could_not_resolve"):
-            run._finish(
-                "failed",
-                error=(output.get("unresolved_cause") or _("Could not resolve"))[:250],
-                code="unresolved",
-            )
-            Metadata._set(
-                ir_field.model, [record.id], ir_field.name, last_error=run.error, is_stale=False
-            )
+            cause = output.get("unresolved_cause") or _("Could not resolve")
+            failed(run, record, cause, "unresolved", is_stale=False)
             continue
         try:
             record.with_context(pan_ai_filling=True).write(
                 {ir_field.name: _cast(output.get("value"), ir_field)}
             )
         except Exception as error:  # noqa: BLE001 - a value the field refuses is the state row's to tell
-            run._finish("failed", error=str(error)[:250], code="other")
-            Metadata._set(ir_field.model, [record.id], ir_field.name, last_error=str(error)[:250])
+            failed(run, record, str(error), "other")
             continue
         run._finish("ok")
-        Metadata._set(
-            ir_field.model,
-            [record.id],
-            ir_field.name,
-            is_stale=False,
-            human_edited=False,
-            last_error=False,
-        )
+        state(record, is_stale=False, human_edited=False, last_error=False)
         done += 1
         commit(env)
     return done
@@ -315,12 +298,12 @@ def missing_records(ir_field, caller, limit=20):
     )
 
 
-def fill_missing(ir_field, caller, limit=20):
+def fill_missing(ir_field, caller, limit=20, deadline=None):
     records = missing_records(ir_field, caller, limit=limit)
-    return fill(records, ir_field, caller) if records else 0
+    return fill(records, ir_field, caller, deadline=deadline) if records else 0
 
 
-def fill_stale(ir_field, caller, limit=20):
+def fill_stale(ir_field, caller, limit=20, deadline=None):
     rows = (
         caller.env["pan_ai.field.metadata"]
         .sudo()
@@ -337,4 +320,4 @@ def fill_stale(ir_field, caller, limit=20):
         )
     )
     records = caller.env[ir_field.model].browse(rows.mapped("res_id")).exists()
-    return fill(records, ir_field, caller) if records else 0
+    return fill(records, ir_field, caller, deadline=deadline) if records else 0

@@ -16,7 +16,7 @@
 
                     <block title="Pantalytics" name="pan_ai_account_block">
                         <setting id="pan_ai_account_setting" string="Pantalytics account"
-                                 help="Agents run only on a connected Odoo. Counts go out once a day, never a prompt or a record.">
+                                 help="Agents run only on a connected Odoo.">
                             <div invisible="pan_ai_state != 'not_connected'" class="mt-2">
                                 <button name="action_pan_ai_connect" type="object"
                                         string="Connect to Pantalytics" class="btn-primary"/>
@@ -56,9 +56,9 @@
 
                     <block title="Model" name="pan_ai_model_block">
                         <setting id="pan_ai_key_setting" string="OpenRouter key"
-                                 help="One key for every model. Get one at openrouter.ai/keys.">
+                                 help="One key for every model, from openrouter.ai/keys.">
                             <div invisible="not pan_ai_has_key" class="mt-2">
-                                <span class="text-success">Connected</span>
+                                <span class="text-success">Saved</span>
                                 <span class="text-muted">, ends in <field name="pan_ai_key_last4" nolabel="1" readonly="1" class="d-inline"/></span>
                             </div>
                             <div class="mt-2">
@@ -67,36 +67,34 @@
                             </div>
                         </setting>
                         <setting id="pan_ai_model_setting" string="Default model"
-                                 help="An OpenRouter model id. An agent can pick its own.">
+                                 help="An OpenRouter model id; an agent can pick its own.">
                             <field name="pan_ai_default_model" placeholder="anthropic/claude-sonnet-5.5"/>
                         </setting>
                     </block>
 
                     <block title="Limits" name="pan_ai_limits_block">
-                        <setting id="pan_ai_runs_setting" string="Chats per person per hour" help="What a person starts by hand. 0 is no limit.">
+                        <setting id="pan_ai_runs_setting" string="Chats per person per hour" help="0 is no limit.">
                             <field name="pan_ai_runs_per_user_per_hour"/>
                         </setting>
-                        <setting id="pan_ai_retention_setting" string="Keep chats for" help="Days. Older chats are deleted nightly; runs are kept.">
+                        <setting id="pan_ai_retention_setting" string="Keep chats for" help="Days. 0 keeps them forever.">
                             <field name="pan_ai_retention_days"/>
                         </setting>
-                        <setting id="pan_ai_mcp_hosts_setting" string="Allowed MCP hosts" help="An MCP toolset connects only to a host named here. Comma separated.">
+                        <setting id="pan_ai_mcp_hosts_setting" string="Allowed MCP hosts" help="Hosts an MCP toolset may connect to, comma separated.">
                             <field name="pan_ai_mcp_allowed_hosts" placeholder="mcp.example.com"/>
                         </setting>
                     </block>
 
                     <block title="Danger zone" name="pan_ai_danger_block">
                         <setting id="pan_ai_remove_key_setting" string="Remove the OpenRouter key"
-                                 help="Every agent stops at once, until a new key is saved."
                                  invisible="not pan_ai_has_key">
                             <button name="action_pan_ai_remove_key" type="object" string="Remove key" class="btn-secondary mt-2"
                                     confirm="Remove the OpenRouter key? Every agent stops at once until a new key is saved."/>
                         </setting>
-                        <setting id="pan_ai_delete_setting" string="Delete all threads" help="Every thread and chat window, for everyone. Runs are kept.">
+                        <setting id="pan_ai_delete_setting" string="Delete all threads" help="Every thread and chat window, for everyone.">
                             <button name="action_pan_ai_delete_threads" type="object" string="Delete all threads" class="btn-secondary mt-2"
-                                    confirm="Delete all threads? Every thread of every person is removed. Runs are kept."/>
+                                    confirm="Delete all threads? Every thread of every person is removed, with its runs."/>
                         </setting>
                         <setting id="pan_ai_disconnect_setting" string="Disconnect from Pantalytics"
-                                 help="Agents stop until you connect again. The module stays installed."
                                  invisible="pan_ai_state != 'connected'">
                             <button name="action_pan_ai_disconnect" type="object" string="Disconnect" class="btn-secondary mt-2"
                                     confirm="Disconnect this Odoo from Pantalytics? Agents stop until you connect it again."/>

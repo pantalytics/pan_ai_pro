@@ -1,6 +1,7 @@
 """Scheduled, triggered and continuous runs: the server action "Run AI
 agent", the ticks of a continuous thread, and who they run as."""
 
+from odoo import fields
 from odoo.exceptions import UserError
 
 from .common import AiProCase
@@ -150,3 +151,83 @@ class TestRuns(AiProCase):
         # a Fill button is: the cap applies
         with self.assertRaises(_UserError):
             Run._check_may_start(self.agent, self.user, "triggered", by_hand=True)
+
+    def _watch(self, **vals):
+        return self.env["pan_ai.thread"].create(
+            {
+                "name": "Watch contacts",
+                "kind": "continuous",
+                "agent_id": self.agent.id,
+                "user_id": self.user.id,
+                "watch_model_id": self.env["ir.model"]._get_id("res.partner"),
+                "watch_domain": "[]",
+                "watch_interval": 1,
+                "next_tick_at": "2020-01-01 00:00:00",
+                **vals,
+            }
+        )
+
+    def test_a_watch_pauses_instead_of_looping(self):
+        from ..compat import params
+
+        Thread = self.env["pan_ai.thread"]
+        # a deactivated user
+        gone = self._watch()
+        self.user.sudo().write({"active": False})
+        Thread._start_due_ticks()
+        self.assertTrue(gone.paused)
+        self.assertFalse(gone.run_ids)
+        self.user.sudo().write({"active": True})
+        # a watch that cannot be read
+        bad = self._watch(watch_domain="[('no_such_field', '=', 1)]")
+        Thread._start_due_ticks()
+        self.assertTrue(bad.paused)
+        self.assertFalse(bad.run_ids)
+        # a start that is refused keeps the cursor, so Resume sees the changes
+        refused = self._watch()
+        params(self.env).set_str("pan_ai.openrouter_key", "")
+        self.fake(["never"])
+        Thread._start_due_ticks()
+        self.assertTrue(refused.paused)
+        self.assertFalse(refused.run_ids)
+        self.assertFalse(refused.watch_cursor)
+        self.assertGreater(refused.next_tick_at, fields.Datetime.from_string("2020-01-02 00:00:00"))
+        params(self.env).set_str("pan_ai.openrouter_key", "sk-or-test")
+        self.fake(["Noted."])
+        refused.action_resume()
+        self.env["pan_ai.run"]._cron_run_slices()
+        self.assertEqual(len(refused.run_ids), 1)
+        self.assertEqual(refused.run_ids.status, "ok")
+
+    def test_a_watch_that_hits_a_limit_pauses(self):
+        watch = self._watch()
+        self.agent.sudo().write({"request_limit": 1})
+        self.addCleanup(self.agent.sudo().write, {"request_limit": 25})
+        self.fake([[("today", {})], [("today", {})], "never"])
+        self.env["pan_ai.run"]._cron_run_slices()
+        run = watch.run_ids[:1]
+        self.assertEqual((run.status, run.error_code), ("failed", "limit"))
+        self.assertTrue(watch.paused)
+        watch.write({"next_tick_at": "2020-01-01 00:00:00"})
+        self.env["pan_ai.thread"]._start_due_ticks()
+        self.assertEqual(len(watch.run_ids), 1)
+
+    def test_a_record_that_refuses_the_note_leaves_the_run_ok(self):
+        from unittest.mock import patch
+
+        from odoo.exceptions import AccessError
+
+        self.fake(["A fine contact."])
+        action = self._action(pan_ai_post=True)
+        other = self.env["res.partner"].sudo().create({"name": "Not mine"})
+        action.with_user(self.user).with_context(
+            active_model="res.partner", active_ids=other.ids, active_id=other.id
+        ).run()
+        with patch.object(
+            type(self.env["res.partner"]), "message_post", side_effect=AccessError("no")
+        ):
+            self.env["pan_ai.run"]._cron_run_slices()
+        run = self.env["pan_ai.thread"].search([("res_id", "=", other.id)]).run_ids[:1]
+        self.assertEqual(run.status, "ok")
+        self.assertIn("fine contact", run.text)
+        self.assertIn("could not be posted", run.error)

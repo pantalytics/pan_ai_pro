@@ -23,7 +23,7 @@ class Toolset(models.Model):
     tool_ids = fields.One2many("pan_ai.tool", "toolset_id", string="Tools")
     requires_approval = fields.Boolean(
         string="Ask before each tool",
-        help="The person approves every call of every tool in this toolset. Tools with their own approval flag ask anyway.",
+        help="The person approves every call of every tool in this toolset.",
     )
     agent_ids = fields.Many2many("pan_ai.agent", string="Used by")
     tool_count = fields.Integer(compute="_compute_tool_count")
@@ -31,14 +31,14 @@ class Toolset(models.Model):
     # MCP server
     url = fields.Char(
         string="Server URL",
-        help="https://host/mcp. The host must be on the allowed list in Settings.",
+        help="https://host/mcp, on a host allowed in Settings.",
     )
     bearer_token = fields.Char(
         groups="base.group_system",
         copy=False,
-        help="Sent as Authorization: Bearer. Empty for a server without authentication.",
+        help="Sent as Authorization: Bearer; empty for a server without authentication.",
     )
-    allowed_tool_names = fields.Char(help="Comma separated. Empty: every tool the server offers.")
+    allowed_tool_names = fields.Char(help="Comma separated; empty is every tool the server offers.")
     tool_prefix = fields.Char(
         help="Prefix on the tool names the model sees, to keep two servers apart."
     )

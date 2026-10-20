@@ -19,9 +19,10 @@ import psycopg2
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+from odoo.tools.sql import table_exists
 
 from ..compat import params
-from ..defaults import RUNS_PER_USER_PER_HOUR, TIME_LIMIT
+from ..defaults import RUNS_PER_USER_PER_HOUR
 from ..tools import commit
 
 _logger = logging.getLogger(__name__)
@@ -47,11 +48,15 @@ ERROR_CODES = [
     ("other", "Other"),
 ]
 # A claim whose heartbeat is older than this belongs to a dead worker. The
-# worker beats every HEARTBEAT_SECONDS (runtime/slices.py), well inside it.
-STALE_SECONDS = 45
+# worker beats every HEARTBEAT_SECONDS (runtime/slices.py) and around every
+# Odoo tool; one tool call may not be silent longer than this.
+STALE_SECONDS = 90
 # Nobody holds the run.
 NO_CLAIM = {"claimed_at": False, "worker": False, "claim_token": False}
 WORKER_CRONS = ("pan_ai_pro.cron_worker_1", "pan_ai_pro.cron_worker_2")
+# The tool log of a run: the last calls, their arguments clipped.
+TOOL_LOG_ENTRIES = 200
+TOOL_LOG_ARGS = 2000
 
 
 def worker_name():
@@ -118,6 +123,35 @@ class Run(models.Model):
     worker = fields.Char()
     claim_token = fields.Char()
 
+    # Two requests on one thread (a double send, two tabs, both worker crons
+    # on one due tick) cannot both pass the live_run_id check; the index can.
+    _one_live_per_thread = models.UniqueIndex(
+        "(thread_id) WHERE status IN ('running', 'interrupted')",
+        "The agent is still answering. Stop it first, or wait.",
+    )
+
+    def _auto_init(self):
+        """Before the unique live-run index lands on a database that ran
+        the race it closes: the older of two live runs on one thread is
+        failed, so the index is created and not skipped."""
+        result = super()._auto_init()
+        if table_exists(self.env.cr, "pan_ai_run"):
+            self.env.cr.execute(
+                """
+                UPDATE pan_ai_run
+                   SET status = 'failed', error_code = 'stuck', error = %s,
+                       claimed_at = NULL, worker = NULL, claim_token = NULL
+                 WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id, row_number() OVER (PARTITION BY thread_id ORDER BY id DESC) AS rn
+                          FROM pan_ai_run WHERE status IN ('running', 'interrupted')
+                    ) live WHERE rn > 1
+                 )
+                """,
+                ("Stopped: two runs were live on one thread.",),
+            )
+        return result
+
     @api.depends("agent_id.name")
     def _compute_display_name(self):
         for run in self:
@@ -156,7 +190,7 @@ class Run(models.Model):
             ]
         )
         if per_hour and recent >= per_hour:
-            raise UserError(_("You started %s runs in the last hour. Try again later.", recent))
+            raise UserError(_("You reached the hourly limit of %s. Try again later.", per_hour))
 
     @api.model
     def start(self, thread, prompt, kind="chat", message=None, caller=None):
@@ -168,16 +202,20 @@ class Run(models.Model):
         if thread.live_run_id:
             raise UserError(_("The agent is still answering. Stop it first, or wait."))
         run_user = agent.run_user(caller)
-        run = self.sudo().create(
-            {
-                "thread_id": thread.id,
-                "user_id": run_user.id,
-                "caller_id": caller.id,
-                "kind": kind,
-                "prompt": prompt,
-                "message_id": message.id if message else False,
-            }
-        )
+        try:
+            with self.env.cr.savepoint():
+                run = self.sudo().create(
+                    {
+                        "thread_id": thread.id,
+                        "user_id": run_user.id,
+                        "caller_id": caller.id,
+                        "kind": kind,
+                        "prompt": prompt,
+                        "message_id": message.id if message else False,
+                    }
+                )
+        except psycopg2.errors.UniqueViolation as error:
+            raise UserError(_("The agent is still answering. Stop it first, or wait.")) from error
         thread.sudo().write({"last_activity": fields.Datetime.now()})
         return run
 
@@ -254,17 +292,36 @@ class Run(models.Model):
         # end inside the cron's limit, or the master kills the worker.
         limit = slices.server_limit("limit_time_real_cron")
         budget = max(1.0, limit - slices.slice_budget("cron") - limit * 0.1)
-        while (fields.Datetime.now() - started).total_seconds() < budget:
+
+        def in_budget():
+            return (fields.Datetime.now() - started).total_seconds() < budget
+
+        while in_budget():
             ran = False
-            for run in self.sudo().search(self._claimable_domain(), order="id"):
-                token = run._claim()
-                if token:
-                    slices.run_slice(run, token, where="cron")
-                    ran = True
+            # Round robin: every claimable run gets one slice before the
+            # list is read again, so one long run never starves the rest.
+            # Least recently served first: a paused run keeps its heartbeat,
+            # a run nobody touched has none.
+            for run in self.sudo().search(
+                self._claimable_domain(), order="heartbeat_at asc nulls first, id"
+            ):
+                if not in_budget():
                     break
+                ran = run._run_now("cron") or ran
             if not ran:
                 return
         self._wake_worker()
+
+    def _run_now(self, where):
+        """Claim this run and give it one slice here. False when another
+        worker holds it."""
+        from ..runtime import slices
+
+        self.ensure_one()
+        token = self._claim()
+        if token:
+            slices.run_slice(self, token, where=where)
+        return bool(token)
 
     @api.model
     def _cron_mark_stuck(self):
@@ -273,7 +330,7 @@ class Run(models.Model):
         from ..runtime import stream
 
         for run in self.sudo().search(self._claimable_domain()):
-            limit = run.agent_id.time_limit or TIME_LIMIT
+            limit = run.agent_id.time_limit
             if run.started_at < fields.Datetime.now() - timedelta(seconds=limit * 2):
                 error = _("Stopped: nobody picked the run up in time.")
                 run._finish("failed", error=error, code="stuck")
@@ -297,7 +354,6 @@ class Run(models.Model):
         """The person approved or skipped the pending tool calls. Only the
         ids the thread is waiting for count; the rest is ignored, never
         trusted from the client."""
-        from ..runtime import slices
 
         self.ensure_one()
         if self.status != "interrupted":
@@ -315,9 +371,7 @@ class Run(models.Model):
         )
         self.thread_id.sudo().write({"pending_tool_calls": "[]"})
         commit(self.env)
-        token = self._claim()
-        if token:
-            slices.run_slice(self, token, where="inline")
+        self._run_now("inline")
         return True
 
     def _finish(self, status, error=None, code=None):
@@ -333,7 +387,9 @@ class Run(models.Model):
         )
 
     def log_tool(self, entry):
+        """Bounded by shape (the last TOOL_LOG_ENTRIES calls, args clipped),
+        so the log stays JSON however long the run."""
         self.ensure_one()
-        entries = json.loads(self.tool_log or "[]")
-        entries.append(entry)
-        self.sudo().write({"tool_log": json.dumps(entries)[:200000]})
+        entry = dict(entry, args=json.dumps(entry.get("args"), default=str)[:TOOL_LOG_ARGS])
+        entries = (json.loads(self.tool_log or "[]") + [entry])[-TOOL_LOG_ENTRIES:]
+        self.sudo().write({"tool_log": json.dumps(entries)})

@@ -41,7 +41,7 @@
                         <field name="description" placeholder="One line under the name"/>
                     </div>
                     <group>
-                        <group string="Model">
+                        <group string="Model and tools">
                             <field name="model" placeholder="Default model from Settings"/>
                             <field name="toolset_ids" widget="many2many_tags"/>
                             <field name="web_search"/>

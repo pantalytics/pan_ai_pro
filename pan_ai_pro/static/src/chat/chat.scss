@@ -24,6 +24,10 @@
     // Waiting for the person is a status: amber (Bootstrap's border-warning
     // in the template), never the accent.
     .pan-ai-approval-card {
+        .pan-ai-approve:focus-visible, .pan-ai-skip:focus-visible {
+            outline: 2px solid var(--primary, #714b67);
+            outline-offset: 2px;
+        }
         .pan-ai-approval-args {
             max-height: 6rem;
             overflow: auto;

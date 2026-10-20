@@ -5,12 +5,16 @@
         <field name="model">ir.actions.server</field>
         <field name="inherit_id" ref="base.view_server_action_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='state']" position="after">
-                <field name="pan_ai_agent_id" invisible="state != 'pan_ai_run'" required="state == 'pan_ai_run'"/>
-                <field name="pan_ai_prompt" invisible="state != 'pan_ai_run'" required="state == 'pan_ai_run'"
-                       placeholder="What to do. {{ object.display_name }} and other fields of the record are filled in."/>
-                <field name="pan_ai_post" invisible="state != 'pan_ai_run'"/>
-                <field name="pan_ai_activity" invisible="state != 'pan_ai_run'"/>
+            <!-- A group of its own, after the base form's warning, so the
+                 fields get their labels (the state field sits in a flex div). -->
+            <xpath expr="//div[@invisible='not warning']" position="after">
+                <group string="AI agent" name="pan_ai" invisible="state != 'pan_ai_run'">
+                    <field name="pan_ai_agent_id" required="state == 'pan_ai_run'"/>
+                    <field name="pan_ai_prompt" required="state == 'pan_ai_run'"
+                           placeholder="What to do. {{ object.display_name }} and other fields of the record are filled in."/>
+                    <field name="pan_ai_post"/>
+                    <field name="pan_ai_activity"/>
+                </group>
             </xpath>
         </field>
     </record>

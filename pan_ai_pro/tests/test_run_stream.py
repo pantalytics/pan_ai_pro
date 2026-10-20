@@ -148,7 +148,7 @@ class TestRunStream(AiProCase):
         channel.message_post(body="second", message_type="comment", subtype_xmlid="mail.mt_comment")
         self.assertEqual(len(thread.run_ids), 1)
         last = channel.sudo().message_ids[:1]
-        self.assertIn("runs in the last hour", last.body)
+        self.assertIn("hourly limit", last.body)
 
     def test_stop_on_a_waiting_approval_leaves_a_thread_that_still_works(self):
         self.fake(
@@ -310,3 +310,113 @@ class TestSliceHelpers(AiProCase):
         self.assertIsInstance(closed[-1].parts[0], ToolReturnPart)
         self.assertEqual(closed[-1].parts[0].tool_call_id, "c")
         self.assertIs(slices.close_open_calls(closed, "Stopped."), closed)
+
+    def test_render_markdown_keeps_tables_and_links_but_no_scripts(self):
+        from ..runtime.stream import render_markdown
+
+        html = render_markdown(
+            'Hi <script>alert(1)</script> <a href="x" onclick="evil()">l</a>\n\n| a |\n|---|\n| b |'
+        )
+        self.assertNotIn("<script", html)
+        self.assertNotIn("onclick", html)
+        self.assertIn("<table", html)
+        self.assertIn("<a", html)
+        self.fake(["<img src=x onerror=alert(1)> done"])
+        channel, thread = self.chat()
+        self.assertNotIn("onerror", thread.run_ids[:1].message_id.body)
+
+    def test_each_failure_lands_with_its_code(self):
+        from pydantic_ai.exceptions import ModelHTTPError
+        from pydantic_ai.models.function import FunctionModel
+
+        from ..runtime import agent as agent_runtime
+
+        # the model answers with an error
+        def fn(messages, info):
+            raise ModelHTTPError(status_code=429, model_name="fake", body=None)
+
+        async def stream_fn(messages, info):
+            raise ModelHTTPError(status_code=429, model_name="fake", body=None)
+            yield  # pragma: no cover - makes this an async generator
+
+        agent_runtime.TEST_MODEL = FunctionModel(fn, stream_function=stream_fn)
+        self.addCleanup(setattr, agent_runtime, "TEST_MODEL", None)
+        channel, thread = self.chat(text="a")
+        run = thread.run_ids.sorted("id")[-1]
+        self.assertEqual((run.status, run.error_code), ("failed", "model"))
+        self.assertIn("429", run.error)
+        self.assertIn("Try again", run.message_id.body)
+        self.assertFalse(thread.live_run_id)
+        # the request limit
+        self.agent.sudo().write({"request_limit": 1})
+        self.fake([[("today", {})], [("today", {})], "never"])
+        channel.message_post(body="b", message_type="comment", subtype_xmlid="mail.mt_comment")
+        run = thread.run_ids.sorted("id")[-1]
+        self.assertEqual((run.status, run.error_code), ("failed", "limit"))
+        self.agent.sudo().write({"request_limit": 25})
+        # the agent cannot be built: an MCP toolset on a private host
+        mcp = (
+            self.env["pan_ai.toolset"]
+            .sudo()
+            .create({"name": "private", "kind": "mcp", "url": "http://10.0.0.1/mcp"})
+        )
+        self.agent.sudo().write({"toolset_ids": [(4, mcp.id)]})
+        self.addCleanup(self.agent.sudo().write, {"toolset_ids": [(3, mcp.id)]})
+        self.fake(["never"])
+        channel.message_post(body="c", message_type="comment", subtype_xmlid="mail.mt_comment")
+        run = thread.run_ids.sorted("id")[-1]
+        self.assertEqual((run.status, run.error_code, run.slices), ("failed", "build", 0))
+        self.assertFalse(thread.live_run_id)
+
+    def test_the_thread_keeps_a_bounded_history_cut_at_a_prompt(self):
+        from functools import partial
+
+        with patch.object(slices, "trim_history", partial(slices.trim_history, keep=7)):
+            self.fake([[("today", {})], [("today", {})], "done"])
+            channel, thread = self.chat(text="one")
+            channel.message_post(
+                body="two", message_type="comment", subtype_xmlid="mail.mt_comment"
+            )
+        messages = thread.messages()
+        # each turn is six messages; a window of seven reaches the second
+        # prompt and the cut lands there, never inside a tool round
+        self.assertEqual(len(messages), 6)
+        self.assertEqual(messages[0]["parts"][0]["part_kind"], "user-prompt")
+        self.assertEqual(messages[0]["parts"][0]["content"], "two")
+        calls = {
+            p["tool_call_id"] for m in messages for p in m["parts"] if p["part_kind"] == "tool-call"
+        }
+        returns = {
+            p["tool_call_id"]
+            for m in messages
+            for p in m["parts"]
+            if p["part_kind"] == "tool-return"
+        }
+        self.assertEqual(calls, returns)
+        self.fake(["three"])
+        channel.message_post(body="three", message_type="comment", subtype_xmlid="mail.mt_comment")
+        self.assertEqual(thread.run_ids.sorted("id")[-1].status, "ok")
+
+    def test_the_tool_log_stays_json_and_bounded(self):
+        from ..models.run import TOOL_LOG_ENTRIES
+
+        run = (
+            self.env["pan_ai.run"]
+            .sudo()
+            .create(
+                {
+                    "thread_id": self.env["pan_ai.thread"]
+                    .sudo()
+                    .create({"name": "t", "agent_id": self.agent.id, "user_id": self.user.id})
+                    .id,
+                    "user_id": self.user.id,
+                }
+            )
+        )
+        import json
+
+        for i in range(TOOL_LOG_ENTRIES + 5):
+            run.log_tool({"tool": "t", "args": {"big": "x" * 5000, "i": i}, "ok": True})
+        entries = json.loads(run.tool_log)
+        self.assertEqual(len(entries), TOOL_LOG_ENTRIES)
+        self.assertLessEqual(len(entries[-1]["args"]), 2000)

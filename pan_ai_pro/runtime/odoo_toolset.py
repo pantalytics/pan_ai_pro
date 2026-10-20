@@ -286,8 +286,13 @@ def _function(tool_row, env):
     row = tool_row.with_env(env)
 
     async def call(ctx: RunContext[OdooDeps], **args):
-        if "fields" in args:
+        from .slices import beat
+
+        if builtin and "fields" in args:
             args["fields_"] = args.pop("fields")
+        # The tool holds the slice's thread; the heartbeat says so before
+        # and after, so a long search never looks like a dead worker.
+        beat(ctx.deps.run)
         try:
             # A savepoint: a tool that fails at the database (a foreign key,
             # a missing value) leaves the transaction usable for the answer.
@@ -313,6 +318,8 @@ def _function(tool_row, env):
                 {"tool": row.name, "args": args, "ok": False, "error": message[:500]}
             )
             return {"error": message[:2000]}
+        finally:
+            beat(ctx.deps.run)
 
     call.__name__ = tool_row.name
     return call

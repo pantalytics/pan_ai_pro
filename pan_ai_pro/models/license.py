@@ -121,13 +121,13 @@ class License(models.Model):
             and self.valid_until <= fields.Datetime.now()
         ):
             return _(
-                "The entitlement from Pantalytics lapsed on %s and the daily check has not renewed it. "
+                "The AI Pro plan for this Odoo lapsed on %s and the daily check has not renewed it. "
                 "See Settings > AI Pro.",
                 fields.Datetime.to_string(self.valid_until),
             )
         if self.status == "active":
             return _(
-                "No entitlement from Pantalytics yet. Check the connection in Settings > AI Pro."
+                "Pantalytics has not confirmed the plan yet. Check the connection in Settings > AI Pro."
             )
         return _(NOT_CONNECTED_MESSAGE)
 

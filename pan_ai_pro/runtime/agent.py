@@ -120,8 +120,10 @@ def toolset_for(toolset_record, env):
     return build_toolset(toolset_record, env)
 
 
-def build_agent(agent_record, env):
-    """The `Agent`. `env` is the run user's env, used for the key and the toolsets."""
+def build_agent(agent_record, env, *, output=None, prefix=None, with_tools=True, name=None):
+    """The `Agent`. `env` is the run user's env, used for the key and the
+    toolsets. An AI field passes its own `output` schema, a `prefix` to the
+    instructions and `with_tools` off unless the field says so."""
     capabilities = []
     if agent_record.web_search:
         capabilities.append(
@@ -129,15 +131,18 @@ def build_agent(agent_record, env):
                 native=WebSearchTool(max_uses=agent_record.web_search_max_uses or 3), local=False
             )
         )
+    instructions = [agent_record.instructions or "", context_instructions]
     return Agent(
         model_for(agent_record, env),
-        instructions=[agent_record.instructions or "", context_instructions],
+        instructions=[prefix, *instructions] if prefix else instructions,
         toolsets=[
             toolset_for(toolset, env) for toolset in agent_record.toolset_ids if toolset.active
-        ],
-        capabilities=capabilities,
-        output_type=output_type(agent_record),
+        ]
+        if with_tools
+        else [],
+        capabilities=capabilities if with_tools else [],
+        output_type=output if output is not None else output_type(agent_record),
         model_settings=model_settings(agent_record),
         deps_type=OdooDeps,
-        name=agent_record.name,
+        name=name or agent_record.name,
     )

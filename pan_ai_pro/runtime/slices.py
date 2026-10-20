@@ -33,14 +33,13 @@ from pydantic_ai.messages import (
 from pydantic_core import to_jsonable_python
 
 from odoo import _, api, fields
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.tools import config
 
-from ..defaults import TIME_LIMIT
 from ..tools import commit
 from .agent import build_agent, usage_limits
 from .deps import OdooDeps
-from .stream import LostClaim, Streamer
+from .stream import LostClaim, Streamer, render_markdown
 
 _logger = logging.getLogger(__name__)
 
@@ -75,6 +74,15 @@ def slice_budget(where):
     if where == "inline":
         return max(2.0, min(server_limit("limit_time_real") * 0.5, 40.0))
     return max(10.0, server_limit("limit_time_real_cron") * 0.6)
+
+
+def beat(run):
+    """The heartbeat: this worker is alive on this run. Written by the
+    slice's clock task while the model is awaited and by every Odoo tool
+    before and after its work, which runs on the slice's thread and keeps
+    the clock task from firing."""
+    run.sudo().write({"heartbeat_at": fields.Datetime.now()})
+    commit(run.env)
 
 
 def _cancelled(run):
@@ -143,13 +151,17 @@ def run_slice(run, token, where):
     except UserError as error:
         _fail(run, stream, str(error), code="build")
         return
-    except Exception as error:  # noqa: BLE001 - a bad agent row or a bad dependency lands on the run
+    except Exception:  # noqa: BLE001 - a bad agent row or a bad dependency lands on the run
         _logger.exception("[AI Pro] run %s: could not build the agent", run.id)
         _fail(
-            run, stream, _("The agent could not be built: %s", type(error).__name__), code="build"
+            run,
+            stream,
+            _("The agent could not be built. The server log for run %s has the details.", run.id),
+            code="build",
         )
         return
-    history = ModelMessagesTypeAdapter.validate_python(thread.messages()) or None
+    raw = thread.messages()
+    history = ModelMessagesTypeAdapter.validate_python(raw) or None
     prompt = run.prompt or None
     deferred = None
     if run.deferred_results:
@@ -161,113 +173,57 @@ def run_slice(run, token, where):
         _fail(run, stream, _("Nothing to run."))
         return
 
-    time_limit = thread.agent_id.time_limit or TIME_LIMIT
+    time_limit = thread.agent_id.time_limit
 
     async def heartbeat():
         while True:
             await asyncio.sleep(HEARTBEAT_SECONDS)
             if not run._holds(token):
                 return
-            run.write({"heartbeat_at": fields.Datetime.now()})
-            commit(run.env)
+            beat(run)
 
     async def go():
-        rounds = 0
         pulse = asyncio.ensure_future(heartbeat())
         try:
-            return await go_nodes(rounds)
+            async with agent.iter(
+                prompt,
+                message_history=history,
+                deferred_tool_results=deferred,
+                deps=deps,
+                usage_limits=usage_limits(thread.agent_id),
+            ) as agent_run:
+                rounds = 0
+                async for node in agent_run:
+                    if _cancelled(run):
+                        messages = close_open_calls(
+                            list(agent_run.all_messages()), _("Stopped by the user.")
+                        )
+                        return messages, "cancelled", None, agent_run.usage
+                    if Agent.is_model_request_node(node):
+                        if run.worked_seconds + time.monotonic() - started > time_limit:
+                            raise TimeLimit()
+                        if rounds > 0 and time.monotonic() - started >= budget:
+                            messages = list(agent_run.all_messages()) + [node.request]
+                            return messages, "paused", None, agent_run.usage
+                        await _stream_text(node, agent_run, stream)
+                    elif Agent.is_call_tools_node(node):
+                        await _stream_tools(node, agent_run, stream, deps)
+                        rounds += 1
+                    elif Agent.is_end_node(node):
+                        return _end(node, agent_run, stream)
+            return list(agent_run.all_messages()), "ok", None, agent_run.usage
         finally:
             pulse.cancel()
-
-    async def go_nodes(rounds):
-        async with agent.iter(
-            prompt,
-            message_history=history,
-            deferred_tool_results=deferred,
-            deps=deps,
-            usage_limits=usage_limits(thread.agent_id),
-        ) as agent_run:
-            async for node in agent_run:
-                if _cancelled(run):
-                    messages = close_open_calls(
-                        list(agent_run.all_messages()), _("Stopped by the user.")
-                    )
-                    return messages, "cancelled", None, agent_run.usage
-                if Agent.is_model_request_node(node):
-                    if run.worked_seconds + time.monotonic() - started > time_limit:
-                        raise TimeLimit()
-                    if rounds > 0 and time.monotonic() - started >= budget:
-                        return (
-                            list(agent_run.all_messages()) + [node.request],
-                            "paused",
-                            None,
-                            agent_run.usage,
-                        )
-                    async with node.stream(agent_run.ctx) as s:
-                        async for ev in s:
-                            if (
-                                isinstance(ev, PartStartEvent)
-                                and isinstance(ev.part, TextPart)
-                                and ev.part.content
-                            ):
-                                stream.event("delta", text=ev.part.content)
-                            elif isinstance(ev, PartDeltaEvent) and isinstance(
-                                ev.delta, TextPartDelta
-                            ):
-                                stream.event("delta", text=ev.delta.content_delta)
-                elif Agent.is_call_tools_node(node):
-                    async with node.stream(agent_run.ctx) as s:
-                        async for ev in s:
-                            if isinstance(ev, FunctionToolCallEvent):
-                                stream.event(
-                                    "tool_call",
-                                    id=ev.part.tool_call_id,
-                                    name=ev.part.tool_name,
-                                    args=ev.part.args_as_json_str()[:2000],
-                                )
-                            elif isinstance(ev, FunctionToolResultEvent):
-                                summary = _summary(ev.part.content)
-                                stream.event(
-                                    "tool_result", id=ev.part.tool_call_id, summary=summary
-                                )
-                                for action in deps.ui_actions:
-                                    stream.event("open", **action)
-                                deps.ui_actions.clear()
-                    rounds += 1
-                elif Agent.is_end_node(node):
-                    output = node.data.output
-                    if isinstance(output, DeferredToolRequests):
-                        pending = [
-                            {
-                                "id": c.tool_call_id,
-                                "name": c.tool_name,
-                                "args": c.args_as_json_str()[:2000],
-                            }
-                            for c in output.approvals
-                        ]
-                        return (
-                            list(agent_run.all_messages()),
-                            "interrupted",
-                            pending,
-                            agent_run.usage,
-                        )
-                    if not isinstance(output, str):
-                        stream.event(
-                            "delta",
-                            text="\n```json\n"
-                            + json.dumps(output, ensure_ascii=False, indent=1)
-                            + "\n```\n",
-                        )
-                    return list(agent_run.all_messages()), "ok", None, agent_run.usage
-        return list(agent_run.all_messages()), "ok", None, agent_run.usage
 
     try:
         messages, outcome, pending, usage = asyncio.run(go())
     except LostClaim:
         _logger.info("[AI Pro] run %s: claim lost, slice dropped", run.id)
+        _drop(run)
         return
     except TimeLimit:
-        run.write({"worked_seconds": run.worked_seconds + time.monotonic() - started})
+        if run._holds(token):
+            run.write({"worked_seconds": run.worked_seconds + time.monotonic() - started})
         _fail(
             run, stream, _("The agent hit its time limit of %s seconds.", time_limit), code="limit"
         )
@@ -286,14 +242,18 @@ def run_slice(run, token, where):
             code="model",
         )
         return
-    except Exception as error:  # noqa: BLE001 - every outcome lands on the run
+    except Exception:  # noqa: BLE001 - every outcome lands on the run
         _logger.exception("[AI Pro] run %s failed", run.id)
-        _fail(run, stream, _("Something went wrong: %s", type(error).__name__))
+        _fail(
+            run,
+            stream,
+            _("Something went wrong. The server log for run %s has the details.", run.id),
+        )
         return
 
     if not run._holds(token):
         return
-    before = len(thread.messages())
+    before = len(raw)
     cost = sum(
         (m.provider_details or {}).get("cost") or 0.0
         for m in messages[before:]
@@ -322,7 +282,7 @@ def run_slice(run, token, where):
             "input_tokens": run.input_tokens + usage.input_tokens,
             "output_tokens": run.output_tokens + usage.output_tokens,
             "cost": run.cost + cost,
-            "text": stream.text[0],
+            "text": stream.text,
         }
     )
     if outcome == "paused":
@@ -333,9 +293,8 @@ def run_slice(run, token, where):
         commit(run.env)
         return
     if outcome == "interrupted":
-        from ..models.run import NO_CLAIM
-
-        run.write({"status": "interrupted", **NO_CLAIM})
+        run.write({"status": "interrupted"})
+        run._release()
         stream.finish("interrupted", pending=pending)
         return
     run._finish(outcome)
@@ -343,11 +302,65 @@ def run_slice(run, token, where):
     _after(run, thread)
 
 
+async def _stream_text(node, agent_run, stream):
+    """The model's answer, token by token, to the window."""
+    async with node.stream(agent_run.ctx) as events:
+        async for ev in events:
+            if isinstance(ev, PartStartEvent) and isinstance(ev.part, TextPart) and ev.part.content:
+                stream.event("delta", text=ev.part.content)
+            elif isinstance(ev, PartDeltaEvent) and isinstance(ev.delta, TextPartDelta):
+                stream.event("delta", text=ev.delta.content_delta)
+
+
+async def _stream_tools(node, agent_run, stream, deps):
+    """Every tool call and its result as a row in the window; what a tool
+    asked to open follows its result."""
+    async with node.stream(agent_run.ctx) as events:
+        async for ev in events:
+            if isinstance(ev, FunctionToolCallEvent):
+                stream.event(
+                    "tool_call",
+                    id=ev.part.tool_call_id,
+                    name=ev.part.tool_name,
+                    args=ev.part.args_as_json_str()[:2000],
+                )
+            elif isinstance(ev, FunctionToolResultEvent):
+                stream.event(
+                    "tool_result", id=ev.part.tool_call_id, summary=_summary(ev.part.content)
+                )
+                for action in deps.ui_actions:
+                    stream.event("open", **action)
+                deps.ui_actions.clear()
+
+
+def _end(node, agent_run, stream):
+    """The run's end: an approval to wait for, or the answer (a structured
+    one shown as JSON)."""
+    output = node.data.output
+    if isinstance(output, DeferredToolRequests):
+        pending = [
+            {"id": c.tool_call_id, "name": c.tool_name, "args": c.args_as_json_str()[:2000]}
+            for c in output.approvals
+        ]
+        return list(agent_run.all_messages()), "interrupted", pending, agent_run.usage
+    if not isinstance(output, str):
+        stream.event(
+            "delta",
+            text="\n```json\n" + json.dumps(output, ensure_ascii=False, indent=1) + "\n```\n",
+        )
+    return list(agent_run.all_messages()), "ok", None, agent_run.usage
+
+
 def _fail(run, stream, message, code="other"):
     """A run that died on a limit (time, requests, tokens) would meet it
     again on the next tick of a continuous thread, so that thread pauses."""
     if _aborted(run.env.cr):
         run.env.cr.rollback()
+    if stream.token is not None and not run._holds(stream.token):
+        # Another worker took the run over; its outcome is theirs to write.
+        _logger.info("[AI Pro] run %s: claim lost, failure dropped", run.id)
+        _drop(run)
+        return
     try:
         run._finish("failed", error=message[:250], code=code)
         if code == "limit" and run.thread_id.kind == "continuous":
@@ -355,6 +368,13 @@ def _fail(run, stream, message, code="other"):
         stream.finish("failed", error=message)
     except LostClaim:
         pass
+
+
+def _drop(run):
+    """A slice that lost its claim: whatever it still holds uncommitted (a
+    tool's writes, a log entry) must not land beside the live worker's."""
+    if not config["test_enable"]:
+        run.env.cr.rollback()
 
 
 def _aborted(cr):
@@ -385,10 +405,6 @@ def _after(run, thread):
         return
     record = thread.record()
     if record is not None and (thread.post_answer or thread.activity):
-        from odoo.exceptions import AccessError
-
-        from .stream import render_markdown
-
         try:
             with run.env.cr.savepoint():
                 if thread.post_answer and hasattr(record, "message_post"):

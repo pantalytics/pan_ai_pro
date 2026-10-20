@@ -45,12 +45,12 @@ class Agent(models.Model):
     # Model
     model = fields.Char(
         string="Model",
-        help="An OpenRouter model id, like anthropic/claude-sonnet-5.5. Empty: the default model from Settings.",
+        help="An OpenRouter model id, like anthropic/claude-sonnet-5.5.",
     )
     instructions = fields.Text(default=DEFAULT_INSTRUCTIONS)
     toolset_ids = fields.Many2many("pan_ai.toolset", string="Toolsets")
     output_type = fields.Text(
-        help="Optional JSON schema the answer must match. Leave empty for free text.",
+        help="A JSON schema the answer must match; empty is free text.",
     )
 
     # model_settings
@@ -80,7 +80,7 @@ class Agent(models.Model):
         "res.users",
         string="Dedicated user",
         domain="[('share', '=', False)]",
-        help="The Odoo user the agent runs as. Give it exactly the groups and roles the agent may use.",
+        help="The Odoo user the agent runs as, with exactly the groups it may use.",
     )
     group_ids = fields.Many2many(
         "res.groups",

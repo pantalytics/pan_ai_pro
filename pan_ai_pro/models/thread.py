@@ -19,6 +19,7 @@ from odoo.fields import Domain
 from ..compat import params
 from ..defaults import RETENTION_DAYS
 from ..tools import commit
+from .run import LIVE
 
 _logger = logging.getLogger(__name__)
 
@@ -71,6 +72,8 @@ class Thread(models.Model):
     # Continuous threads (PR E): the watch
     paused = fields.Boolean()
     watch_model_id = fields.Many2one("ir.model", ondelete="cascade")
+    # The model's name, for the domain widget (it takes a name, not a row).
+    watch_model = fields.Char(related="watch_model_id.model")
     watch_domain = fields.Char(default="[]")
     watch_interval = fields.Integer(default=15, help="Minutes between ticks, at least 1.")
     watch_cursor = fields.Datetime(help="Records changed after this were not seen yet.")
@@ -83,10 +86,14 @@ class Thread(models.Model):
 
     @api.depends("run_ids.status")
     def _compute_live_run(self):
+        # One query, not every run the thread ever had (a watch makes hundreds).
+        live = {}
+        for run in self.env["pan_ai.run"].search(
+            [("thread_id", "in", self.ids), ("status", "in", LIVE)], order="id desc"
+        ):
+            live.setdefault(run.thread_id.id, run)
         for thread in self:
-            thread.live_run_id = thread.run_ids.filtered(
-                lambda r: r.status in ("running", "interrupted")
-            )[:1]
+            thread.live_run_id = live.get(thread.id, False)
 
     def messages(self):
         self.ensure_one()
@@ -126,8 +133,29 @@ class Thread(models.Model):
             return
         cutoff = fields.Datetime.subtract(fields.Datetime.now(), days=days)
         old = self.sudo().search([("kind", "=", "chat"), ("last_activity", "<", cutoff)])
-        old.channel_id.sudo().unlink()
-        old.unlink()
+        old._unlink_with_channels()
+        # The other kinds keep their thread (its memory); their finished runs go.
+        self.env["pan_ai.run"].sudo().search(
+            [
+                ("thread_id.kind", "!=", "chat"),
+                ("status", "not in", LIVE),
+                ("started_at", "<", cutoff),
+            ]
+        ).unlink()
+        # A triggered or scheduled thread (an AI field's value, a rule's run,
+        # one cron execution) is one per run: nothing to keep once it is gone.
+        self.sudo().search(
+            [
+                ("kind", "in", ("triggered", "scheduled")),
+                ("channel_id", "=", False),
+                ("run_ids", "=", False),
+                ("create_date", "<", cutoff),
+            ]
+        ).unlink()
+
+    def _unlink_with_channels(self):
+        self.channel_id.sudo().unlink()
+        self.unlink()
 
     # ---- continuous threads: the ticks ------------------------------------
 

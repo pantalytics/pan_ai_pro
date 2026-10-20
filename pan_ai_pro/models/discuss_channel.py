@@ -102,7 +102,6 @@ class DiscussChannel(models.Model):
         return message
 
     def _pan_ai_on_user_message(self, message):
-        from ..runtime import slices
 
         if self.env.user.share:
             raise AccessError(_("Only internal users can chat with an agent."))
@@ -112,6 +111,9 @@ class DiscussChannel(models.Model):
         prompt = html2plaintext(message.body or "").strip()[:PROMPT_MAX]
         if not prompt:
             return
+        if not thread.run_ids:
+            # The first prompt names the thread in the Threads list.
+            thread.sudo().write({"name": prompt[:60] + ("..." if len(prompt) > 60 else "")})
         Run = self.env["pan_ai.run"]
         placeholder = self._pan_ai_agent_message(thread.agent_id, _("Thinking"))
         try:
@@ -124,9 +126,7 @@ class DiscussChannel(models.Model):
         # The person's message and the placeholder reach the browser now, not
         # at the end of the slice.
         commit(self.env)
-        token = run._claim()
-        if token:
-            slices.run_slice(run, token, where="inline")
+        run._run_now("inline")
 
     def _pan_ai_agent_message(self, agent, body):
         return (
@@ -162,9 +162,13 @@ class DiscussChannel(models.Model):
         return True
 
     def pan_ai_state(self):
-        """What the window needs on open: the live run and its pending calls."""
+        """What the window needs on open: the live run and its pending calls.
+        The chat's owner only: the text so far and the pending calls are theirs."""
         self.ensure_one()
         thread = self._pan_ai_thread()
+        if thread and thread.user_id != self.env.user:
+            # Not theirs: the window gets nothing to show, and no error dialog.
+            thread = None
         run = thread and thread.live_run_id
         return {
             "thread_id": thread.id if thread else False,

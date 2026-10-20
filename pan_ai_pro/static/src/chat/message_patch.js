@@ -18,13 +18,8 @@ patch(Message.prototype, {
     },
     panAiApprove(call, ok) {
         const s = this.panAiStream;
-        const approvals = {};
-        for (const c of s.pending) {
-            approvals[c.id] = c.id === call.id ? ok : null;
-        }
         // One click decides one call; the others keep waiting until decided.
-        const decided = Object.fromEntries(Object.entries(approvals).filter(([, v]) => v !== null));
-        s.decided = Object.assign(s.decided || {}, decided);
+        s.decided = { ...(s.decided || {}), [call.id]: ok };
         if (Object.keys(s.decided).length === s.pending.length) {
             this.panAi.decide(this.panAiChannelId, this.message.id, s.runId, s.decided);
         }

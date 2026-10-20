@@ -43,12 +43,11 @@ class ResConfigSettings(models.TransientModel):
         string="Keep chats for (days)",
         config_parameter="pan_ai.retention_days",
         default=RETENTION_DAYS,
-        help="0 keeps them forever. Runs are kept.",
     )
     pan_ai_mcp_allowed_hosts = fields.Char(
         string="Allowed MCP hosts",
         config_parameter="pan_ai.mcp_allowed_hosts",
-        help="Comma separated. An MCP toolset may only connect to a host named here.",
+        help="Comma separated.",
     )
     # Connection
     pan_ai_state = fields.Selection(STATE_SELECTION, compute="_compute_pan_ai_link")
@@ -121,8 +120,6 @@ class ResConfigSettings(models.TransientModel):
         return self._reload()
 
     def action_pan_ai_delete_threads(self):
-        """Every thread of every kind, with its chat window. Runs are kept."""
-        threads = self.env["pan_ai.thread"].sudo().search([])
-        threads.channel_id.sudo().unlink()
-        threads.unlink()
+        """Every thread of every kind, with its chat window and its runs."""
+        self.env["pan_ai.thread"].sudo().search([])._unlink_with_channels()
         return self._reload()

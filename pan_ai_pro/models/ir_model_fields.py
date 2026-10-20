@@ -8,6 +8,7 @@ alone. The compute itself is runtime/field.py.
 
 import logging
 import re
+import time
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -19,6 +20,8 @@ _logger = logging.getLogger(__name__)
 
 # Fill now: the field ids whose empty records the next cron wake fills.
 FILL_NOW_PARAM = "pan_ai.fill_now"
+# The nightly loop's place when a wake ran out of time: the last field served.
+NIGHTLY_CURSOR_PARAM = "pan_ai.fill_cursor"
 
 FILLABLE = (
     "char",
@@ -42,7 +45,7 @@ class IrModelFields(models.Model):
 
     pan_ai_prompt = fields.Text(
         string="AI prompt",
-        help="What the agent should put in this field. {{ object.name }} and other fields are filled in and watched.",
+        help="What the agent should put in this field; {{ object.name }} and other fields are filled in and watched.",
     )
     pan_ai_agent_id = fields.Many2one(
         "pan_ai.agent", string="AI agent", ondelete="set null", help="Empty: the first agent."
@@ -154,7 +157,11 @@ class IrModelFields(models.Model):
             "type": "ir.actions.client",
             "tag": "display_notification",
             "params": {
-                "message": _("%s record(s) are being filled. See AI Pro > Runs.", n)
+                "message": (
+                    _("1 record is being filled. See AI Pro > Runs.")
+                    if n == 1
+                    else _("%s records are being filled. See AI Pro > Runs.", n)
+                )
                 if n
                 else _("Nothing to fill."),
                 "type": "info",
@@ -189,33 +196,54 @@ class IrModelFields(models.Model):
     def _cron_fill_ai_fields(self, batch_size=20):
         """Nightly: auto fill empties, auto update stale, as the agent's
         dedicated user or the administrator who set the field up. First
-        what Fill now queued, one batch per wake until the field is full."""
+        what Fill now queued, one batch per wake until the field is full.
+        Every value is one model call of up to a minute, so the wake has a
+        deadline well inside the cron's limit; what is left waits for the
+        next wake, which this one arms. A killed cron worker would be counted
+        against the cron and switch it off after a few nights."""
         from ..runtime import field as field_runtime
+        from ..runtime.slices import server_limit
 
+        deadline = time.monotonic() + server_limit("limit_time_real_cron") * 0.6
         queued = [int(i) for i in params(self.env).get_str(FILL_NOW_PARAM, "").split(",") if i]
         still = []
         for ir_field in self.sudo().browse(queued).exists():
+            if time.monotonic() >= deadline:
+                still.append(ir_field.id)
+                continue
             user = ir_field._pan_ai_cron_user()
             try:
                 records = field_runtime.missing_records(ir_field, user, limit=batch_size)
                 if records:
-                    field_runtime.fill(records, ir_field, user)
+                    field_runtime.fill(records, ir_field, user, deadline=deadline)
             except Exception:  # noqa: BLE001 - one bad field never stops the others
                 _logger.exception("[AI Pro] AI field %s.%s failed", ir_field.model, ir_field.name)
                 continue
-            # A full batch was taken: more may be waiting, whatever was written.
-            if len(records) >= batch_size:
+            # A full batch was taken, or the deadline cut it short: more may
+            # be waiting, whatever was written.
+            if len(records) >= batch_size or time.monotonic() >= deadline:
                 still.append(ir_field.id)
         params(self.env).set_str(FILL_NOW_PARAM, ",".join(str(i) for i in still))
         if still:
             self.env.ref("pan_ai_pro.cron_fields").sudo()._trigger()
             return
-        for ir_field in self.sudo().search([("pan_ai_is_ai", "=", True)]):
+        # Every field gets one batch a night, in id order; a wake that runs out
+        # of time leaves its place for the next wake and never starts over.
+        cursor = params(self.env).get_int(NIGHTLY_CURSOR_PARAM, 0)
+        for ir_field in self.sudo().search(
+            [("pan_ai_is_ai", "=", True), ("id", ">", cursor)], order="id"
+        ):
+            if time.monotonic() >= deadline:
+                params(self.env).set_int(NIGHTLY_CURSOR_PARAM, cursor)
+                self.env.ref("pan_ai_pro.cron_fields").sudo()._trigger()
+                return
+            cursor = ir_field.id
             user = ir_field._pan_ai_cron_user()
             try:
                 if ir_field.pan_ai_auto_fill:
-                    field_runtime.fill_missing(ir_field, user, limit=batch_size)
+                    field_runtime.fill_missing(ir_field, user, limit=batch_size, deadline=deadline)
                 if ir_field.pan_ai_auto_update:
-                    field_runtime.fill_stale(ir_field, user, limit=batch_size)
+                    field_runtime.fill_stale(ir_field, user, limit=batch_size, deadline=deadline)
             except Exception:  # noqa: BLE001 - one bad field never stops the others
                 _logger.exception("[AI Pro] AI field %s.%s failed", ir_field.model, ir_field.name)
+        params(self.env).set_str(NIGHTLY_CURSOR_PARAM, "")

@@ -1,0 +1,118 @@
+"""The access rows, on whichever model this Odoo keeps them in: a user sees
+their own threads and runs and reads the agents open to them; a manager
+sees everything; a portal user sees nothing."""
+
+from odoo.exceptions import AccessError
+
+from .common import AiProCase
+
+
+class TestAccess(AiProCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Users = cls.env["res.users"]
+        cls.eve = Users.create(
+            {
+                "name": "Eve",
+                "login": "eve",
+                "group_ids": [(6, 0, [cls.env.ref("base.group_user").id])],
+            }
+        )
+        cls.manager = Users.create(
+            {
+                "name": "Mia",
+                "login": "mia",
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            cls.env.ref("base.group_user").id,
+                            cls.env.ref("pan_ai_pro.group_manager").id,
+                        ],
+                    )
+                ],
+            }
+        )
+        cls.portal = Users.create(
+            {
+                "name": "Pat",
+                "login": "pat_access",
+                "group_ids": [(6, 0, [cls.env.ref("base.group_portal").id])],
+            }
+        )
+        Thread = cls.env["pan_ai.thread"].sudo()
+        cls.sams = Thread.create({"name": "sam", "agent_id": cls.agent.id, "user_id": cls.user.id})
+        cls.eves = Thread.create({"name": "eve", "agent_id": cls.agent.id, "user_id": cls.eve.id})
+        Run = cls.env["pan_ai.run"].sudo()
+        cls.sam_run = Run.create({"thread_id": cls.sams.id, "user_id": cls.user.id, "prompt": "x"})
+        cls.eve_run = Run.create({"thread_id": cls.eves.id, "user_id": cls.eve.id, "prompt": "x"})
+
+    def test_a_user_sees_their_own_threads_and_runs(self):
+        Thread = self.env["pan_ai.thread"].with_user(self.user)
+        self.assertEqual(Thread.search([]), self.sams.with_user(self.user))
+        with self.assertRaises(AccessError):
+            self.eves.with_user(self.user).read(["name"])
+        Run = self.env["pan_ai.run"].with_user(self.user)
+        self.assertEqual(Run.search([]), self.sam_run.with_user(self.user))
+        with self.assertRaises(AccessError):
+            Run.create({"thread_id": self.sams.id, "user_id": self.user.id})
+
+    def test_a_user_reads_but_never_writes_the_configuration(self):
+        agent = self.agent.with_user(self.user)
+        self.assertTrue(agent.read(["name"]))
+        with self.assertRaises(AccessError):
+            agent.write({"name": "mine"})
+        toolset = self.env.ref("pan_ai_pro.toolset_odoo").with_user(self.user)
+        self.assertTrue(toolset.read(["name"]))
+        with self.assertRaises(AccessError):
+            toolset.write({"name": "mine"})
+        tool = self.env.ref("pan_ai_pro.tool_search_records").with_user(self.user)
+        with self.assertRaises(AccessError):
+            tool.write({"description": "mine"})
+        with self.assertRaises(AccessError):
+            self.env["pan_ai.field.metadata"].with_user(self.user).create(
+                {"model_name": "res.partner", "res_id": 1, "field_name": "comment"}
+            )
+
+    def test_an_agent_closed_to_the_user_is_not_listed(self):
+        closed = (
+            self.env["pan_ai.agent"]
+            .sudo()
+            .create(
+                {
+                    "name": "Admins only",
+                    "group_ids": [(6, 0, [self.env.ref("base.group_system").id])],
+                }
+            )
+        )
+        self.assertNotIn(closed.id, self.env["pan_ai.agent"].with_user(self.user).search([]).ids)
+        self.assertIn(closed.id, self.env["pan_ai.agent"].with_user(self.manager).search([]).ids)
+
+    def test_a_manager_sees_and_writes_everything_but_the_license(self):
+        Thread = self.env["pan_ai.thread"].with_user(self.manager)
+        self.assertEqual(
+            set(Thread.search([]).ids) & {self.sams.id, self.eves.id}, {self.sams.id, self.eves.id}
+        )
+        Run = self.env["pan_ai.run"].with_user(self.manager)
+        self.assertIn(self.eve_run.id, Run.search([]).ids)
+        self.agent.with_user(self.manager).write({"description": "by Mia"})
+        self.env.ref("pan_ai_pro.tool_search_records").with_user(self.manager).write(
+            {"description": "by Mia"}
+        )
+        with self.assertRaises(AccessError):
+            self.env["pan_ai.license"].with_user(self.manager).search([]).read(["status"])
+
+    def test_a_portal_user_sees_nothing(self):
+        for model in (
+            "pan_ai.agent",
+            "pan_ai.thread",
+            "pan_ai.run",
+            "pan_ai.toolset",
+            "pan_ai.tool",
+            "pan_ai.field.metadata",
+        ):
+            with self.assertRaises(AccessError, msg=model):
+                self.env[model].with_user(self.portal).search([]).read(["id"])
+                self.env[model].with_user(self.portal).check_access("read")
