@@ -16,7 +16,7 @@ and Enterprise; upgrade from the 1.x module on 19 Enterprise.
 | Automation rule, schedule, Action menu | ✓ | ✓ | ✓ refusal never fails a save (logged, nothing runs), ✓ a failed run on a record posts a note | ✓ | ✓ | ✓ | – | test_runs, test_runs::TestRuleSave, ::test_a_failed_triggered_run_says_so_on_the_record |
 | Continuous watch | ✓ | ✓ | ✓ | – | ✓ | ✓ | – | test_runs::test_a_continuous_thread_ticks_on_changes_only |
 | AI fields (Community) | ✓ | ✓ | ✗ model error | ✓ | ✓ | ✓ | – | test_fields |
-| AI fields (Enterprise seam) | ✗ #27 | ✗ | ✗ | ✗ | ✗ | ✗ | – | none |
+| AI fields (Enterprise): the AI button and the nightly cron run on AI Pro; AI properties stay native | ✓ | ✓ re-save is no human edit | ✓ | – | ✓ | ✓ | ✗ Ctrl+K hiding not run in a browser | pan_ai_pro_enterprise/tests/test_ai_fields.py |
 | Control: tokens, limits, retention | ✓ tokens, ✗ cost | ✓ | ✓ | ✓ | ✓ | ✓ | – | test_run_stream, test_channel::test_retention_deletes_old_chats_and_their_runs |
 | License connection | ✓ | ✓ | ✓ outage keeps plan, 401 stops | ✓ | ✓ | ✓ | – | test_license |
 | Onboarding and menus | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | test_onboarding |
