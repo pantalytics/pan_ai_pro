@@ -247,6 +247,59 @@ class TestRuns(AiProCase):
         self.assertIn("fine contact", run.text)
         self.assertIn("could not be posted", run.error)
 
+    def test_a_failed_triggered_run_says_so_on_the_record(self):
+        from pydantic_ai.exceptions import ModelHTTPError
+        from pydantic_ai.models.function import FunctionModel
+
+        from ..runtime import agent as agent_runtime
+
+        async def stream_fn(messages, info):
+            raise ModelHTTPError(status_code=429, model_name="fake", body=None)
+            yield  # pragma: no cover - makes this an async generator
+
+        agent_runtime.TEST_MODEL = FunctionModel(stream_function=stream_fn)
+        self.user.write({"group_ids": [(4, self.env.ref("base.group_partner_manager").id)]})
+        partner = self.user.partner_id
+        self._action(pan_ai_post=True).with_user(self.user).with_context(
+            active_model="res.partner", active_ids=partner.ids, active_id=partner.id
+        ).run()
+        self.env["pan_ai.run"]._cron_run_slices()
+        thread = self.env["pan_ai.thread"].search([("res_id", "=", partner.id)])
+        self.assertEqual(thread.run_ids.status, "failed")
+        note = partner.message_ids.filtered(lambda m: "429" in (m.body or ""))
+        self.assertTrue(note, partner.message_ids.mapped("body"))
+        self.assertIn("failed", note.body)
+        self.assertEqual(note.author_id, self.user.partner_id)
+
+    def test_a_run_sees_every_company_of_its_user(self):
+        main = self.env.company
+        other = self.env["res.company"].create({"name": "Company B"})
+        self.env["res.partner"].create({"name": "Only in B", "company_id": other.id})
+        both = self.env["res.users"].create(
+            {
+                "name": "Bo",
+                "login": "bo",
+                "company_id": main.id,
+                "company_ids": [(6, 0, [main.id, other.id])],
+                "group_ids": [(6, 0, [self.env.ref("base.group_user").id])],
+            }
+        )
+        search = (
+            "search_records",
+            {"model": "res.partner", "domain": [["name", "=", "Only in B"]], "fields": ["name"]},
+        )
+        for user, count in ((both, 1), (self.user, 0)):
+            self.fake([[search], "Done."])
+            channel, thread = self.chat(user=user, text="Find it")
+            self.assertEqual(thread.run_ids.status, "ok", thread.run_ids.error)
+            found = [
+                p["content"]["count"]
+                for m in thread.messages()
+                for p in m["parts"]
+                if p["part_kind"] == "tool-return"
+            ]
+            self.assertEqual(found, [count], user.name)
+
     def test_the_action_menu_is_by_hand_and_bounded(self):
         from ..compat import params
         from ..models.ir_actions_server import BY_HAND_MAX
