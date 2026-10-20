@@ -278,8 +278,11 @@ class TestRuns(AiProCase):
         watch = self._watch()
         self.env["pan_ai.thread"]._start_due_ticks()  # a new watch starts from now
         self.assertFalse(watch.run_ids)
+        self.assertTrue(watch.watch_cursor)
+        # the cursor sits past the test transaction's own clock, which stamps
+        # whatever the fixtures still write (Sam's partner, on Odoo 20)
+        watch.write({"watch_cursor": fields.Datetime.now() + timedelta(seconds=30)})
         # three records changed in one transaction: they share one write_date
-        self.env.cr.execute("SELECT clock_timestamp()")
         new = self.env["res.partner"].sudo().create([{"name": f"t{i}"} for i in range(3)])
         self.env.cr.flush()
         self.env.cr.execute(
