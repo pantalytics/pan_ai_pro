@@ -4,9 +4,9 @@
 <odoo>
     <!-- Settings > AI Pro. A setup checklist on top, the same shape as Mail
          Pro's: one line per step, a dot for where it stands, its name, the
-         answer, and under it what to do. Nothing else: the limits keep their
-         defaults, the MCP allow list sits on the tool group, removing the key
-         sits with the key. -->
+         answer, and under it what to do. Below it only About, the version.
+         The limits keep their defaults, the MCP allow list sits on the tool
+         group, removing the key sits with the key. -->
     <record id="res_config_settings_view_form" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.inherit.pan_ai_pro</field>
         <field name="model">res.config.settings</field>
@@ -146,6 +146,20 @@
 
                     </div>
                     </div>
+                    </block>
+
+                    <!-- About: the version the database is on, the first thing
+                         a support mail asks, and on screen before step 1 too. -->
+                    <block title="About" name="pan_ai_about_block">
+                        <!-- Mail Pro's About: no setting pane, whose empty left
+                             half draws a divider beside one line. -->
+                        <div class="col-12 o_setting_box o_pan_ai_about">
+                            <div>
+                                <span class="o_form_label">AI Pro</span>
+                                <field name="pan_ai_version" nolabel="1" readonly="1" class="ms-1"/>
+                            </div>
+                            <div class="text-muted">© Pantalytics B.V. Licensed under the Elastic License 2.0.</div>
+                        </div>
                     </block>
 
                 </app>
