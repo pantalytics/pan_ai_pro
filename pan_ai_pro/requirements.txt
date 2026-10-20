@@ -5,3 +5,4 @@ markdown2==2.5.4
 # pyOpenSSL 23.2, which cannot load that cryptography and takes Odoo's base module
 # down with it; a current pyOpenSSL can. Odoo 20's own requirements are past this.
 pyOpenSSL>=24.2
+cryptography>=45

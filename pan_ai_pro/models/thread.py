@@ -17,6 +17,7 @@ from odoo.exceptions import UserError
 from odoo.fields import Domain
 
 from ..compat import params
+from ..defaults import RETENTION_DAYS
 from ..tools import commit
 
 _logger = logging.getLogger(__name__)
@@ -95,6 +96,21 @@ class Thread(models.Model):
         self.ensure_one()
         return json.loads(self.pending_tool_calls or "[]")
 
+    def _close_open_calls(self, note):
+        """Answer the tool calls the conversation ends with (a stopped
+        approval) with `note`, so the next message does not meet them."""
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+        from pydantic_core import to_jsonable_python
+
+        from ..runtime.slices import close_open_calls
+
+        self.ensure_one()
+        messages = ModelMessagesTypeAdapter.validate_python(self.messages())
+        closed = close_open_calls(messages, note)
+        if closed is not messages:
+            self.write({"conversation": json.dumps(to_jsonable_python(closed))})
+        self.write({"pending_tool_calls": "[]"})
+
     def record(self):
         """The record the thread is about, as the thread's user sees it, or None."""
         self.ensure_one()
@@ -105,7 +121,7 @@ class Thread(models.Model):
 
     @api.model
     def _cron_retention(self):
-        days = params(self.env).get_int("pan_ai.retention_days", 90)
+        days = params(self.env).get_int("pan_ai.retention_days", RETENTION_DAYS)
         if days <= 0:
             return
         cutoff = fields.Datetime.subtract(fields.Datetime.now(), days=days)
@@ -118,10 +134,9 @@ class Thread(models.Model):
     @api.model
     def _start_due_ticks(self):
         """Every continuous thread whose tick is due and that has no live run
-        gets a run now, with what changed since its cursor as the prompt. A
-        tick that finds nothing makes no model call: it only moves the clock."""
-        from ..runtime import slices
-
+        gets a run, with what changed since its cursor as the prompt; the
+        worker loop that called this runs it inside its budget. A tick that
+        finds nothing makes no model call: it only moves the clock."""
         now = fields.Datetime.now()
         due = self.sudo().search(
             [
@@ -143,22 +158,22 @@ class Thread(models.Model):
                 thread.write({"paused": True})
                 continue
             interval = timedelta(minutes=max(1, thread.watch_interval))
+            thread.write({"next_tick_at": now + interval})
             if prompt is None:
-                thread.write({"watch_cursor": now, "next_tick_at": now + interval})
+                thread.write({"watch_cursor": now})
                 continue
-            thread.write({"watch_cursor": now, "next_tick_at": now + interval})
             try:
                 run = self.env["pan_ai.run"].start(
                     thread, prompt, kind="continuous", caller=thread.user_id
                 )
             except UserError as error:
+                # The cursor stays: the changes are seen again after Resume.
                 _logger.warning("[AI Pro] thread %s tick refused: %s", thread.id, error)
                 thread.write({"paused": True})
                 continue
+            thread.write({"watch_cursor": now})
             commit(self.env)
-            token = run._claim()
-            if token:
-                slices.run_slice(run, token, where="cron")
+            run._wake_worker()
 
     def _tick_prompt(self, now):
         """What changed since the cursor, as the thread's user sees it, or

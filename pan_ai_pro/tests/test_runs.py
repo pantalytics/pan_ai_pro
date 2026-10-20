@@ -32,6 +32,9 @@ class TestRuns(AiProCase):
         thread = self.env["pan_ai.thread"].search(
             [("res_model", "=", "res.partner"), ("res_id", "=", partner.id)]
         )
+        # The person's request only created the run; a worker runs it.
+        self.assertEqual(thread.run_ids[:1].slices, 0)
+        self.env["pan_ai.run"]._cron_run_slices()
         self.assertEqual(thread.kind, "triggered")
         self.assertEqual(thread.user_id, self.user)
         run = thread.run_ids[:1]
@@ -90,8 +93,9 @@ class TestRuns(AiProCase):
                 "next_tick_at": "2020-01-01 00:00:00",
             }
         )
-        # first tick: everything the user may see counts as changed
-        self.env["pan_ai.thread"]._start_due_ticks()
+        # first tick: everything the user may see counts as changed; the
+        # worker loop that calls _start_due_ticks runs the slice
+        self.env["pan_ai.run"]._cron_run_slices()
         self.assertEqual(len(thread.run_ids), 1)
         self.assertEqual(thread.run_ids[0].kind, "continuous")
         self.assertTrue(thread.watch_cursor)
@@ -109,7 +113,7 @@ class TestRuns(AiProCase):
         )
         self.user.partner_id.invalidate_recordset()
         thread.write({"next_tick_at": "2020-01-01 00:00:00"})
-        self.env["pan_ai.thread"]._start_due_ticks()
+        self.env["pan_ai.run"]._cron_run_slices()
         self.assertEqual(len(thread.run_ids), 2)
         prompts = [
             p["content"]
@@ -123,3 +127,26 @@ class TestRuns(AiProCase):
         thread.write({"paused": True, "next_tick_at": "2020-01-01 00:00:00"})
         self.env["pan_ai.thread"]._start_due_ticks()
         self.assertEqual(len(thread.run_ids), 2)
+
+    def test_the_hourly_cap_refuses_by_hand_starts_only(self):
+        from odoo.exceptions import UserError as _UserError
+
+        from ..compat import params
+
+        params(self.env).set_str("pan_ai.runs_per_user_per_hour", "1")
+        self.fake(["one"])
+        thread = (
+            self.env["pan_ai.thread"]
+            .sudo()
+            .create({"name": "t", "agent_id": self.agent.id, "user_id": self.user.id})
+        )
+        Run = self.env["pan_ai.run"]
+        Run.start(thread, "a", kind="chat", caller=self.user)._finish("ok")
+        with self.assertRaises(_UserError):
+            Run.start(thread, "b", kind="chat", caller=self.user)
+        # a watch's tick and a rule's run are not the person's doing: never refused
+        Run.start(thread, "c", kind="continuous", caller=self.user)._finish("ok")
+        Run.start(thread, "d", kind="triggered", caller=self.user)._finish("ok")
+        # a Fill button is: the cap applies
+        with self.assertRaises(_UserError):
+            Run._check_may_start(self.agent, self.user, "triggered", by_hand=True)

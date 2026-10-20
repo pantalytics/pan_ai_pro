@@ -172,6 +172,7 @@ class DiscussChannel(models.Model):
             "agent_name": thread.agent_id.name if thread else "",
             "run_id": run.id if run else False,
             "run_status": run.status if run else "",
+            "text": run.text if run else "",
             "message_id": run.message_id.id if run and run.message_id else False,
             "pending": thread.pending() if thread else [],
         }

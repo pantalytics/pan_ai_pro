@@ -7,7 +7,7 @@ read.
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic_ai import Agent, UsageLimits
 from pydantic_ai.output import StructuredDict
@@ -139,12 +139,14 @@ def _agent_for(ir_field, env):
     return agent_record.with_env(env)
 
 
-def fill(records, ir_field, caller):
+def fill(records, ir_field, caller, by_hand=False):
     """Compute `ir_field` for `records` as `caller` (or the agent's dedicated
-    user). Returns how many values were written; the state rows say why not."""
+    user). `by_hand`: a person pressed a button, so their hourly cap applies
+    and the runs are theirs; a cron's fills have no caller. Returns how many
+    values were written; the state rows say why not."""
     env0 = records.env
-    env0["pan_ai.license"].require_entitled()
     agent_record = _agent_for(ir_field, env0)
+    env0["pan_ai.run"]._check_may_start(agent_record, caller, "triggered", by_hand=by_hand)
     run_user = agent_record.run_user(caller)
     env = records.env(user=run_user.id)
     agent = Agent(
@@ -162,6 +164,13 @@ def fill(records, ir_field, caller):
     done = 0
     for record in records.with_env(env):
         if not record.has_access("write"):
+            # Recorded, so the nightly batch does not pick it again tomorrow.
+            Metadata._set(
+                ir_field.model,
+                [record.id],
+                ir_field.name,
+                last_error=_("%s may not write this record.", run_user.name)[:250],
+            )
             continue
         run = (
             env["pan_ai.run"]
@@ -170,7 +179,7 @@ def fill(records, ir_field, caller):
                 {
                     "thread_id": _thread(env, agent_record, run_user, record).id,
                     "user_id": run_user.id,
-                    "caller_id": caller.id,
+                    "caller_id": caller.id if by_hand else False,
                     "kind": "triggered",
                     "prompt": f"{ir_field.model}.{ir_field.name}",
                 }
@@ -192,7 +201,11 @@ def fill(records, ir_field, caller):
                 )
             )
         except TimeoutError:
-            run._finish("failed", error=_("The model did not answer within %s seconds.", TIMEOUT))
+            run._finish(
+                "failed",
+                error=_("The model did not answer within %s seconds.", TIMEOUT),
+                code="timeout",
+            )
             Metadata._set(ir_field.model, [record.id], ir_field.name, last_error=run.error)
             continue
         except Exception as error:  # noqa: BLE001 - every outcome lands on the run and the state row
@@ -203,7 +216,7 @@ def fill(records, ir_field, caller):
                 record.id,
                 error,
             )
-            run._finish("failed", error=str(error)[:250])
+            run._finish("failed", error=str(error)[:250], code="model")
             Metadata._set(ir_field.model, [record.id], ir_field.name, last_error=str(error)[:250])
             continue
         output = result.output
@@ -220,7 +233,9 @@ def fill(records, ir_field, caller):
         )
         if output.get("could_not_resolve"):
             run._finish(
-                "failed", error=(output.get("unresolved_cause") or _("Could not resolve"))[:250]
+                "failed",
+                error=(output.get("unresolved_cause") or _("Could not resolve"))[:250],
+                code="unresolved",
             )
             Metadata._set(
                 ir_field.model, [record.id], ir_field.name, last_error=run.error, is_stale=False
@@ -231,7 +246,7 @@ def fill(records, ir_field, caller):
                 {ir_field.name: _cast(output.get("value"), ir_field)}
             )
         except Exception as error:  # noqa: BLE001 - a value the field refuses is the state row's to tell
-            run._finish("failed", error=str(error)[:250])
+            run._finish("failed", error=str(error)[:250], code="other")
             Metadata._set(ir_field.model, [record.id], ir_field.name, last_error=str(error)[:250])
             continue
         run._finish("ok")
@@ -265,21 +280,43 @@ def _thread(env, agent_record, run_user, record):
     )
 
 
-def fill_missing(ir_field, caller, limit=20):
-    Model = caller.env[ir_field.model]
-    human = (
-        caller.env["pan_ai.field.metadata"]
+# A record that failed is left alone this long before a batch picks it again,
+# so a few bad records never fill every batch (the rest of the table waits).
+RETRY_AFTER = timedelta(days=1)
+
+
+def _left_alone(ir_field):
+    """Record ids a batch skips: edited by a person, or failed recently."""
+    rows = (
+        ir_field.env["pan_ai.field.metadata"]
         .sudo()
         .search(
             [
                 ("model_name", "=", ir_field.model),
                 ("field_name", "=", ir_field.name),
+                "|",
                 ("human_edited", "=", True),
+                "&",
+                ("last_error", "!=", False),
+                ("write_date", ">=", fields.Datetime.now() - RETRY_AFTER),
             ]
         )
-        .mapped("res_id")
     )
-    records = Model.search([(ir_field.name, "=", False), ("id", "not in", human)], limit=limit)
+    return rows.mapped("res_id")
+
+
+def missing_records(ir_field, caller, limit=20):
+    """Empty records a fill may take, oldest first so a batch rotates."""
+    Model = caller.env[ir_field.model]
+    return Model.search(
+        [(ir_field.name, "=", False), ("id", "not in", _left_alone(ir_field))],
+        limit=limit,
+        order="write_date asc, id asc",
+    )
+
+
+def fill_missing(ir_field, caller, limit=20):
+    records = missing_records(ir_field, caller, limit=limit)
     return fill(records, ir_field, caller) if records else 0
 
 
@@ -293,8 +330,10 @@ def fill_stale(ir_field, caller, limit=20):
                 ("field_name", "=", ir_field.name),
                 ("is_stale", "=", True),
                 ("human_edited", "=", False),
+                ("res_id", "not in", _left_alone(ir_field)),
             ],
             limit=limit,
+            order="write_date asc, id asc",
         )
     )
     records = caller.env[ir_field.model].browse(rows.mapped("res_id")).exists()

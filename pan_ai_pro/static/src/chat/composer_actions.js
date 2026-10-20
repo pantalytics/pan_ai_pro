@@ -1,7 +1,7 @@
 /** @odoo-module */
 import { registerComposerAction } from "@mail/core/common/composer_actions";
 import { _t } from "@web/core/l10n/translation";
-import { channelType } from "@pan_ai_pro/chat/compat";
+import { actionIcon, channelType } from "@pan_ai_pro/chat/compat";
 
 // Stop: on an AI channel while a run is live. The run stops at its next
 // event; the message keeps what was streamed and says "Stopped."
@@ -14,7 +14,7 @@ registerComposerAction("pan-ai-stop", {
         const live = store.env.services["pan_ai_pro.run_events"].live;
         return Boolean(live[thread.id]);
     },
-    icon: "stop",
+    icon: actionIcon("stop", "fa fa-fw fa-stop"),
     name: _t("Stop"),
     onSelected: ({ composer, store }) =>
         store.env.services["pan_ai_pro.run_events"].stop(composer.thread.id),

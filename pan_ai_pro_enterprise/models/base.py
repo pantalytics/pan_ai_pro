@@ -35,6 +35,10 @@ class Base(models.AbstractModel):
             prompt = html2plaintext(field_prompt or ir_field.system_prompt or "")
             if not prompt:
                 return super()._fill_ai_field(field, field_prompt=field_prompt)
-            ir_field.write({"pan_ai_prompt": prompt})
+            # Odoo's prompt becomes the AI Pro prompt, for everyone: a
+            # configuration write by the administrator, whoever clicked, so
+            # the nightly fill (which runs as the field's author) is theirs.
+            admin = self.env.ref("base.user_admin")
+            ir_field.with_user(admin).sudo().write({"pan_ai_prompt": prompt})
         field_runtime.fill(self, ir_field, self.env.user)
         return True

@@ -9,6 +9,7 @@ key the same way; there was no encryption helper to inherit.
 from odoo import api, fields, models
 
 from ..compat import params
+from ..defaults import DEFAULT_MODEL, RETENTION_DAYS, RUNS_PER_USER_PER_HOUR
 from .license import STATUS_SELECTION
 
 STATE_SELECTION = [
@@ -18,7 +19,6 @@ STATE_SELECTION = [
     ("broken", "Broken"),
 ]
 BROKEN = ("revoked", "invalid")
-DEFAULT_MODEL = "anthropic/claude-sonnet-5.5"
 
 
 class ResConfigSettings(models.TransientModel):
@@ -35,14 +35,14 @@ class ResConfigSettings(models.TransientModel):
     )
     # Limits
     pan_ai_runs_per_user_per_hour = fields.Integer(
-        string="Runs per person per hour",
+        string="Chats per person per hour",
         config_parameter="pan_ai.runs_per_user_per_hour",
-        default=30,
+        default=RUNS_PER_USER_PER_HOUR,
     )
     pan_ai_retention_days = fields.Integer(
         string="Keep chats for (days)",
         config_parameter="pan_ai.retention_days",
-        default=90,
+        default=RETENTION_DAYS,
         help="0 keeps them forever. Runs are kept.",
     )
     pan_ai_mcp_allowed_hosts = fields.Char(
@@ -121,6 +121,7 @@ class ResConfigSettings(models.TransientModel):
         return self._reload()
 
     def action_pan_ai_delete_threads(self):
+        """Every thread of every kind, with its chat window. Runs are kept."""
         threads = self.env["pan_ai.thread"].sudo().search([])
         threads.channel_id.sudo().unlink()
         threads.unlink()

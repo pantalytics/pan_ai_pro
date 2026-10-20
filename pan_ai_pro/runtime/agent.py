@@ -22,6 +22,7 @@ from odoo import _, fields
 from odoo.exceptions import UserError
 
 from ..compat import params
+from ..defaults import DEFAULT_MODEL
 from .deps import OdooDeps
 from .mcp_toolset import build_mcp_toolset
 from .odoo_toolset import build_toolset
@@ -35,7 +36,6 @@ _logger = logging.getLogger(__name__)
 ENV_BASE_URL = "PAN_AI_PRO_OPENROUTER_BASE_URL"
 APP_URL = "https://pantalytics.com"
 APP_TITLE = "AI Pro for Odoo"
-DEFAULT_MODEL = "anthropic/claude-sonnet-5.5"
 # Tests set a Pydantic AI model here (a FunctionModel); never set in production.
 TEST_MODEL = None
 

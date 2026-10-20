@@ -34,6 +34,9 @@ class LostClaim(Exception):
 
 
 class Streamer:
+    """`token` is the slice's claim; None is a finish from outside a slice
+    (Stop on a waiting run, the stuck cron), where there is no claim to hold."""
+
     def __init__(self, run, token):
         self.run = run
         self.env = run.env
@@ -59,12 +62,13 @@ class Streamer:
     def flush(self, final=False):
         if not self.batch and not final:
             return
-        if not self.run._holds(self.token):
+        if self.token is not None and not self.run._holds(self.token):
             raise LostClaim()
         if self.channel and self.message_id:
             self.channel._bus_send(
                 "pan_ai.run_event",
                 {
+                    "channel_id": self.channel.id,
                     "message_id": self.message_id,
                     "run_id": self.run.id,
                     "events": list(self.batch),
@@ -101,3 +105,10 @@ class Streamer:
             {"type": "run_finished", "status": status, "error": error, "pending": pending or []}
         )
         self.flush(final=True)
+
+
+def finish_outside(run, status, error=None):
+    """A run finished by a button or a cron, not by its slice: the message
+    gets its final body and the window hears `run_finished`, so the card and
+    Stop go away. `run._finish` has been called already."""
+    Streamer(run.sudo(), None).finish(status, error=error)

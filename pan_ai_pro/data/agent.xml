@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
     <record id="agent_assistant" model="pan_ai.agent">
-        <field name="name">Odoo assistant</field>
+        <field name="name">Odoo agent</field>
         <field name="description">Answers questions about your data and opens what you ask for.</field>
         <field name="sequence">1</field>
         <field name="toolset_ids" eval="[(4, ref('toolset_odoo'))]"/>

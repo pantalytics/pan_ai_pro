@@ -13,17 +13,22 @@ import logging
 import time
 from datetime import timedelta
 
+import psycopg2.extensions
 from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults
 from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     ModelMessagesTypeAdapter,
+    ModelRequest,
     ModelResponse,
     PartDeltaEvent,
     PartStartEvent,
     TextPart,
     TextPartDelta,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
 )
 from pydantic_core import to_jsonable_python
 
@@ -31,6 +36,7 @@ from odoo import _, api, fields
 from odoo.exceptions import UserError
 from odoo.tools import config
 
+from ..defaults import TIME_LIMIT
 from ..tools import commit
 from .agent import build_agent, usage_limits
 from .deps import OdooDeps
@@ -38,21 +44,78 @@ from .stream import LostClaim, Streamer
 
 _logger = logging.getLogger(__name__)
 
+# The worker writes the run's heartbeat on this clock while the model or an
+# MCP tool is awaited (an Odoo tool runs on the slice's thread and blocks
+# it), so a thinking model never makes a live run look dead to the crons
+# (STALE_SECONDS on the run, several times this).
+HEARTBEAT_SECONDS = 10
+# A thread keeps this many messages (requests and responses); older rounds
+# are dropped at a user prompt, so every slice sends a bounded history.
+KEEP_MESSAGES = 60
+# When the server has no limit (-1 or 0), budget as if it had this one.
+DEFAULT_LIMIT = 120
+
+
+def server_limit(key):
+    """`limit_time_real` or `limit_time_real_cron` as a positive number of
+    seconds: the server's value; a cron limit of -1 means the request limit
+    (Odoo's own rule); 0 means no limit, budgeted as DEFAULT_LIMIT."""
+    try:
+        limit = int(config[key] or 0)
+    except (TypeError, ValueError):
+        limit = 0
+    if key == "limit_time_real_cron" and limit == -1:
+        return server_limit("limit_time_real")
+    return limit if limit > 0 else DEFAULT_LIMIT
+
 
 def slice_budget(where):
     """Seconds this slice may take. Under the request limit inline, under
     the cron limit on a worker, with the margin S4 showed a slice needs."""
     if where == "inline":
-        limit = int(config["limit_time_real"] or 0) or 120
-        return max(2.0, min(limit * 0.5, 40.0))
-    limit = int(config["limit_time_real_cron"] or 0) or 120
-    return max(10.0, limit * 0.6)
+        return max(2.0, min(server_limit("limit_time_real") * 0.5, 40.0))
+    return max(10.0, server_limit("limit_time_real_cron") * 0.6)
 
 
 def _cancelled(run):
     """Stop was pressed: read the flag fresh, past the cache."""
     run.invalidate_recordset(["cancel_requested"])
     return bool(run.cancel_requested)
+
+
+class TimeLimit(Exception):
+    """The agent's `time_limit` (seconds per run, across slices) is spent."""
+
+
+def close_open_calls(messages, note):
+    """A history that ends in tool calls nobody answered (Stop between the
+    call and its result, Stop on a waiting approval) breaks the next model
+    request. Answer each open call with `note` so the thread goes on."""
+    if not messages or not isinstance(messages[-1], ModelResponse):
+        return messages
+    calls = [p for p in messages[-1].parts if isinstance(p, ToolCallPart)]
+    if not calls:
+        return messages
+    return messages + [
+        ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name=c.tool_name, content=note, tool_call_id=c.tool_call_id)
+                for c in calls
+            ]
+        )
+    ]
+
+
+def trim_history(messages, keep=KEEP_MESSAGES):
+    """The last `keep` messages, cut at a user prompt so no tool call loses
+    its return. Returns `messages` itself when it is short enough."""
+    if len(messages) <= keep:
+        return messages
+    for i in range(len(messages) - keep, len(messages)):
+        m = messages[i]
+        if isinstance(m, ModelRequest) and any(isinstance(p, UserPromptPart) for p in m.parts):
+            return messages[i:]
+    return messages
 
 
 def run_slice(run, token, where):
@@ -78,11 +141,13 @@ def run_slice(run, token, where):
     try:
         agent = build_agent(thread.agent_id.with_env(run_env), run_env)
     except UserError as error:
-        _fail(run, stream, str(error))
+        _fail(run, stream, str(error), code="build")
         return
     except Exception as error:  # noqa: BLE001 - a bad agent row or a bad dependency lands on the run
         _logger.exception("[AI Pro] run %s: could not build the agent", run.id)
-        _fail(run, stream, _("The agent could not be built: %s", type(error).__name__))
+        _fail(
+            run, stream, _("The agent could not be built: %s", type(error).__name__), code="build"
+        )
         return
     history = ModelMessagesTypeAdapter.validate_python(thread.messages()) or None
     prompt = run.prompt or None
@@ -96,8 +161,25 @@ def run_slice(run, token, where):
         _fail(run, stream, _("Nothing to run."))
         return
 
+    time_limit = thread.agent_id.time_limit or TIME_LIMIT
+
+    async def heartbeat():
+        while True:
+            await asyncio.sleep(HEARTBEAT_SECONDS)
+            if not run._holds(token):
+                return
+            run.write({"heartbeat_at": fields.Datetime.now()})
+            commit(run.env)
+
     async def go():
         rounds = 0
+        pulse = asyncio.ensure_future(heartbeat())
+        try:
+            return await go_nodes(rounds)
+        finally:
+            pulse.cancel()
+
+    async def go_nodes(rounds):
         async with agent.iter(
             prompt,
             message_history=history,
@@ -107,8 +189,13 @@ def run_slice(run, token, where):
         ) as agent_run:
             async for node in agent_run:
                 if _cancelled(run):
-                    return list(agent_run.all_messages()), "cancelled", None, agent_run.usage
+                    messages = close_open_calls(
+                        list(agent_run.all_messages()), _("Stopped by the user.")
+                    )
+                    return messages, "cancelled", None, agent_run.usage
                 if Agent.is_model_request_node(node):
+                    if run.worked_seconds + time.monotonic() - started > time_limit:
+                        raise TimeLimit()
                     if rounds > 0 and time.monotonic() - started >= budget:
                         return (
                             list(agent_run.all_messages()) + [node.request],
@@ -179,8 +266,14 @@ def run_slice(run, token, where):
     except LostClaim:
         _logger.info("[AI Pro] run %s: claim lost, slice dropped", run.id)
         return
+    except TimeLimit:
+        run.write({"worked_seconds": run.worked_seconds + time.monotonic() - started})
+        _fail(
+            run, stream, _("The agent hit its time limit of %s seconds.", time_limit), code="limit"
+        )
+        return
     except UsageLimitExceeded as error:
-        _fail(run, stream, _("The agent hit its limit: %s", str(error)[:200]))
+        _fail(run, stream, _("The agent hit its limit: %s", str(error)[:200]), code="limit")
         return
     except ModelHTTPError as error:
         _fail(
@@ -190,6 +283,7 @@ def run_slice(run, token, where):
                 "The model answered with an error (HTTP %s). Try again in a minute.",
                 error.status_code,
             ),
+            code="model",
         )
         return
     except Exception as error:  # noqa: BLE001 - every outcome lands on the run
@@ -205,6 +299,8 @@ def run_slice(run, token, where):
         for m in messages[before:]
         if isinstance(m, ModelResponse)
     )
+    if outcome != "paused":
+        messages = trim_history(messages)
     thread.write(
         {
             "conversation": json.dumps(to_jsonable_python(messages)),
@@ -221,6 +317,7 @@ def run_slice(run, token, where):
             "prompt": False,
             "deferred_results": False,
             "slices": run.slices + 1,
+            "worked_seconds": run.worked_seconds + time.monotonic() - started,
             "requests": run.requests + usage.requests,
             "input_tokens": run.input_tokens + usage.input_tokens,
             "output_tokens": run.output_tokens + usage.output_tokens,
@@ -236,9 +333,9 @@ def run_slice(run, token, where):
         commit(run.env)
         return
     if outcome == "interrupted":
-        run.write(
-            {"status": "interrupted", "claimed_at": False, "worker": False, "claim_token": False}
-        )
+        from ..models.run import NO_CLAIM
+
+        run.write({"status": "interrupted", **NO_CLAIM})
         stream.finish("interrupted", pending=pending)
         return
     run._finish(outcome)
@@ -246,12 +343,24 @@ def run_slice(run, token, where):
     _after(run, thread)
 
 
-def _fail(run, stream, message):
+def _fail(run, stream, message, code="other"):
+    """A run that died on a limit (time, requests, tokens) would meet it
+    again on the next tick of a continuous thread, so that thread pauses."""
+    if _aborted(run.env.cr):
+        run.env.cr.rollback()
     try:
-        run._finish("failed", error=message[:250])
+        run._finish("failed", error=message[:250], code=code)
+        if code == "limit" and run.thread_id.kind == "continuous":
+            run.thread_id.write({"paused": True})
         stream.finish("failed", error=message)
     except LostClaim:
         pass
+
+
+def _aborted(cr):
+    """The transaction is in error: nothing can be written until a rollback."""
+    status = cr._cnx.get_transaction_status()
+    return status == psycopg2.extensions.TRANSACTION_STATUS_INERROR
 
 
 def _summary(content):
@@ -276,18 +385,28 @@ def _after(run, thread):
         return
     record = thread.record()
     if record is not None and (thread.post_answer or thread.activity):
+        from odoo.exceptions import AccessError
+
         from .stream import render_markdown
 
-        if thread.post_answer and hasattr(record, "message_post"):
-            record.with_user(run.user_id).message_post(
-                body=render_markdown(run.text), message_type="comment", subtype_xmlid="mail.mt_note"
-            )
-        if thread.activity and hasattr(record, "activity_schedule"):
-            record.with_user(run.user_id).activity_schedule(
-                summary=thread.agent_id.name,
-                note=render_markdown(run.text),
-                user_id=thread.user_id.id,
-            )
+        try:
+            with run.env.cr.savepoint():
+                if thread.post_answer and hasattr(record, "message_post"):
+                    record.with_user(run.user_id).message_post(
+                        body=render_markdown(run.text),
+                        message_type="comment",
+                        subtype_xmlid="mail.mt_note",
+                    )
+                if thread.activity and hasattr(record, "activity_schedule"):
+                    record.with_user(run.user_id).activity_schedule(
+                        summary=thread.agent_id.name,
+                        note=render_markdown(run.text),
+                        user_id=thread.user_id.id,
+                    )
+        except (AccessError, UserError) as error:
+            # The answer is on the run; the record refused it. Say so there.
+            _logger.warning("[AI Pro] run %s: could not post on the record: %s", run.id, error)
+            run.write({"error": _("The answer could not be posted on the record: %s", error)[:250]})
     if thread.kind == "continuous" and not thread.paused:
         thread.write(
             {

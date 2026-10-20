@@ -1,7 +1,8 @@
 # Plan: AI Pro for Odoo 20, Pydantic AI inside Odoo
 
-Status: research done 2026-10-19; design flipped the same day (section 1).
-Spikes first (section 6). Nothing built.
+Status: research done 2026-10-19; design flipped the same day (section 1);
+spikes done and the module built and released as 2.0.0 the same week.
+The open items are in [ai-pro-20-execution.md](ai-pro-20-execution.md).
 
 ## 0. What success looks like
 
@@ -159,16 +160,18 @@ Odoo controller / cron ──► Pydantic AI Agent (in-process) ─────�
   A write tool carries `requires_approval`; the run ends with
   `DeferredToolRequests` on the `Conversation`, the card shows, and the
   next run passes `deferred_tool_results`.
-- **Money.** The OpenRouter key per Odoo database, in Settings, encrypted
-  at rest with the 19.0 helper. `Run` records usage and cost per run, per
+- **Money.** The OpenRouter key per Odoo database, in Settings, an
+  `ir.config_parameter` only Settings administrators can read (decision 16:
+  plain, like the 19.0 module; a host without a secret of its own, such as
+  odoo.sh, could not hold an encryption key anyway). `Run` records usage and cost per run, per
   user. No credits of ours.
 - **Conversation.** `Thread.conversation` is Pydantic AI's `Conversation`
   (`ConversationTypeAdapter` JSON): messages, usage across runs, pending
   deferred tools. A thread replays losslessly into the next run, and
   `UsageLimits` count against what the thread already spent. 30-day
   retention by cron, off by a setting.
-- **MCP.** `Toolset` of kind `mcp`: URL, auth (none, bearer, or Pantalytics
-  sign-in), `allowed_tool_names`, tool prefix. The SSRF gate from the
+- **MCP.** `Toolset` of kind `mcp`: URL, auth (none or bearer),
+  `allowed_tool_names`, tool prefix. The SSRF gate from the
   public server runs on every user-supplied URL.
 
 ## 3a. Four ways to start a Run
@@ -241,11 +244,11 @@ What the patches add to the `mail` window:
 | Bucket | Where | Pieces |
 |---|---|---|
 | Agent | `pan_ai_pro/models/agent.py`, `toolset.py`, `tool.py`, `run.py`, `thread.py` | the records, named as Pydantic AI names them |
-| Runtime | `pan_ai_pro/runtime/` | `build_agent(record)`, `OdooDeps`, `odoo_toolset.py` (the built-in tools and server actions as `FunctionToolset`), `mcp_toolset.py`, `stream.py` (events to SSE), `limits.py` |
+| Runtime | `pan_ai_pro/runtime/` | `agent.py` (`build_agent(record)`, the usage limits), `deps.py` (`OdooDeps`), `odoo_toolset.py` (the built-in tools and server actions as `FunctionToolset`), `mcp_toolset.py`, `stream.py` (events to the bus), `slices.py`, `field.py` |
 | Window | `pan_ai_pro/static/src/chat/` | patches on `mail`'s `Message`, `Composer`, `ChatWindow`; the event handler on the bus; markdown; approval card; tool row |
 | Runs | `pan_ai_pro/models/run.py`, `runtime/slices.py`, `data/ir_cron.xml` | the four kinds, the slice loop on `agent.iter()`, two worker crons, the advisory lock, the watch for continuous threads |
-| Fields | `pan_ai_pro/models/ai_field_*.py` | the 19.0 metadata, cron and Studio panel, retargeted to an `Agent` with `output_type` |
-| Pantalytics | `pan_ai_pro/models/pan_ai_license.py`, admin `apps/ai_pro.py` | pairing, heartbeat, entitlement, Mail Pro's shape; the only sign-in the module has |
+| Fields | `pan_ai_pro/models/ir_model_fields.py`, `field_metadata.py`, `base.py`, `runtime/field.py`, `pan_ai_pro_enterprise/` | a prompt on any stored field, the state per record, the nightly cron and Fill now, the Enterprise seam |
+| Pantalytics | `pan_ai_pro/models/license.py` (the row, pairing, heartbeat), `models/platform.py` (address, key, signature), admin `apps/ai_pro.py` | pairing, heartbeat, entitlement, Mail Pro's shape; the only sign-in the module has |
 
 ## 6. Spikes before any code
 

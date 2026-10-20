@@ -28,12 +28,6 @@ class IrActionsServer(models.Model):
     )
     pan_ai_post = fields.Boolean(string="Post the answer on the record", default=True)
     pan_ai_activity = fields.Boolean(string="Create an activity with the answer")
-    pan_ai_tool_ids = fields.One2many("pan_ai.tool", "action_id", string="AI tools")
-    pan_ai_tool_count = fields.Integer(compute="_compute_pan_ai_tool_count")
-
-    def _compute_pan_ai_tool_count(self):
-        for action in self:
-            action.pan_ai_tool_count = len(action.pan_ai_tool_ids)
 
     @api.constrains("state", "pan_ai_agent_id", "pan_ai_prompt")
     def _check_pan_ai(self):
@@ -54,8 +48,10 @@ class IrActionsServer(models.Model):
             records.check_access("read")
 
     def _run_action_pan_ai_run_multi(self, eval_context=None):
-        """One run per record, or one run without a record. The first slice
-        runs here; the rest on the worker crons."""
+        """One run per record, or one run without a record. A scheduled run
+        (a cron) takes its first slice here, the rest on the worker crons. A
+        triggered run (an automation in somebody's request, the Action menu)
+        goes to the workers whole: the person's transaction is theirs."""
         from ..runtime import slices
 
         self.ensure_one()
@@ -97,12 +93,14 @@ class IrActionsServer(models.Model):
                 }
             )
             run = self.env["pan_ai.run"].start(thread, prompt, kind=kind, caller=caller)
+            inline = self.env.context.get("pan_ai_inline")
+            if kind == "triggered" and not inline:
+                run._wake_worker()
+                continue
             commit(self.env)
             token = run._claim()
             if token:
-                slices.run_slice(
-                    run, token, where="inline" if self.env.context.get("pan_ai_inline") else "cron"
-                )
+                slices.run_slice(run, token, where="inline" if inline else "cron")
         return False
 
     def _pan_ai_render(self, record):

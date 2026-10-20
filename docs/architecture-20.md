@@ -1,11 +1,13 @@
 # AI Pro 20: architecture
 
-The working document for the 20.0 rewrite. `ARCHITECTURE.md` in the root
-describes 19.0 and stays as is. The plan and the spikes are in
-[plans/ai-pro-20.md](plans/ai-pro-20.md); this file is what we agree on and
-build against. Change it in a PR, one decision per commit.
+The architecture of the module: one module on Odoo 19 and 20, released as
+2.0.0 on 2026-10-19. The 1.6.x client it replaced lives on the `19.0-legacy`
+branch. The plan and the spikes are in [plans/ai-pro-20.md](plans/ai-pro-20.md);
+this file is what we agree on and build against. Change it in a PR, one
+decision per commit.
 
-Status: draft, 2026-10-19. Nothing below is built.
+Status: built and released; what is still open is in
+[plans/ai-pro-20-execution.md](plans/ai-pro-20-execution.md).
 
 ## 1. One sentence
 
@@ -23,12 +25,12 @@ from the record is a dozen lines, and the form view reads like the docs.
 
 | Record | Pydantic AI | Fields |
 |---|---|---|
-| `pan_ai.agent` | `Agent` | name, `model` (OpenRouter id), `instructions` (markdown), `toolset_ids`, `output_type` (JSON schema, optional), `model_settings` (temperature, max tokens, reasoning), `usage_limits` (request limit, token limit, time limit), `builtin_tools` (web search, code execution), who may use it (groups) |
-| `pan_ai.toolset` | `Toolset` | kind: `odoo` (function tools) or `mcp`; for `odoo`: the `tool_ids`; for `mcp`: url, auth (none, bearer, Pantalytics sign-in), `allowed_tool_names`, `tool_prefix`; `requires_approval` default for its tools |
+| `pan_ai.agent` | `Agent` | name, `model` (OpenRouter id), `instructions` (markdown), `toolset_ids`, `output_type` (JSON schema, optional), `model_settings` (temperature, max tokens, reasoning), `usage_limits` (request limit, token limit, time limit), `web_search` (on, max uses), `run_as` (the caller or a dedicated user), who may use it (groups) |
+| `pan_ai.toolset` | `Toolset` | kind: `odoo` (function tools) or `mcp`; for `odoo`: the `tool_ids`; for `mcp`: url, auth (none, bearer), `allowed_tool_names`, `tool_prefix`; `requires_approval` default for its tools |
 | `pan_ai.tool` | `Tool` | name, description, `parameters_json_schema`; source: a server action with "Use in AI" (parameters from its AI schema), or a built-in (search, read, read_group, create, write, open menu, compute date); `requires_approval` |
 | `pan_ai.thread` | `Conversation` | user, agent, record context, `conversation` (`ConversationTypeAdapter` JSON: messages, usage across runs, `deferred_tool_requests`), the `discuss.channel` it shows in (chat kind), `continuous` with its watch (model, domain, cursor, interval), paused, last activity |
 | `pan_ai.run` | `agent.run` / `agent.iter()` | thread, user, `kind` (chat, scheduled, triggered, continuous), status (running, ok, cancelled, failed, interrupted), slices, `requests`, `input_tokens`, `output_tokens`, `cost` (OpenRouter reports it), started, finished, error, worker claim and heartbeat |
-| settings | `Model` provider | OpenRouter key (encrypted), default model, retention days, allowed MCP hosts |
+| settings | `Model` provider | OpenRouter key (an `ir.config_parameter` readable by Settings administrators only, never shown back; plain, decision 16), default model, retention days, allowed MCP hosts |
 
 Triggers stay Odoo's: an automation rule or a scheduled action whose server
 action is "Run agent" with a prompt. We add nothing of our own there.
@@ -137,8 +139,8 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   administrators (`base.group_system`).
 - No Odoo user ever signs in to Zitadel from Odoo. The module's one
   sign-in is Connect to Pantalytics, once per database, by a Settings
-  administrator, Mail Pro's pairing (decision 14). A generic MCP toolset,
-  when it comes, holds one bearer token per row, encrypted, not per user.
+  administrator, Mail Pro's pairing (decision 14). An MCP toolset holds
+  one bearer token per row, readable by administrators only, not per user.
 - A deactivated Odoo user loses their threads' access.
 
 ## 6. Money and limits
@@ -147,26 +149,32 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
 |---|---|---|
 | Tokens | OpenRouter key in Settings, one per database | no key, no chat; the window says "No key, ask your administrator" |
 | Web search | Pydantic AI `WebSearch(native=WebSearchTool(max_uses, search_context_size))` on OpenRouter's server tool (S5: works on Sonnet, GPT, Gemini; 8 to 13k input tokens per question) | on per agent, off by default; `max_uses` and `search_context_size` on the agent |
-| Code execution | none in v1 (S5: Pydantic AI's OpenRouter model carries no `CodeExecutionTool`) | later, as its own sandbox or a direct provider client |
-| Per run | `UsageLimits` on the agent | default 20 requests, 300k tokens, 5 min |
-| Per user | `pan_ai.run` rows | runs per hour per user, a setting; one live run per user |
+| Per run | `UsageLimits` on the agent, and the slice loop for the clock | defaults in `defaults.py` and the agent's fields: 25 requests, 200k tokens, 300 s across slices; a run past any of them fails with the reason, and a continuous thread that hits one pauses |
+| Per user | `pan_ai.run` rows | chats per hour per person, a setting (watches and field fills are the administrator's, not counted); one live run per thread |
 | Per database | the signed entitlement, required | not connected or revoked: no run; the beta is "connected is entitled", as Mail Pro; tiers decided later |
 
 ## 7. AI fields
 
 ```
-Enterprise 20 (Studio or property AI field)      Community 20 (property AI field)
-   ai_fields asks for a value                        our own property type "AI"
-          │ (seam: `_fill_ai_field` on `base`, S1)          │
-          ▼                                                 ▼
-   the field's Agent (per field, or the default one), output_type = the
-   field's schema, no toolsets unless the field says so, 60 s limit
+any stored field of any model, on both editions        Enterprise 20
+   a prompt on ir.model.fields (AI Pro > Configuration     Odoo's own AI-field button and cron
+   > AI fields, or Settings > Technical > Fields)          land on `_fill_ai_field` on `base`
+          │  Fill now (the cron, in batches), the nightly      │  (the seam S1 found); Odoo's prompt
+          │  cron (auto fill empties, auto update stale),      │  becomes the AI Pro prompt
+          │  `pan_ai_fill` for a button of your own             │
+          ▼                                                     ▼
+   the field's Agent (per field, or the first one), output_type = the
+   field's schema, no toolsets unless the field says so, 60 s per value
           │
-   x_ai.field.metadata: is_stale, human_edited (ported from 19.0 as is)
-   auto_fill (cron fills empty), auto_update (recompute on input change)
+   pan_ai.field.metadata: is_stale, human_edited, last_error (the 19.0
+   model, renamed); a value a person typed is left alone; a record that
+   failed waits a day before a batch takes it again
 ```
 
-No streaming here: one `agent.run`, one value, a spinner on the field.
+No streaming here: one `agent.run` per value, as the caller or the agent's
+dedicated user, within what that user may read and write. Community has no
+widget of its own: the field fills on the schedule, and a form shows the
+value like any other.
 
 ## 8. Protocols
 

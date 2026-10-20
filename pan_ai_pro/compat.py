@@ -8,7 +8,23 @@ differences stay in one file and the day 19 is dropped this file goes.
 from odoo import release
 from odoo.addons.mail.tools.discuss import Store
 
+try:  # 20: odoo.api.ormcache and transaction.invalidate_ormcache()
+    from odoo.api import ormcache
+except ImportError:  # 19: odoo.tools.ormcache and registry.clear_cache()
+    from odoo.tools import ormcache
+
 MAJOR = release.version_info[0]
+
+__all__ = ["ormcache", "params", "send_fields", "clear_ormcache"]
+
+
+def clear_ormcache(env):
+    """Drop every @ormcache answer, on every worker."""
+    transaction = getattr(env, "transaction", None)
+    if hasattr(transaction, "invalidate_ormcache"):
+        transaction.invalidate_ormcache()
+    else:
+        env.registry.clear_cache()
 
 
 class _Params:

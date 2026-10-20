@@ -8,6 +8,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 
+import psycopg2
 from pydantic_ai import RunContext, Tool
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_core import to_jsonable_python
@@ -288,10 +289,13 @@ def _function(tool_row, env):
         if "fields" in args:
             args["fields_"] = args.pop("fields")
         try:
-            if builtin:
-                result = builtin(ctx, row, **args)
-            else:
-                result = run_server_action(ctx, row, **args)
+            # A savepoint: a tool that fails at the database (a foreign key,
+            # a missing value) leaves the transaction usable for the answer.
+            with ctx.deps.env.cr.savepoint():
+                if builtin:
+                    result = builtin(ctx, row, **args)
+                else:
+                    result = run_server_action(ctx, row, **args)
             ctx.deps.run.log_tool({"tool": row.name, "args": args, "ok": True})
             return result
         except (
@@ -302,6 +306,7 @@ def _function(tool_row, env):
             ValueError,
             KeyError,
             TypeError,
+            psycopg2.Error,
         ) as error:
             message = html2plaintext(str(error))
             ctx.deps.run.log_tool(

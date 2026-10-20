@@ -13,7 +13,7 @@ install and the test suite on both servers, which `ci.yml` now repeats on
 
 | | Odoo 19 | Odoo 20 | Done |
 |---|---|---|---|
-| Manifest version `20.0.x` | "incompatible version, installable=False" | fine | version without prefix (`1.1.0`); Odoo prefixes its own serie |
+| Manifest version `20.0.x` | "incompatible version, installable=False" | fine | version without prefix; Odoo prefixes its own serie. `2.0.0`, so that it sorts above every `1.6.x` install (execution plan, section 10) |
 | `security/ir.access.csv` | `KeyError: 'ir.access'` (the model is 20's; 19 has `ir.model.access` + `ir.rule`) | fine | `security/access.xml` calls `pan_ai.access.install`, which creates the rows for whichever model exists (`models/access.py`); the 20 xml ids are kept, 19 gets `rule_*` rows plus a manager rule per model with a domain |
 | `<function model=... name=...>` with no arguments | `ValueError: not enough values to unpack` (the first argument is the record ids) | same code | `eval="[[]]"` |
 | `ir.config_parameter.get_str/set_str/get_int/get_bool` | `AttributeError` (19 has `get_param`/`set_param`) | fine | `compat.params(env)`: 20's object as is, a shim on 19 |

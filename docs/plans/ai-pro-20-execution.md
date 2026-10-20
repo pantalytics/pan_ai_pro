@@ -86,8 +86,8 @@ architecture-20.md.
       `ir.access`: `id,name,model_id,group_id/id,operation,domain`)
 - [x] `models/agent.py`, `toolset.py`, `tool.py`, `thread.py`, `run.py`
       as architecture-20.md section 2 lists them; `res_config_settings.py`
-      (OpenRouter key encrypted with the 19.0 helper, default model,
-      retention, allowed MCP hosts)
+      (OpenRouter key as a system-only `ir.config_parameter`, decision 16;
+      default model, retention, allowed MCP hosts)
 - [x] `data/tools.xml`: the built-in `Tools` (search, read, read_group,
       create, write, open menu, compute date), each with its JSON schema
       and `requires_approval` on create and write
@@ -129,8 +129,8 @@ architecture-20.md.
       returned as tool error, no sudo), `test_run_stream.py` (fake model:
       text, tool call, interrupt, resume, cancel, a second slice),
       `test_channel.py` (portal user cannot post on an `ai` channel,
-      groups), `test_retention.py`; one Odoo tour: open, send, stream,
-      approve, stop
+      groups, retention); no tour: `scripts/browser/check_chat.py` drives a
+      real browser against a real server (HttpCase defers the bus, S2)
 
 ## 2a. Module, PR E: scheduled, triggered and continuous runs
 
@@ -193,8 +193,8 @@ port (`tests/test_mcp_toolset.py`).
       `allowed_tool_names`, `tool_prefix`, `requires_approval` per tool;
       the SSRF gate (copied from the public server) on every URL, plus the
       allowed hosts setting
-- [x] auth `bearer` only: one token per toolset row, encrypted, pasted by
-      a Settings administrator. No token per user, no Zitadel, no MCP Pro
+- [x] auth `bearer` only: one token per toolset row, readable by
+      administrators only (decision 16), pasted by a Settings administrator. No token per user, no Zitadel, no MCP Pro
       (decision 14)
 - [x] the window's tool rows show the tool's name (the prefix carries the server's)
 - [x] tests: a local MCP server in the test (the public `mcp` package),
@@ -255,10 +255,10 @@ port (`tests/test_mcp_toolset.py`).
 ### The contract between the two
 
 - [x] `pan_ai_pro/docs/protocol.md`: the pairing paths, the heartbeat
-      body, the entitlement fields, the public key. Fixtures in
-      `contract/*.json` in the module repo, pinned by commit in admin's
-      `tests/fixtures/ai_pro/`; a field added on one side without the
-      fixture fails the other side's CI
+      body, the entitlement fields, the public key
+- [ ] fixtures in `contract/*.json` in the module repo, pinned by commit
+      in admin's `tests/fixtures/ai_pro/`; a field added on one side
+      without the fixture fails the other side's CI
 
 ## 7. Security checklist, every PR
 
@@ -281,9 +281,11 @@ find answered.
       agent above its groups
 
 **Secrets at rest**
-- [ ] OpenRouter key: encrypted with the 19.0 helper, system group only,
-      shown as last four, never logged, never in a bus message
-- [ ] MCP bearer tokens (PR C): same helper, deleted on toolset delete
+- [x] OpenRouter key: an `ir.config_parameter` the system group alone
+      reads (decision 16: plain, as 1.6.x kept it; a host without a secret
+      of its own could not hold an encryption key), shown as last four,
+      never logged, never in a bus message
+- [x] MCP bearer tokens: a system-only column, gone with the toolset row
 - [ ] the Ed25519 public key in the module is the one
       `signing.public_key_b64()` prints on prod; the release checklist
       checks it
@@ -307,8 +309,9 @@ find answered.
 
 **Limits**
 - [ ] `UsageLimits` per agent (requests, tokens, time) enforced by
-      Pydantic AI; runs per user per hour and one live run per user
-      enforced by the controller; both refusals have one shape
+      Pydantic AI, the clock by the slice loop; chats per person per hour
+      and one live run per thread enforced at `Run.start`; every refusal
+      is one `UserError`
 - [ ] a slice cannot outlive `limit_time_real` or `limit_time_real_cron`:
       the slice budget is read from the config at runtime and capped
       below it, as MuK does; a run past its total budget stops with an
