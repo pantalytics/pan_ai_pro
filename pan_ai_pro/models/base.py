@@ -13,6 +13,15 @@ FILL_MAX = 50
 class Base(models.AbstractModel):
     _inherit = "base"
 
+    def _register_hook(self):
+        # Once per registry load, from the first model's hook, before any
+        # other model's hook reads ir.model.fields: the columns a pull
+        # before the upgrade leaves out (models/ir_model_fields.py).
+        if not getattr(self.pool, "_pan_ai_columns_checked", False):
+            self.pool._pan_ai_columns_checked = True
+            self.env["ir.model.fields"]._pan_ai_add_missing_columns()
+        return super()._register_hook()
+
     def write(self, vals):
         result = super().write(vals)
         if (

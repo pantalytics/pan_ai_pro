@@ -12,7 +12,8 @@ import time
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools.sql import column_exists
+from odoo.tools import SQL
+from odoo.tools.sql import column_exists, table_exists
 
 from ..compat import clear_ormcache, ormcache, params
 
@@ -135,7 +136,9 @@ class IrModelFields(models.Model):
         """False while the module's code is on disk but its upgrade has not run:
         a host pulls the code first and upgrades later, and in between the
         column is not there. Every write would fail on it (measured on
-        odoo.pantalytics.com, 2026-10-19). Only a True answer is kept."""
+        odoo.pantalytics.com, 2026-10-19). Only a True answer is kept.
+        Since _pan_ai_add_missing_columns below the column is there from the
+        first registry load; this guard is what a failed load falls back on."""
         registry = self.env.registry
         if getattr(registry, "_pan_ai_column_ready", False):
             return True
@@ -143,6 +146,54 @@ class IrModelFields(models.Model):
         if ready:
             registry._pan_ai_column_ready = True
         return ready
+
+    @api.model
+    def _pan_ai_add_missing_columns(self):
+        """A host pulls the code first and upgrades later (Cloudpepper,
+        measured on staging-pantalytics 2026-10-19 and 2026-10-20). Until the
+        upgrade the registry declares this module's columns on tables that do
+        not have them, and every read of ir.model.fields, which every /web
+        request makes, fails with a 500. So the bare columns are added at
+        registry load (models/base.py, before any other model's hook runs);
+        the upgrade adds the index, the foreign key and the data. Idempotent
+        and safe under several workers loading at once. Returns the
+        (table, column) pairs added."""
+        cr = self.env.cr
+        added = []
+        for name in self.pool.models:
+            model = self.env[name]
+            ours = [
+                field
+                for field in model._fields.values()
+                if getattr(field, "_module", None) == "pan_ai_pro"
+                and field.store
+                and field.column_type
+            ]
+            if not ours or model._abstract or not model._auto:
+                continue
+            if not table_exists(cr, model._table):
+                continue  # one of this module's own tables: the upgrade's
+            for field in ours:
+                if column_exists(cr, model._table, field.name):
+                    continue
+                column_type = field.column_type[1]
+                cr.execute(
+                    SQL(
+                        "ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s %s",
+                        SQL.identifier(model._table),
+                        SQL.identifier(field.name),
+                        SQL(column_type),
+                        SQL("DEFAULT false" if column_type.upper() in ("BOOL", "BOOLEAN") else ""),
+                    )
+                )
+                added.append((model._table, field.name))
+        if added:
+            _logger.warning(
+                "[AI Pro] the code on disk is newer than the database; added %s. "
+                "Upgrade AI Pro (Apps > AI Pro > Upgrade) to finish.",
+                ", ".join(f"{table}.{column}" for table, column in added),
+            )
+        return added
 
     def action_pan_ai_fill_all(self):
         """Fill now: every empty record of this field, on the AI-fields cron
