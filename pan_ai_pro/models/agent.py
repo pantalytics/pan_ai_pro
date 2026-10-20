@@ -50,7 +50,6 @@ class Agent(models.Model):
         string="Model",
         required=True,
         ondelete="restrict",
-        default=lambda self: self.env["pan_ai.model"].first(),
     )
     instructions = fields.Text(default=DEFAULT_INSTRUCTIONS)
     toolset_ids = fields.Many2many("pan_ai.toolset", string="Toolsets")
@@ -136,8 +135,21 @@ class Agent(models.Model):
             agent.thread_count = by_thread.get(agent.id, 0)
             agent.run_count = by_run.get(agent.id, 0)
 
+    # The first model is filled in here and in create, not as the field's
+    # default: an upgrade adds the column before `pan_ai_model` exists, and
+    # Odoo evaluates a field default for the existing rows at that moment.
+    @api.model
+    def default_get(self, fields_list):
+        values = super().default_get(fields_list)
+        if "model_id" in fields_list and not values.get("model_id"):
+            values["model_id"] = self.env["pan_ai.model"].first().id
+        return values
+
     @api.model_create_multi
     def create(self, vals_list):
+        first = self.env["pan_ai.model"].first()
+        for vals in vals_list:
+            vals.setdefault("model_id", first.id)
         agents = super().create(vals_list)
         for agent in agents.filtered(lambda a: not a.partner_id):
             agent.partner_id = (
