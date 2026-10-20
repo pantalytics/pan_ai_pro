@@ -66,6 +66,8 @@ class TestMcpToolset(AiProCase):
                 break
             except OSError:
                 time.sleep(0.1)
+        else:
+            raise RuntimeError(f"the MCP test server did not start on port {cls.port}")
         params(cls.env).set_str(mcp_toolset.PARAM_ALLOWED_HOSTS, "127.0.0.1")
         params(cls.env).set_bool("pan_ai.mcp_allow_private_hosts", True)
         cls.mcp = cls.env["pan_ai.toolset"].create(
@@ -75,6 +77,7 @@ class TestMcpToolset(AiProCase):
                 "url": f"http://127.0.0.1:{cls.port}/mcp",
                 "allowed_tool_names": "add",
                 "bearer_token": "tok",
+                "requires_approval": False,
             }
         )
         cls.agent.toolset_ids = [(6, 0, [cls.mcp.id])]
@@ -106,6 +109,18 @@ class TestMcpToolset(AiProCase):
         self.assertEqual(returns[0]["tool_name"], "add")
         self.assertIn("42", str(returns[0]["content"]))
 
+    def test_an_mcp_toolset_asks_by_default(self):
+        asking = self.env["pan_ai.toolset"].create(
+            {"name": "Calc asks", "kind": "mcp", "url": self.mcp.url, "allowed_tool_names": "add"}
+        )
+        self.assertTrue(asking.requires_approval)
+        self.agent.toolset_ids = [(6, 0, [asking.id])]
+        self.fake([[("add", {"a": 2, "b": 40})], "It is 42."])
+        channel, thread = self.chat(text="2 plus 40?")
+        run = thread.run_ids[:1]
+        self.assertEqual(run.status, "interrupted", run.error)
+        self.assertEqual(thread.pending()[0]["name"], "add")
+
     def test_a_filtered_out_tool_cannot_be_called(self):
         """The server offers `secret` too; the row allows `add` only, so a
         model that asks for `secret` gets no tool and the run fails."""
@@ -113,4 +128,12 @@ class TestMcpToolset(AiProCase):
         channel, thread = self.chat(text="tell me the secret")
         run = thread.run_ids[:1]
         self.assertEqual(run.status, "failed")
+        # the server's `secret` never ran: no tool return came back from it
+        returns = [
+            p
+            for m in thread.messages()
+            for p in m.get("parts", [])
+            if p.get("part_kind") == "tool-return" and p.get("tool_name") == "secret"
+        ]
+        self.assertFalse(returns)
         self.assertNotIn("no", run.text.lower().split())

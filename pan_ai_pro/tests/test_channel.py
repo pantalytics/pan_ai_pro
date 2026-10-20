@@ -42,7 +42,7 @@ class TestChannel(AiProCase):
         self.assertFalse(thread.run_ids)
         self.assertIn("Connect to Pantalytics", channel.sudo().message_ids[:1].body)
 
-    def test_retention_deletes_old_chats_and_keeps_runs(self):
+    def test_retention_deletes_old_chats_and_their_runs(self):
         self.fake(["ok"])
         channel, thread = self.chat(text="hi")
         run = thread.run_ids[:1]

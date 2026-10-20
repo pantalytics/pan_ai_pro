@@ -5,6 +5,7 @@ their own threads and runs and reads the agents open to them; a manager
 sees everything; a portal user sees nothing."""
 
 from odoo.exceptions import AccessError
+from odoo.tools.convert import convert_file
 
 from .common import AiProCase
 
@@ -50,6 +51,23 @@ class TestAccess(AiProCase):
         Run = cls.env["pan_ai.run"].sudo()
         cls.sam_run = Run.create({"thread_id": cls.sams.id, "user_id": cls.user.id, "prompt": "x"})
         cls.eve_run = Run.create({"thread_id": cls.eves.id, "user_id": cls.eve.id, "prompt": "x"})
+
+    def test_an_upgrade_gives_every_internal_user_the_chat(self):
+        """Prod 2026-10-20: upgraded from 1.6.1, base.group_user is noupdate, so
+        groups.xml never linked it to AI Pro's User and only admins could chat."""
+        internal = self.env.ref("base.group_user")
+        internal.write({"implied_ids": [(3, self.env.ref("pan_ai_pro.group_user").id)]})
+        self.assertFalse(self.agent.may_use(self.eve))
+        convert_file(self.env, "pan_ai_pro", "security/groups.xml", {}, mode="update")
+        self.env.invalidate_all()
+        self.assertTrue(self.agent.may_use(self.eve))
+
+    def test_a_light_user_stays_light_and_may_chat(self):
+        role = self.env["res.users"]._fields.get("role")
+        if not role or "light_user" not in dict(role.selection):
+            self.skipTest("Odoo 19 has no Light and regular users")
+        self.assertEqual(self.eve.role, "light_user")
+        self.assertTrue(self.agent.may_use(self.eve))
 
     def test_a_user_sees_their_own_threads_and_runs(self):
         Thread = self.env["pan_ai.thread"].with_user(self.user)

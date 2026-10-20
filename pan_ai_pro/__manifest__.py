@@ -32,7 +32,7 @@ Odoo's groups and record rules decide what it may see and touch.
 Tools
 -----
 Built-in tools search, read, total, create, update and open records. Any
-server action marked "Use in AI" becomes a tool, and any MCP server can be
+server action added to a toolset becomes a tool, and any MCP server can be
 added as a toolset. Tools that change data ask for approval by default.
 
 Automations
@@ -59,7 +59,7 @@ Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "2.3.0",
+    "version": "2.3.1",
     "license": "Other proprietary",
     "external_dependencies": {
         "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]
@@ -95,6 +95,7 @@ Requires a connection to Pantalytics
         "static/description/agent_screenshot.png",
         "static/description/ai_field_screenshot.png",
     ],
+    "uninstall_hook": "uninstall_hook",
     "installable": True,
     "application": True,
     "auto_install": False,

@@ -3,6 +3,7 @@
 from pydantic_ai import Agent
 
 from ..compat import params
+from ..runtime import agent as agent_runtime
 from ..runtime.agent import build_agent, model_for, output_type, usage_limits
 from .common import AiProCase
 
@@ -19,6 +20,7 @@ class TestAgentBuild(AiProCase):
 
     def test_no_key_is_a_loud_refusal(self):
         params(self.env).set_str("pan_ai.openrouter_key", "")
+        agent_runtime.TEST_MODEL = None  # the real build path, which checks the key
         with self.assertRaises(Exception) as caught:
             build_agent(self.agent, self.env)
         self.assertIn("OpenRouter key", str(caught.exception))
@@ -65,6 +67,7 @@ class TestAgentBuild(AiProCase):
         gpt = self.env.ref("pan_ai_pro.model_gpt")
         self.agent.model_id = gpt
         params(self.env).set_str("pan_ai.default_model", "someone/else")
+        agent_runtime.TEST_MODEL = None  # the real model object; built, never called
         self.assertEqual(model_for(self.agent, self.env).model_name, gpt.model_name)
 
     def test_a_new_agent_starts_on_the_first_model(self):

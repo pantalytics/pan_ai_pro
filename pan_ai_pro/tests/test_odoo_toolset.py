@@ -63,6 +63,44 @@ class TestOdooToolset(AiProCase):
         self.assertTrue(self._tool(toolset, "write_record").requires_approval)
         self.assertFalse(self._tool(toolset, "search_records").requires_approval)
 
+    def _server_action_tool(self, **vals):
+        action = self.env["ir.actions.server"].create(
+            {
+                "name": "Rename",
+                "model_id": self.env["ir.model"]._get_id("res.partner"),
+                "state": "code",
+                "code": "record.write({'name': 'Renamed'})",
+            }
+        )
+        return self.env["pan_ai.tool"].create(
+            {
+                "name": "rename",
+                "description": "Rename the partner",
+                "source": "server_action",
+                "action_id": action.id,
+                "toolset_id": self.env.ref("pan_ai_pro.toolset_odoo").id,
+                **vals,
+            }
+        )
+
+    def test_a_server_action_tool_asks_by_default(self):
+        tool = self._server_action_tool()
+        self.assertTrue(tool.asks_approval())
+        self.fake([[("rename", {})], "Renamed."])
+        channel, thread = self.chat(text="Rename it")
+        run = thread.run_ids[:1]
+        self.assertEqual(run.status, "interrupted", run.error)
+        self.assertEqual(thread.pending()[0]["name"], "rename")
+
+    def test_an_admin_may_switch_the_question_off(self):
+        tool = self._server_action_tool(requires_approval=False)
+        self.assertFalse(tool.asks_approval())
+        toolset = build_toolset(self.env.ref("pan_ai_pro.toolset_odoo"), self.env)
+        self.assertFalse(self._tool(toolset, "rename").requires_approval)
+        tool.requires_approval = True
+        toolset = build_toolset(self.env.ref("pan_ai_pro.toolset_odoo"), self.env)
+        self.assertTrue(self._tool(toolset, "rename").requires_approval)
+
     def test_model_restriction_on_a_tool(self):
         tool = self.env.ref("pan_ai_pro.tool_search_records")
         tool.model_ids = [(6, 0, [self.env["ir.model"]._get_id("res.users")])]
@@ -118,6 +156,7 @@ class TestOdooToolset(AiProCase):
                 "action_id": action.id,
                 "toolset_id": self.env.ref("pan_ai_pro.toolset_odoo").id,
                 "parameters_json_schema": '{"type":"object","properties":{"n":{"type":"integer"},"fields":{"type":"string"}},"required":["n"]}',
+                "requires_approval": False,
             }
         )
         toolset = build_toolset(self.env.ref("pan_ai_pro.toolset_odoo"), self.env)

@@ -103,6 +103,16 @@ class AiProCase(TransactionCase):
             }
         )
 
+    def setUp(self):
+        super().setUp()
+
+        # a run without self.fake() would build the real OpenRouter model
+        def offline(messages, info):
+            raise AssertionError("a test reached the model without self.fake()")
+
+        agent_runtime.TEST_MODEL = FunctionModel(offline, stream_function=offline)
+        self.addCleanup(setattr, agent_runtime, "TEST_MODEL", None)
+
     def fake(self, script):
         agent_runtime.TEST_MODEL = FakeModel(script).build()
         self.addCleanup(setattr, agent_runtime, "TEST_MODEL", None)

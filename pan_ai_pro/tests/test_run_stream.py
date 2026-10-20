@@ -336,6 +336,43 @@ class TestSliceHelpers(AiProCase):
         channel, thread = self.chat()
         self.assertNotIn("onerror", thread.run_ids[:1].message_id.body)
 
+    def _model_refuses(self, status):
+        from pydantic_ai.exceptions import ModelHTTPError
+        from pydantic_ai.models.function import FunctionModel
+
+        from ..runtime import agent as agent_runtime
+
+        def fn(messages, info):
+            raise ModelHTTPError(status_code=status, model_name="fake", body=None)
+
+        async def stream_fn(messages, info):
+            raise ModelHTTPError(status_code=status, model_name="fake", body=None)
+            yield  # pragma: no cover - makes this an async generator
+
+        agent_runtime.TEST_MODEL = FunctionModel(fn, stream_function=stream_fn)
+        channel, thread = self.chat(text="a")
+        return thread.run_ids.sorted("id")[-1]
+
+    def test_a_run_books_its_tokens_on_the_run_and_the_thread(self):
+        self.fake(["a short answer"])
+        channel, thread = self.chat(text="count my tokens")
+        run = thread.run_ids[:1]
+        self.assertEqual(run.status, "ok", run.error)
+        self.assertGreater(run.input_tokens, 0)
+        self.assertGreater(run.output_tokens, 0)
+        self.assertEqual(thread.usage_input_tokens, run.input_tokens)
+
+    def test_a_refused_key_says_check_the_key(self):
+        run = self._model_refuses(401)
+        self.assertEqual((run.status, run.error_code), ("failed", "model"))
+        self.assertIn("Settings > AI Pro", run.error)
+        self.assertNotIn("Try again", run.message_id.body)
+
+    def test_a_key_without_credit_says_top_up(self):
+        run = self._model_refuses(402)
+        self.assertIn("credit", run.message_id.body)
+        self.assertNotIn("Try again", run.message_id.body)
+
     def test_each_failure_lands_with_its_code(self):
         from pydantic_ai.exceptions import ModelHTTPError
         from pydantic_ai.models.function import FunctionModel

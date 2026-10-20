@@ -436,6 +436,15 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
       missing columns at registry load (`_pan_ai_add_missing_columns`, run
       from `base._register_hook` before any other hook), so a pulled, not
       yet upgraded instance keeps working until Apps > AI Pro > Upgrade
+- [ ] odoo.pantalytics.com from 1.6.1 (#13), still on `19.0-legacy`: not
+      on a pull. It needs 2.1.1 or later (2.1.0 left `base.group_user`
+      without AI Pro's user group, so only admins could chat), then Apps >
+      AI Pro > Upgrade by hand: a Cloudpepper pull never runs `-u`, with
+      auto-upgrade on or off (measured three times on the clone). Then, on
+      Enterprise, install `pan_ai_pro_enterprise` by hand; #25 may make that
+      automatic. The upgrade to 2.3.1 removes what 1.6.1 left (the
+      `x_ai.*` parameters with the Anthropic key, the `x_ai_field_metadata`
+      table); uninstall removes the `pan_ai.*` parameters
 - [ ] the default branch switched to `main` on GitHub (a repository
       setting, Rutger)
 - [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the

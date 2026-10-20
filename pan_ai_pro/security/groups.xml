@@ -12,10 +12,14 @@
         <field name="name">Member</field>
         <field name="privilege_id" ref="privilege_ai_pro"/>
     </record>
-    <!-- Every internal user may chat; an agent's "Who may use it" narrows. -->
-    <record id="base.group_user" model="res.groups">
-        <field name="implied_ids" eval="[(4, ref('group_user'))]"/>
-    </record>
+    <!-- Every internal user may chat; an agent's "Who may use it" narrows.
+         A function, not a record: base.group_user is noupdate, so a record
+         is skipped on upgrade and a database upgraded from 1.x kept chat
+         for admins only (prod 2026-10-20). -->
+    <function model="res.groups" name="write">
+        <value eval="[ref('base.group_user')]"/>
+        <value eval="{'implied_ids': [(4, ref('group_user'))]}"/>
+    </function>
     <!-- Who configures agents, toolsets, tools, settings and the connection. -->
     <record id="group_manager" model="res.groups">
         <field name="name">Administrator</field>
@@ -25,4 +29,7 @@
     <record id="base.group_system" model="res.groups">
         <field name="implied_ids" eval="[(4, ref('group_manager'))]"/>
     </record>
+    <!-- An Enterprise database upgraded from 1.x never auto installs
+         pan_ai_pro_enterprise (issue #25); this marks it. -->
+    <function model="ir.module.module" name="_pan_ai_install_enterprise"/>
 </odoo>
