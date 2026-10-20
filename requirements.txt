@@ -1,0 +1,2 @@
+# Odoo.sh and Cloudpepper read the repository root; the list itself is the module's.
+-r pan_ai_pro/requirements.txt
