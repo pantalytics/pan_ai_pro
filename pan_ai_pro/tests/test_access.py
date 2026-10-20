@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The access rows, on whichever model this Odoo keeps them in: a user sees
 their own threads and runs and reads the agents open to them; a manager
 sees everything; a portal user sees nothing."""

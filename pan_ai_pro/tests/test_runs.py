@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Scheduled, triggered and continuous runs: the server action "Run AI
 agent", the ticks of a continuous thread, and who they run as."""
 

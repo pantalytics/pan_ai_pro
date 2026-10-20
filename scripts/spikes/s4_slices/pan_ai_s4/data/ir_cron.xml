@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
+<!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo>
     <record id="cron_worker_1" model="ir.cron">
         <field name="name">AI Pro S4: worker 1</field>

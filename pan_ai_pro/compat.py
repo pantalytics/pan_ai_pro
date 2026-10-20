@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """One module on Odoo 19 and 20: the few places where the two differ.
 
 Everything else in the module is written against the API both versions

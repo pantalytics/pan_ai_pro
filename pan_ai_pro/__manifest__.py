@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 {
     "name": "AI Pro",
     "summary": "AI agents and AI fields inside Odoo: chat, scheduled and continuous runs, any model through OpenRouter",
@@ -19,8 +21,10 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
     "version": "2.1.0",
-    "license": "LGPL-3",
-    "external_dependencies": {"python": ["pydantic_ai", "markdown2", "cryptography", "requests"]},
+    "license": "Other proprietary",
+    "external_dependencies": {
+        "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]
+    },
     "depends": ["mail", "bus", "base_automation"],
     "data": [
         "security/groups.xml",

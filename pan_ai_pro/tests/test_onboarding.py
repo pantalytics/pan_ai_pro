@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Until this Odoo is connected, AI Pro is Settings and nothing else; the
 chat shows once the key is saved too; the checklist says where setup stands."""
 

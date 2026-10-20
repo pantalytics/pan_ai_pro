@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The whole chat turn with a fake model: text, a tool call, an approval,
 a stop, and a second slice."""
 

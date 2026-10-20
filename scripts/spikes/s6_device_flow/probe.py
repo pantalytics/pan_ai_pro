@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """S6: MCP Pro as a toolset from inside Odoo, the token from Zitadel's
 device-code grant, with no browser on the server.
 

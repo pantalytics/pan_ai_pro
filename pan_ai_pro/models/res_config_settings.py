@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Settings > AI Pro: the setup checklist, the limits, the danger zone.
 
 Three steps, in the order a person has to take them: connect to Pantalytics,

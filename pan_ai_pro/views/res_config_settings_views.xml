@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
+<!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo>
     <!-- Settings > AI Pro. A setup checklist on top, the same shape as Mail
          Pro's: one line per step, a dot for where it stands, its name, the

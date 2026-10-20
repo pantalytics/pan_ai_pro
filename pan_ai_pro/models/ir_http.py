@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """One flag in the session: may this person open the chat.
 
 The sparkle top right and Ctrl+K "Ask AI" show only on an Odoo that is

@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Until this Odoo is connected to Pantalytics, AI Pro is one screen: Settings.
 
 Agents, threads, runs, toolsets, tools and AI fields configure a product that

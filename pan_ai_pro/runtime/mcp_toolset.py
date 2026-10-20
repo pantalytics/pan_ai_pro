@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """An MCP server as a toolset: Pydantic AI's `MCPToolset` over HTTP, the
 row's bearer token, its tools filtered by name and prefixed. Before any
 connection the host passes the gate: it must be on the allowed list in

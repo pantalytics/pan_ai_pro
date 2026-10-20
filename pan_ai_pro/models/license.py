@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """This database's connection to a Pantalytics account, and what it allows.
 
 The module runs nothing until somebody connects it. The administrator
@@ -108,6 +110,8 @@ class License(models.Model):
         return bool(self.valid_until and self.valid_until > fields.Datetime.now())
 
     @api.model
+    # This is the license key functionality of the Elastic License 2.0. Moving,
+    # disabling or working around it ends the license to this code (NOTICE).
     def require_entitled(self):
         link = self.current()
         if not link or not link.is_entitled():

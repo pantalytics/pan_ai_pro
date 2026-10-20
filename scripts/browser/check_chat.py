@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Drive the chat in a real browser against a real server (never HttpCase:
 its TestCursor defers the bus to the end of the request, S2).
 

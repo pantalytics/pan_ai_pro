@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """`pan_ai.thread`: one conversation with one agent, for one person.
 
 `conversation` is Pydantic AI's message history as JSON

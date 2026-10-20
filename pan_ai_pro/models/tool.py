@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """`pan_ai.tool`: one Pydantic AI `Tool`, as a record. A built-in (the ORM
 verbs), or a server action an administrator exposed with a name, a
 description and a JSON schema for its parameters. The runtime

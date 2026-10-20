@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Measure S4 against a prefork Odoo (workers=2, limit_time_real=8,
 limit_time_real_cron=8) behind proxy.py.
 

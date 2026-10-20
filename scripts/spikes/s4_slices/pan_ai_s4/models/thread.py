@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Spike S4: a run in slices. `agent.iter()` stopped at a budget, the
 messages persisted, the next slice on a worker cron woken with
 `ir.cron._trigger()`. Chat runs start inline in the request; everything

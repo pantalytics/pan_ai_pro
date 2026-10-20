@@ -1,3 +1,5 @@
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """The defaults Settings shows and the code falls back on, in one place."""
 
 DEFAULT_MODEL = "anthropic/claude-sonnet-5.5"
