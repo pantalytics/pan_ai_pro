@@ -63,10 +63,20 @@ class Tool(models.Model):
     # The names, stored: the toolset reads them as the run's user, who may
     # not read ir.model itself (Odoo 19 gives plain users no access to it).
     model_names = fields.Char(compute="_compute_model_names", store=True, compute_sudo=True)
+    # A server action may change anything, so a new one asks until the
+    # administrator unticks it; a value given at create time wins.
     requires_approval = fields.Boolean(
         string="Ask before calling",
+        compute="_compute_requires_approval",
+        store=True,
+        readonly=False,
         help="The person approves each call in the chat before it runs.",
     )
+
+    @api.depends("source")
+    def _compute_requires_approval(self):
+        for tool in self:
+            tool.requires_approval = tool.source == "server_action"
 
     @api.depends("model_ids.model")
     def _compute_model_names(self):

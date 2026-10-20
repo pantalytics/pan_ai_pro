@@ -13,7 +13,7 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
   you set up. That user's groups and record rules are the agent's reach.
   Every tool runs through the ORM; nothing is sudo'ed.
 - **Tools.** Built-ins search, read, total, create, update and open records.
-  A server action marked "Use in AI" becomes a tool, and any MCP server can
+  Add any server action to a toolset and it becomes a tool, and any MCP server can
   be added as a toolset. Tools that change data ask for approval.
 - **Automations.** The server action "Run AI agent" works in automation
   rules and scheduled actions, and posts its answer in the record's chatter
@@ -37,7 +37,8 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
    `pip install -r pan_ai_pro/requirements.txt`. On Odoo's
    Docker image install them in a venv over the system packages
    (`python3 -m venv --system-site-packages`), the way `.github/workflows/ci.yml` does.
-2. Install AI Pro from Apps.
+2. Install AI Pro from Apps. On Enterprise, installing or upgrading AI Pro
+   also installs `pan_ai_pro_enterprise`, on a database upgraded from 1.x too.
 3. Settings > AI Pro: Connect to Pantalytics and paste an OpenRouter key.
    Each agent picks its model from AI Pro > Configuration > Models.
 4. Press the sparkle top right and ask something.
@@ -64,10 +65,10 @@ python scripts/browser/check_chat.py http://127.0.0.1:8080 admin admin   # a rea
 
 `scripts/browser/fake_platform.py` and `fake_openrouter.py` stand in for
 the platform and the model host; CI runs the whole thing
-(`.github/workflows/ci.yml`) on Odoo 19 and 20. Work lands on `main`;
-`19.0` and `20.0` mirror it on every push (`.github/workflows/mirror.yml`),
-because Odoo.sh and Cloudpepper attach a branch named after the Odoo
-version. Nobody commits to a mirror.
+(`.github/workflows/ci.yml`) on Odoo 19 and 20. Work lands on `19.0`,
+the default branch; `20.0` mirrors it on every push
+(`.github/workflows/mirror.yml`), because Odoo.sh and Cloudpepper attach a
+branch named after the Odoo version. Nobody commits to `20.0`.
 
 ## License
 

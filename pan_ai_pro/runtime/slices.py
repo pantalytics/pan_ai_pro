@@ -139,6 +139,8 @@ def run_slice(run, token, where):
     started = time.monotonic()
     budget = slice_budget(where)
     stream = Streamer(run, token)
+    # No allowed_company_ids: Odoo then opens every company of the user, and
+    # the record rules still apply (a background run cannot see the switcher).
     run_env = api.Environment(
         run.env.cr,
         run.user_id.id,
@@ -253,15 +255,7 @@ def run_slice(run, token, where):
         return
     except ModelHTTPError as error:
         _book(run, thread, token, spent.get("usage"), started)
-        _fail(
-            run,
-            stream,
-            _(
-                "The model answered with an error (HTTP %s). Try again in a minute.",
-                error.status_code,
-            ),
-            code="model",
-        )
+        _fail(run, stream, _model_error(error.status_code), code="model")
         return
     except Exception:  # noqa: BLE001 - every outcome lands on the run
         _logger.exception("[AI Pro] run %s failed", run.id)
@@ -377,6 +371,15 @@ def _end(node, agent_run, stream):
     return list(agent_run.all_messages()), "ok", None, agent_run.usage
 
 
+def _model_error(status):
+    """What the person can do about the model host's refusal."""
+    if status in (401, 403):
+        return _("OpenRouter refused the key (HTTP %s). Check it in Settings > AI Pro.", status)
+    if status == 402:
+        return _("The OpenRouter key has no credit left. Top it up at openrouter.ai.")
+    return _("The model answered with an error (HTTP %s). Try again in a minute.", status)
+
+
 def _fail(run, stream, message, code="other"):
     """A run that died on a limit (time, requests, tokens) would meet it
     again on the next tick of a continuous thread, so that thread pauses."""
@@ -393,7 +396,13 @@ def _fail(run, stream, message, code="other"):
             run.thread_id.write({"paused": True})
         stream.finish("failed", error=message)
     except LostClaim:
-        pass
+        return
+    thread = run.thread_id
+    if thread.kind == "triggered" and (thread.post_answer or thread.activity):
+        # Nobody watches a triggered run: the record hears that it failed.
+        text = _("%(agent)s failed: %(error)s", agent=thread.agent_id.name, error=message)
+        _on_record(run, thread, text, note=True, activity=False)
+        commit(run.env)
 
 
 def _book(run, thread, token, usage, started):
@@ -453,26 +462,10 @@ def _after(run, thread):
     arm the next tick."""
     if run.status != "ok":
         return
-    record = thread.record()
-    if record is not None and (thread.post_answer or thread.activity):
-        try:
-            with run.env.cr.savepoint():
-                if thread.post_answer and hasattr(record, "message_post"):
-                    record.with_user(run.user_id).message_post(
-                        body=render_markdown(run.text),
-                        message_type="comment",
-                        subtype_xmlid="mail.mt_note",
-                    )
-                if thread.activity and hasattr(record, "activity_schedule"):
-                    record.with_user(run.user_id).activity_schedule(
-                        summary=thread.agent_id.name,
-                        note=render_markdown(run.text),
-                        user_id=thread.user_id.id,
-                    )
-        except (AccessError, UserError) as error:
-            # The answer is on the run; the record refused it. Say so there.
-            _logger.warning("[AI Pro] run %s: could not post on the record: %s", run.id, error)
-            run.write({"error": _("The answer could not be posted on the record: %s", error)[:250]})
+    error = _on_record(run, thread, run.text, thread.post_answer, thread.activity)
+    if error:
+        # The answer is on the run; the record refused it. Say so there.
+        run.write({"error": _("The answer could not be posted on the record: %s", error)[:250]})
     if thread.kind == "continuous" and not thread.paused:
         thread.write(
             {
@@ -482,3 +475,26 @@ def _after(run, thread):
         )
         run._wake_worker(at=thread.next_tick_at)
     commit(run.env)
+
+
+def _on_record(run, thread, text, note, activity):
+    """`text` on the thread's record as the run's user: a note, an activity,
+    or both. The record's refusal, or None."""
+    record = thread.record()
+    if record is None or not (note or activity):
+        return None
+    try:
+        with run.env.cr.savepoint():
+            if note and hasattr(record, "message_post"):
+                record.with_user(run.user_id).message_post(
+                    body=render_markdown(text), message_type="comment", subtype_xmlid="mail.mt_note"
+                )
+            if activity and hasattr(record, "activity_schedule"):
+                record.with_user(run.user_id).activity_schedule(
+                    summary=thread.agent_id.name,
+                    note=render_markdown(text),
+                    user_id=thread.user_id.id,
+                )
+    except (AccessError, UserError) as error:
+        _logger.warning("[AI Pro] run %s: could not post on the record: %s", run.id, error)
+        return error

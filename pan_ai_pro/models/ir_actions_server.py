@@ -11,10 +11,14 @@ record. The run carries the rule's or the scheduled action's user, never
 the superuser: a scheduled action set to run as OdooBot refuses.
 """
 
+import logging
+
 from odoo import SUPERUSER_ID, _, api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from ..tools import commit
+
+_logger = logging.getLogger(__name__)
 
 # What the Action menu may start at once, like a Fill button (models/base.py).
 BY_HAND_MAX = 50
@@ -81,6 +85,15 @@ class IrActionsServer(models.Model):
             raise UserError(_("Run the agent on at most %s records at once.", BY_HAND_MAX))
         kind = "triggered" if records else "scheduled"
         targets = list(records) if records else [None]
+        if not by_hand:
+            # A rule must not fail somebody's save, nor a schedule its cron.
+            # A refusal (no key, no plan, a closed agent) is the same for every
+            # record and already shows in Settings > AI Pro: log it, run nothing.
+            try:
+                self.env["pan_ai.run"]._check_may_start(self.pan_ai_agent_id, caller, kind)
+            except UserError as error:
+                _logger.warning("[AI Pro] %s did not run: %s", self.name, error)
+                return False
         Thread = self.env["pan_ai.thread"]
         for record in targets:
             prompt = self._pan_ai_render(record)

@@ -142,6 +142,8 @@ class IrModelFields(models.Model):
         Since _pan_ai_add_missing_columns below the column is there from the
         first registry load; this guard is what a failed load falls back on."""
         registry = self.env.registry
+        if getattr(registry, "_pan_ai_uninstalling", False):
+            return False  # the uninstall drops the column under this registry
         if getattr(registry, "_pan_ai_column_ready", False):
             return True
         ready = column_exists(self.env.cr, "ir_model_fields", "pan_ai_is_ai")

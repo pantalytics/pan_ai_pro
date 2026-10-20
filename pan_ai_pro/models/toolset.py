@@ -28,8 +28,13 @@ class Toolset(models.Model):
         [("odoo", "Odoo tools"), ("mcp", "MCP server")], default="odoo", required=True
     )
     tool_ids = fields.One2many("pan_ai.tool", "toolset_id", string="Tools")
+    # An MCP server's tools may change anything, so a new one asks until the
+    # administrator unticks it; a value given at create time wins.
     requires_approval = fields.Boolean(
         string="Ask before each tool",
+        compute="_compute_requires_approval",
+        store=True,
+        readonly=False,
         help="The person approves every call of every tool in this toolset.",
     )
     agent_ids = fields.Many2many("pan_ai.agent", string="Used by")
@@ -57,6 +62,11 @@ class Toolset(models.Model):
     tool_prefix = fields.Char(
         help="Prefix on the tool names the model sees, to keep two servers apart."
     )
+
+    @api.depends("kind")
+    def _compute_requires_approval(self):
+        for toolset in self:
+            toolset.requires_approval = toolset.kind == "mcp"
 
     @api.constrains("kind", "url")
     def _check_url(self):

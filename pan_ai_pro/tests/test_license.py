@@ -87,6 +87,24 @@ class TestLicense(TransactionCase):
         with self.assertRaises(UserError):
             self.env["pan_ai.license"].require_entitled()
 
+    def test_a_platform_outage_keeps_the_plan(self):
+        self._heartbeat(self._signed())
+        self._heartbeat({}, code=500)
+        self.assertTrue(self.link.is_entitled())
+        self.assertIn("500", self.link.last_error)
+        with (
+            patch.object(type(self.link), "_post", side_effect=UserError("unreachable")),
+        ):
+            self.link._heartbeat()
+        self.assertTrue(self.link.is_entitled())
+
+    def test_a_forgotten_key_stops_the_runs(self):
+        self._heartbeat(self._signed())
+        self._heartbeat({}, code=401)
+        self.assertFalse(self.link.is_entitled())
+        with self.assertRaises(UserError):
+            self.env["pan_ai.license"].require_entitled()
+
     def test_an_expired_answer_lapses(self):
         self._heartbeat(
             self._signed(
@@ -94,6 +112,9 @@ class TestLicense(TransactionCase):
             )
         )
         self.assertFalse(self.link.is_entitled())
+        # accepted, then expired: not refused for some other reason
+        self.assertEqual(self.link.status, "active")
+        self.assertIn("lapsed", self.link._why_not_entitled())
 
     def test_the_report_is_counts_only(self):
         report = self.link._report()
