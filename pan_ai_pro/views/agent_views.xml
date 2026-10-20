@@ -10,7 +10,7 @@
                 <field name="sequence" widget="handle"/>
                 <field name="name"/>
                 <field name="description"/>
-                <field name="model"/>
+                <field name="model_id"/>
                 <field name="run_as"/>
                 <field name="thread_count" string="Threads"/>
                 <field name="run_count" string="Runs"/>
@@ -42,39 +42,55 @@
                         <h1><field name="name" placeholder="Sales agent"/></h1>
                         <field name="description" placeholder="One line under the name"/>
                     </div>
+                    <!-- The form follows Agent(...): the model on top, then one
+                         tab per argument, in the order Pydantic AI takes them. -->
                     <group>
-                        <group string="Model and tools">
-                            <field name="model" placeholder="Default model from Settings"/>
-                            <field name="toolset_ids" widget="many2many_tags"/>
-                            <field name="web_search"/>
-                            <field name="web_search_max_uses" invisible="not web_search"/>
-                        </group>
-                        <group string="Identity">
-                            <field name="run_as" widget="radio"/>
-                            <field name="user_id" invisible="run_as != 'user'" required="run_as == 'user'"/>
-                            <field name="group_ids" widget="many2many_tags" placeholder="Every AI Pro user"/>
+                        <group>
+                            <field name="model_id" options="{'no_create': True}"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="Instructions" name="instructions">
                             <field name="instructions" nolabel="1" placeholder="How the agent works and what it never does"/>
                         </page>
-                        <page string="Limits" name="limits">
+                        <page string="Tools" name="tools">
                             <group>
-                                <group string="Per run">
-                                    <field name="request_limit"/>
-                                    <field name="total_tokens_limit"/>
-                                    <field name="time_limit"/>
+                                <group>
+                                    <field name="toolset_ids" widget="many2many_tags"/>
+                                    <field name="web_search"/>
+                                    <field name="web_search_max_uses" invisible="not web_search"/>
                                 </group>
-                                <group string="Model settings">
+                            </group>
+                        </page>
+                        <page string="Model settings" name="model_settings">
+                            <group>
+                                <group>
                                     <field name="temperature"/>
                                     <field name="max_tokens"/>
                                     <field name="reasoning"/>
                                 </group>
                             </group>
                         </page>
+                        <page string="Usage limits" name="usage_limits">
+                            <group>
+                                <group>
+                                    <field name="request_limit"/>
+                                    <field name="total_tokens_limit"/>
+                                    <field name="time_limit"/>
+                                </group>
+                            </group>
+                        </page>
                         <page string="Output type" name="output">
                             <field name="output_type" nolabel="1" placeholder='{"type": "object", "properties": {...}}'/>
+                        </page>
+                        <page string="Access" name="access">
+                            <group>
+                                <group>
+                                    <field name="run_as" widget="radio"/>
+                                    <field name="user_id" invisible="run_as != 'user'" required="run_as == 'user'"/>
+                                    <field name="group_ids" widget="many2many_tags" placeholder="Every AI Pro user"/>
+                                </group>
+                            </group>
                         </page>
                     </notebook>
                 </sheet>

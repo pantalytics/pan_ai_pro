@@ -45,9 +45,12 @@ class Agent(models.Model):
     )
 
     # Model
-    model = fields.Char(
+    model_id = fields.Many2one(
+        "pan_ai.model",
         string="Model",
-        help="An OpenRouter model id, like anthropic/claude-sonnet-5.5.",
+        required=True,
+        ondelete="restrict",
+        default=lambda self: self.env["pan_ai.model"].first(),
     )
     instructions = fields.Text(default=DEFAULT_INSTRUCTIONS)
     toolset_ids = fields.Many2many("pan_ai.toolset", string="Toolsets")
