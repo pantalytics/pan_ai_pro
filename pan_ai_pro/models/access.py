@@ -48,10 +48,10 @@ ACCESS = [
     ("access_tool_manager", "tool: manager", "pan_ai.tool", "pan_ai_pro.group_manager", "crud", ""),
     (
         "access_thread_own",
-        "thread: own",
+        "thread: own, read only (the conversation is the runtime's to write)",
         "pan_ai.thread",
         "pan_ai_pro.group_user",
-        "crud",
+        "r",
         "[('user_id', '=', user.id)]",
     ),
     (

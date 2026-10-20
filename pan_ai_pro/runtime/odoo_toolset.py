@@ -292,7 +292,7 @@ def _function(tool_row, env):
             args["fields_"] = args.pop("fields")
         # The tool holds the slice's thread; the heartbeat says so before
         # and after, so a long search never looks like a dead worker.
-        beat(ctx.deps.run)
+        beat(ctx.deps.run, ctx.deps.token)
         try:
             # A savepoint: a tool that fails at the database (a foreign key,
             # a missing value) leaves the transaction usable for the answer.
@@ -319,7 +319,7 @@ def _function(tool_row, env):
             )
             return {"error": message[:2000]}
         finally:
-            beat(ctx.deps.run)
+            beat(ctx.deps.run, ctx.deps.token)
 
     call.__name__ = tool_row.name
     return call

@@ -1,8 +1,8 @@
 """AI fields: a field whose value an agent writes. The prompt, the agent and
 the two switches live on `ir.model.fields`, so any stored field of any model
 can become one (Settings > Technical > Fields, or AI Pro > Configuration >
-AI fields). Auto fill computes empty records nightly; auto update recomputes
-when an input named in the prompt changes. A value a person typed is left
+AI fields). Auto fill computes empty records nightly; auto update recomputes,
+nightly, the values whose inputs changed. A value a person typed is left
 alone. The compute itself is runtime/field.py.
 """
 
@@ -52,7 +52,8 @@ class IrModelFields(models.Model):
     )
     pan_ai_auto_fill = fields.Boolean(string="Auto fill", help="Fill empty records nightly.")
     pan_ai_auto_update = fields.Boolean(
-        string="Auto update", help="Recompute when an input named in the prompt changes."
+        string="Auto update",
+        help="Recompute stale values nightly; a value goes stale when an input named in the prompt changes.",
     )
     pan_ai_use_tools = fields.Boolean(
         string="Let the agent use its tools",
@@ -204,7 +205,10 @@ class IrModelFields(models.Model):
         from ..runtime import field as field_runtime
         from ..runtime.slices import server_limit
 
-        deadline = time.monotonic() + server_limit("limit_time_real_cron") * 0.6
+        # Room for the value this wake starts last (one model call of up to
+        # field_runtime.TIMEOUT) and a margin, inside the cron's limit.
+        limit = server_limit("limit_time_real_cron")
+        deadline = time.monotonic() + max(1.0, limit - field_runtime.TIMEOUT - limit * 0.1)
         queued = [int(i) for i in params(self.env).get_str(FILL_NOW_PARAM, "").split(",") if i]
         still = []
         for ir_field in self.sudo().browse(queued).exists():

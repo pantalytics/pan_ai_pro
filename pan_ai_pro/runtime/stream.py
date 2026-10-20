@@ -2,9 +2,11 @@
 
 `Streamer` collects Pydantic AI's events as small JSON dicts and sends them
 as `pan_ai.run_event` on the channel's bus every ~100 ms (measured in S2:
-first token 50 ms after the server sent it). Every flush commits, so the
-browser sees the batch now, and writes the run's heartbeat behind the claim
-fence, so a worker that lost its claim stops writing.
+first token 50 ms after the server sent it). Every flush checks the claim
+fence (a worker that lost its claim stops writing) and commits, so the
+browser sees the batch now. The heartbeat is the slice's clock task and the
+tools' `beat()` in runtime/slices.py, never the flush; the text lands on the
+run at a slice boundary and at the end.
 """
 
 import time

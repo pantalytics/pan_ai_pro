@@ -12,7 +12,9 @@ module, plan S3); the method names and arguments are from S1's log lines
 
 import logging
 
-from odoo import models
+from odoo import _, models
+from odoo.exceptions import AccessError, UserError
+from odoo.http import request
 from odoo.tools import html2plaintext
 
 _logger = logging.getLogger(__name__)
@@ -36,9 +38,15 @@ class Base(models.AbstractModel):
             if not prompt:
                 return super()._fill_ai_field(field, field_prompt=field_prompt)
             # Odoo's prompt becomes the AI Pro prompt, for everyone: a
-            # configuration write by the administrator, whoever clicked, so
-            # the nightly fill (which runs as the field's author) is theirs.
-            admin = self.env.ref("base.user_admin")
-            ir_field.with_user(admin).sudo().write({"pan_ai_prompt": prompt})
-        field_runtime.fill(self, ir_field, self.env.user)
+            # configuration write, as the person who clicked, so only an
+            # administrator can make a field an AI Pro field.
+            try:
+                ir_field.with_user(self.env.user).write({"pan_ai_prompt": prompt})
+            except AccessError as error:
+                raise UserError(
+                    _("Ask an administrator to set the AI Pro prompt on this field first.")
+                ) from error
+        # A click is the person's (their hourly cap applies); Odoo's own
+        # nightly cron reaches this too, with no request behind it.
+        field_runtime.fill(self, ir_field, self.env.user, by_hand=bool(request))
         return True

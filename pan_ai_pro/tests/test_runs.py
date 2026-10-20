@@ -1,6 +1,8 @@
 """Scheduled, triggered and continuous runs: the server action "Run AI
 agent", the ticks of a continuous thread, and who they run as."""
 
+from datetime import timedelta
+
 from odoo import fields
 from odoo.exceptions import UserError
 
@@ -94,17 +96,23 @@ class TestRuns(AiProCase):
                 "next_tick_at": "2020-01-01 00:00:00",
             }
         )
-        # first tick: everything the user may see counts as changed; the
-        # worker loop that calls _start_due_ticks runs the slice
+        # a new watch starts from now: the first tick sets the cursor and
+        # makes no run (the model's history is not a change)
         self.env["pan_ai.run"]._cron_run_slices()
-        self.assertEqual(len(thread.run_ids), 1)
-        self.assertEqual(thread.run_ids[0].kind, "continuous")
+        self.assertEqual(len(thread.run_ids), 0)
         self.assertTrue(thread.watch_cursor)
         self.assertTrue(thread.next_tick_at > thread.watch_cursor)
-        # nothing changed: a due tick moves the clock and makes no run
-        thread.write({"next_tick_at": "2020-01-01 00:00:00"})
+        # nothing changed: a due tick moves the clock and makes no run (the
+        # cursor sits past the test transaction's own clock, which stamps
+        # whatever the fixtures still write)
+        thread.write(
+            {
+                "next_tick_at": "2020-01-01 00:00:00",
+                "watch_cursor": fields.Datetime.now() + timedelta(seconds=30),
+            }
+        )
         self.env["pan_ai.thread"]._start_due_ticks()
-        self.assertEqual(len(thread.run_ids), 1)
+        self.assertEqual(len(thread.run_ids), 0)
         # a change since the cursor: a run with it in the prompt, and memory
         self.user.partner_id.write({"name": "Sam Changed"})
         self.env.cr.flush()
@@ -115,19 +123,20 @@ class TestRuns(AiProCase):
         self.user.partner_id.invalidate_recordset()
         thread.write({"next_tick_at": "2020-01-01 00:00:00"})
         self.env["pan_ai.run"]._cron_run_slices()
-        self.assertEqual(len(thread.run_ids), 2)
+        self.assertEqual(len(thread.run_ids), 1)
+        self.assertEqual(thread.run_ids[0].kind, "continuous")
         prompts = [
             p["content"]
             for m in thread.messages()
             for p in m.get("parts", [])
             if p.get("part_kind") == "user-prompt"
         ]
-        self.assertEqual(len(prompts), 2)
+        self.assertEqual(len(prompts), 1)
         self.assertIn("Sam Changed", prompts[-1])
         # paused: no tick
         thread.write({"paused": True, "next_tick_at": "2020-01-01 00:00:00"})
         self.env["pan_ai.thread"]._start_due_ticks()
-        self.assertEqual(len(thread.run_ids), 2)
+        self.assertEqual(len(thread.run_ids), 1)
 
     def test_the_hourly_cap_refuses_by_hand_starts_only(self):
         from odoo.exceptions import UserError as _UserError
@@ -178,19 +187,21 @@ class TestRuns(AiProCase):
         self.assertTrue(gone.paused)
         self.assertFalse(gone.run_ids)
         self.user.sudo().write({"active": True})
-        # a watch that cannot be read
-        bad = self._watch(watch_domain="[('no_such_field', '=', 1)]")
+        # a watch that cannot be read (past its first look, which only sets the cursor)
+        bad = self._watch(
+            watch_domain="[('no_such_field', '=', 1)]", watch_cursor="2020-01-01 00:00:00"
+        )
         Thread._start_due_ticks()
         self.assertTrue(bad.paused)
         self.assertFalse(bad.run_ids)
         # a start that is refused keeps the cursor, so Resume sees the changes
-        refused = self._watch()
+        refused = self._watch(watch_cursor="2020-01-01 00:00:00")
         params(self.env).set_str("pan_ai.openrouter_key", "")
         self.fake(["never"])
         Thread._start_due_ticks()
         self.assertTrue(refused.paused)
         self.assertFalse(refused.run_ids)
-        self.assertFalse(refused.watch_cursor)
+        self.assertEqual(refused.watch_cursor, fields.Datetime.from_string("2020-01-01 00:00:00"))
         self.assertGreater(refused.next_tick_at, fields.Datetime.from_string("2020-01-02 00:00:00"))
         params(self.env).set_str("pan_ai.openrouter_key", "sk-or-test")
         self.fake(["Noted."])
@@ -200,7 +211,7 @@ class TestRuns(AiProCase):
         self.assertEqual(refused.run_ids.status, "ok")
 
     def test_a_watch_that_hits_a_limit_pauses(self):
-        watch = self._watch()
+        watch = self._watch(watch_cursor="2020-01-01 00:00:00")
         self.agent.sudo().write({"request_limit": 1})
         self.addCleanup(self.agent.sudo().write, {"request_limit": 25})
         self.fake([[("today", {})], [("today", {})], "never"])
@@ -231,3 +242,99 @@ class TestRuns(AiProCase):
         self.assertEqual(run.status, "ok")
         self.assertIn("fine contact", run.text)
         self.assertIn("could not be posted", run.error)
+
+    def test_the_action_menu_is_by_hand_and_bounded(self):
+        from ..compat import params
+        from ..models.ir_actions_server import BY_HAND_MAX
+
+        action = self._action()
+        many = (
+            self.env["res.partner"]
+            .sudo()
+            .create([{"name": f"m{i}"} for i in range(BY_HAND_MAX + 1)])
+        )
+        with self.assertRaisesRegex(UserError, "at most"):
+            action.with_user(self.user).with_context(
+                active_model="res.partner", active_ids=many.ids, active_id=many[0].id
+            ).run()
+        params(self.env).set_str("pan_ai.runs_per_user_per_hour", "1")
+        one = many[:1]
+        action.with_user(self.user).with_context(
+            active_model="res.partner", active_ids=one.ids, active_id=one.id
+        ).run()
+        run = self.env["pan_ai.thread"].search([("res_id", "=", one.id)]).run_ids
+        self.assertEqual(run.caller_id, self.user)
+        with self.assertRaisesRegex(UserError, "hourly limit"):
+            action.with_user(self.user).with_context(
+                active_model="res.partner", active_ids=many[1:2].ids, active_id=many[1].id
+            ).run()
+
+    def test_a_tick_with_more_changes_than_it_names_keeps_its_place(self):
+        from unittest.mock import patch
+
+        from ..models import thread as thread_model
+
+        self.fake(["Noted."])
+        watch = self._watch()
+        self.env["pan_ai.thread"]._start_due_ticks()  # a new watch starts from now
+        self.assertFalse(watch.run_ids)
+        # three records changed in one transaction: they share one write_date
+        self.env.cr.execute("SELECT clock_timestamp()")
+        new = self.env["res.partner"].sudo().create([{"name": f"t{i}"} for i in range(3)])
+        self.env.cr.flush()
+        self.env.cr.execute(
+            "UPDATE res_partner SET write_date = now() + interval '1 minute' WHERE id IN %s",
+            (tuple(new.ids),),
+        )
+        new.invalidate_recordset()
+        watch.write({"next_tick_at": "2020-01-01 00:00:00"})
+        with patch.object(thread_model, "TICK_BATCH", 2):
+            self.env["pan_ai.run"]._cron_run_slices()
+        self.assertEqual(len(watch.run_ids), 1)
+        prompt = watch.messages()[0]["parts"][0]["content"]
+        self.assertIn("More changed after these", prompt)
+        self.assertIn(f"res.partner {new[0].id}:", prompt)
+        self.assertIn(f"res.partner {new[1].id}:", prompt)
+        self.assertNotIn(f"res.partner {new[2].id}:", prompt)
+        # the cursor sits on the last change named; the rest comes next time
+        self.assertEqual(watch.watch_cursor_id, new[1].id)
+        watch.write({"next_tick_at": "2020-01-01 00:00:00"})
+        with patch.object(thread_model, "TICK_BATCH", 2):
+            self.env["pan_ai.run"]._cron_run_slices()
+        self.assertEqual(len(watch.run_ids), 2)
+        prompts = [
+            p["content"]
+            for m in watch.messages()
+            for p in m.get("parts", [])
+            if p.get("part_kind") == "user-prompt"
+        ]
+        self.assertIn(f"res.partner {new[2].id}:", prompts[-1])
+        self.assertNotIn("More changed", prompts[-1])
+
+    def test_a_waiting_run_with_a_recent_heartbeat_is_not_stuck(self):
+        self.fake([[("today", {})], [("today", {})], "Never."])
+        from unittest.mock import patch
+
+        from ..runtime import slices
+
+        with patch.object(slices, "slice_budget", return_value=0.0):
+            thread = (
+                self.env["pan_ai.thread"]
+                .sudo()
+                .create({"name": "t", "agent_id": self.agent.id, "user_id": self.user.id})
+            )
+            run = self.env["pan_ai.run"].start(thread, "go", caller=self.user)
+            run._run_now("inline")
+        self.assertEqual(run.status, "running")
+        # started long ago, but served a moment ago: the workers are just busy
+        run.write(
+            {
+                "started_at": fields.Datetime.now() - timedelta(hours=2),
+                "heartbeat_at": fields.Datetime.now(),
+            }
+        )
+        self.env["pan_ai.run"]._cron_mark_stuck()
+        self.assertEqual(run.status, "running")
+        run.write({"heartbeat_at": fields.Datetime.now() - timedelta(hours=2)})
+        self.env["pan_ai.run"]._cron_mark_stuck()
+        self.assertEqual(run.status, "failed")

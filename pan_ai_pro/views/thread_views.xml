@@ -33,29 +33,29 @@
                             <field name="kind" readonly="1"/>
                             <field name="agent_id"/>
                             <field name="user_id"/>
-                            <field name="channel_id" invisible="not channel_id"/>
+                            <field name="channel_id" invisible="not channel_id" readonly="1"/>
                             <field name="res_model" invisible="not res_model"/>
                             <field name="res_id" invisible="not res_model"/>
                         </group>
                         <group>
-                            <field name="last_activity"/>
-                            <field name="usage_requests"/>
-                            <field name="usage_input_tokens"/>
-                            <field name="usage_output_tokens"/>
-                            <field name="cost"/>
+                            <field name="last_activity" readonly="1"/>
+                            <field name="usage_requests" readonly="1"/>
+                            <field name="usage_input_tokens" readonly="1"/>
+                            <field name="usage_output_tokens" readonly="1"/>
+                            <field name="cost" readonly="1"/>
                         </group>
                     </group>
-                    <group string="Watch" invisible="kind != 'continuous'">
+                    <group string="Records to watch" invisible="kind != 'continuous'">
                         <field name="watch_model_id"/>
                         <field name="watch_model" invisible="1"/>
                         <field name="watch_domain" widget="domain" options="{'model': 'watch_model'}"/>
                         <field name="watch_interval"/>
-                        <field name="watch_cursor"/>
-                        <field name="next_tick_at"/>
+                        <field name="watch_cursor" readonly="1"/>
+                        <field name="next_tick_at" readonly="1"/>
                     </group>
                     <notebook>
                         <page string="Runs" name="runs">
-                            <field name="run_ids" nolabel="1" readonly="1">
+                            <field name="run_ids" nolabel="1" readonly="1" string="Run">
                                 <list create="false" edit="false">
                                     <field name="started_at"/>
                                     <field name="kind"/>
@@ -68,7 +68,7 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Conversation" name="conversation" groups="pan_ai_pro.group_manager">
+                        <page string="Messages" name="conversation" groups="pan_ai_pro.group_manager">
                             <field name="conversation" nolabel="1" readonly="1"/>
                         </page>
                     </notebook>

@@ -120,10 +120,14 @@ architecture-20.md.
       refuses with "Connect to Pantalytics in Settings". Settings > AI Pro
       gets the Connection row first: Not connected / Connected, Connect to
       Pantalytics, Disconnect
-- [ ] (left) On Enterprise 20: remove the systray item `ai.systray_action`, the
-      command providers `ask_ai` and `chat_with_agent` (S1); leave the
-      `ai_char` widgets and `ai.client_tools` alone
-- [x] retention cron: threads older than the setting, runs kept
+- [x] On Enterprise 20: `pan_ai_pro_enterprise/static/src/hide_native_ai.js`
+      removes the systray item `ai.systray_action` and the command providers
+      `ask_ai` and `chat_with_agent` (S1); the `ai_char` widgets and
+      `ai.client_tools` stay. Not yet seen on a real Enterprise 20
+- [x] retention cron: chat threads older than the setting go with their
+      channel and runs; the other kinds keep the thread and lose their
+      finished runs; one-off triggered and scheduled threads with no runs
+      left go too
 - [x] tests (Odoo `TransactionCase`): `test_agent_build.py` (record to
       `Agent`), `test_odoo_toolset.py` (ACL respected, AccessError
       returned as tool error, no sudo), `test_run_stream.py` (fake model:
@@ -143,21 +147,24 @@ Built 2026-10-19 inside PR A's branch (one module, one PR for now):
       actions call it; `Run.kind` = `triggered` or `scheduled`, `user` =
       the rule's or action's user, never the superuser
 - [x] two worker crons (`data/ir_cron.xml`), `_trigger()`-woken, a claim
-      per thread (an atomic row update, `SerializationFailure` caught),
-      heartbeat on every flush, stale recovery, a claim token checked
+      per run (an atomic row update, `SerializationFailure` caught), a
+      heartbeat every 10 s while the model is awaited and around every
+      Odoo tool (a claim is stale after 90 s), a claim token checked
       before every write (the fence, S4 finding 5), one wake runs every
       claimable slice within `limit_time_real_cron` minus a margin (S4
       findings 2 and 3)
 - [x] continuous threads: `continuous`, the watch (model, domain, cursor,
       interval of at least a minute), `next_tick_at` that the claim
       respects (S4 finding 5), the per-tick prompt ("since your last tick:
-      N records changed, here they are"), Pause and Stop on the thread's
-      form, a history processor that compacts past a token budget
+      N records changed, here they are"), Pause and Resume on the thread's
+      form; the history is trimmed to the last 60 messages at a user prompt
+      (no compaction run)
 - [x] the Runs list view: kind, agent, user, status, cost, duration; a
       thread's form shows its runs
-- [ ] tests: a scheduled run posts its answer, a triggered run gets the
-      record, a continuous thread ticks twice and compacts, a paused thread
-      does not tick, two workers never share a thread
+- [x] tests: a triggered run gets the record and posts, a scheduled run,
+      a continuous thread ticks on changes only and pauses on a limit, a
+      stale claim is reclaimed and the old holder fenced out
+      (`test_runs.py`, `test_run_stream.py`)
 
 ## 3. Module, PR B: AI fields
 
@@ -266,19 +273,20 @@ Run the `security-review` skill on each PR; these are the items it must
 find answered.
 
 **Rights**
-- [ ] every tool runs on `deps.env`, the caller's; no `sudo`, no
-      `with_user`; a test greps the runtime for both
-- [ ] `AccessError` inside a tool is the tool's error to the model, never
-      caught into a wider path; the restricted-user test (a sales user sees
-      only his orders) is a `TransactionCase`
-- [ ] create and write tools carry `requires_approval`; the resume is
-      validated against the pending `tool_call_id` on the thread, never
-      trusted from the client; Skip is recorded
-- [ ] the controller admits internal users only, with CSRF; portal and
-      public users get 403; the agent's groups are checked per run
-- [ ] triggered runs (automation rules) run as the rule's user, never as
-      the superuser; a rule saved by a non-administrator cannot pick an
-      agent above its groups
+- [x] every tool runs on `deps.env`, the caller's; no `sudo`, no
+      `with_user` (`test_the_tools_never_sudo_or_switch_user`)
+- [x] `AccessError` inside a tool is the tool's error to the model
+      (`odoo_toolset._function`); the restricted-user test is
+      `test_search_runs_as_the_user_and_respects_rights`
+- [x] create and write tools carry `requires_approval` (`data/tools.xml`);
+      `Run.action_decide` keeps only the ids the thread is waiting for;
+      Skip is recorded as `approvals: false`
+- [x] no controller of ours: share users are refused in
+      `_pan_ai_on_user_message`, `may_use` is checked per run start, the
+      window's RPCs check the chat's owner (`test_access.py`,
+      `test_channel.py`)
+- [x] a server action refuses the superuser; `may_use(caller)` refuses an
+      agent above the caller's groups at run time
 
 **Secrets at rest**
 - [x] OpenRouter key: an `ir.config_parameter` the system group alone
@@ -291,50 +299,54 @@ find answered.
       checks it
 
 **Input**
-- [ ] tool results and record content are data: the agent's base
-      instructions say so; an injection test case in `test_run_stream.py`
-      (a record whose text says "ignore your rules")
-- [ ] prompt size capped (16 kB), thread length capped, `output_type`
-      schemas validated before a run; one 400 shape for every bad body
-- [ ] the markdown renderer escapes HTML; no `innerHTML` of model output;
-      links `rel="noopener noreferrer"`; record cards built from ids, not
-      from model text
+- [x] tool results and record content are data: `context_instructions`
+      says so; `test_an_injected_instruction_is_data`
+- [x] prompt size capped (`PROMPT_MAX`), thread length capped
+      (`KEEP_MESSAGES`), `output_type` schemas validated on the agent
+- [x] the markdown renderer runs through `html_sanitize`
+      (`test_render_markdown_keeps_tables_and_links_but_no_scripts`); the
+      stream is plain text (`t-out`); what a tool opens is built from ids
+      (`open` events), never from model text; links carry no `rel` yet
 
 **Network**
-- [ ] every MCP URL passes `_is_unreachable_host` and the allowed hosts
-      setting before any connection; redirects not followed
-- [ ] OpenRouter is the only model host; the base URL is a constant
+- [x] every MCP URL passes `check_url` (the allowed hosts setting, the
+      private-host gate) before any connection; redirects not followed
+- [x] OpenRouter is the only model host; the base URL is a constant, with
+      one environment override for CI and browser checks that is logged on
+      every run
 - [ ] no route of our own streams anything; the bus and `mail`'s own
       controllers carry it, same-origin as always
 
 **Limits**
-- [ ] `UsageLimits` per agent (requests, tokens, time) enforced by
-      Pydantic AI, the clock by the slice loop; chats per person per hour
-      and one live run per thread enforced at `Run.start`; every refusal
-      is one `UserError`
-- [ ] a slice cannot outlive `limit_time_real` or `limit_time_real_cron`:
-      the slice budget is read from the config at runtime and capped
-      below it, as MuK does; a run past its total budget stops with an
-      error the thread shows
-- [ ] continuous threads: a watch domain is validated against the
-      model's ACL for the thread's user; a tick that finds nothing makes
-      no model call; a thread whose user is deactivated is paused
+- [x] `UsageLimits` per agent (requests, tokens) carried across slices,
+      the clock (worked seconds) by the slice loop; chats per person per
+      hour and one live run per thread (a unique index) enforced at
+      `Run.start`; every refusal is one `UserError`
+- [x] a slice cannot outlive `limit_time_real` or `limit_time_real_cron`:
+      `slices.slice_budget` reads the config at runtime and stays under
+      it; a run past its total budget fails with the reason in the chat
+- [x] continuous threads: the watch is read as the thread's user; a tick
+      that finds nothing makes no model call; a thread whose user is
+      deactivated, whose watch raises or whose start is refused pauses
+      (`test_a_watch_pauses_instead_of_looping`)
 
 **Supply chain**
 - [ ] `requirements.txt` pinned, Dependabot on it; gitleaks on both repos;
       Actions pinned to major versions
 
 **Privacy**
-- [ ] heartbeat and telemetry carry counts, tool names, outcomes and
-      cost; never a prompt, a record, a thread title or a user's name (the
-      request model is the boundary, as Mail Pro's)
-- [ ] threads deleted by the retention cron; "Delete all threads" in the
-      danger zone; the privacy page lists AI Pro
+- [x] the heartbeat carries counts only: agents, runs in 24 h, failed runs
+      by error code (protocol.md); never a prompt, a record, a thread
+      title, a tool name, a cost or a user's name (the request model is the
+      boundary, as Mail Pro's)
+- [x] threads deleted by the retention cron; "Delete all threads" in the
+      danger zone
+- [ ] the privacy page lists AI Pro
 
 **Operations**
-- [ ] a stuck run is visible in `pan_ai.run` with `status = running` past
-      its limit and a cron marks it failed
-- [ ] kill switch: Remove the key stops every new run at once
+- [x] a stuck run is visible in `pan_ai.run` with `status = running` past
+      twice its limit and `_cron_mark_stuck` fails it, telling the chat
+- [x] kill switch: Remove the key stops every new run at once
 
 ## 8. Order and gates
 

@@ -116,3 +116,39 @@ class TestAccess(AiProCase):
             with self.assertRaises(AccessError, msg=model):
                 self.env[model].with_user(self.portal).search([]).read(["id"])
                 self.env[model].with_user(self.portal).check_access("read")
+
+    def test_the_settings_buttons_are_the_administrators(self):
+        Settings = self.env["res.config.settings"].with_user(self.user)
+        for method in (
+            "action_pan_ai_remove_key",
+            "action_pan_ai_delete_threads",
+            "action_pan_ai_disconnect",
+            "action_pan_ai_connect",
+            "action_pan_ai_check",
+        ):
+            with self.assertRaises(AccessError, msg=method):
+                getattr(Settings, method)()
+        self.assertTrue(self.sams.exists())
+
+    def test_a_person_never_writes_their_threads_rows(self):
+        """The conversation and the pending calls are the runtime's: a person
+        who could rewrite them could approve a forged call."""
+        mine = self.sams.with_user(self.user)
+        with self.assertRaises(AccessError):
+            mine.write({"conversation": "[]"})
+        with self.assertRaises(AccessError):
+            self.env["pan_ai.thread"].with_user(self.user).create(
+                {
+                    "name": "x",
+                    "agent_id": self.agent.id,
+                    "user_id": self.user.id,
+                    "kind": "continuous",
+                }
+            )
+        # the buttons still work for the owner, and for nobody else
+        mine.action_pause()
+        self.assertTrue(self.sams.paused)
+        mine.action_resume()
+        self.assertFalse(self.sams.paused)
+        with self.assertRaises(AccessError):
+            self.eves.with_user(self.user).action_pause()

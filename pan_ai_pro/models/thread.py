@@ -4,7 +4,8 @@
 (`ModelMessagesTypeAdapter`), carried across runs and slices, plus the tool
 calls waiting for the person's approval. A chat thread shows in a
 `discuss.channel` of type `ai`; a scheduled, triggered or continuous thread
-has no channel unless the action asked to post somewhere.
+has no channel: its answer stays on the run and, when the action asks, lands
+as a note or an activity on the record.
 """
 
 import json
@@ -13,15 +14,18 @@ from ast import literal_eval
 from datetime import timedelta
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.fields import Domain
 
 from ..compat import params
 from ..defaults import RETENTION_DAYS
 from ..tools import commit
-from .run import LIVE
+from .run import LIVE, StillAnswering
 
 _logger = logging.getLogger(__name__)
+
+# Changes one tick of a watch names at most; the rest waits for the next.
+TICK_BATCH = 50
 
 KINDS = [
     ("chat", "Chat"),
@@ -54,9 +58,9 @@ class Thread(models.Model):
     pending_tool_calls = fields.Text(
         default="[]", help="Tool calls waiting for the person's approval, JSON."
     )
-    usage_requests = fields.Integer(default=0)
-    usage_input_tokens = fields.Integer(default=0)
-    usage_output_tokens = fields.Integer(default=0)
+    usage_requests = fields.Integer(string="Requests", default=0)
+    usage_input_tokens = fields.Integer(string="Input tokens", default=0)
+    usage_output_tokens = fields.Integer(string="Output tokens", default=0)
     cost = fields.Float(
         digits=(16, 6), default=0.0, help="Across all runs, as OpenRouter reports it."
     )
@@ -71,13 +75,20 @@ class Thread(models.Model):
 
     # Continuous threads (PR E): the watch
     paused = fields.Boolean()
-    watch_model_id = fields.Many2one("ir.model", ondelete="cascade")
+    watch_model_id = fields.Many2one("ir.model", string="Model", ondelete="cascade")
     # The model's name, for the domain widget (it takes a name, not a row).
     watch_model = fields.Char(related="watch_model_id.model")
-    watch_domain = fields.Char(default="[]")
-    watch_interval = fields.Integer(default=15, help="Minutes between ticks, at least 1.")
-    watch_cursor = fields.Datetime(help="Records changed after this were not seen yet.")
-    next_tick_at = fields.Datetime(index=True)
+    watch_domain = fields.Char(string="Records", default="[]")
+    watch_interval = fields.Integer(
+        string="Every (minutes)", default=15, help="Minutes between looks, at least 1."
+    )
+    watch_cursor = fields.Datetime(
+        string="Last look", help="Records changed after this were not seen yet."
+    )
+    # One transaction gives every record it touches the same write_date, so
+    # the cursor is a pair: the last change seen, and the last id at that time.
+    watch_cursor_id = fields.Integer(default=0)
+    next_tick_at = fields.Datetime(string="Next look", index=True)
 
     @api.depends("run_ids")
     def _compute_run_count(self):
@@ -180,7 +191,7 @@ class Thread(models.Model):
                     thread.write({"paused": True})
                 continue
             try:
-                prompt = thread._tick_prompt(now)
+                prompt, seen_until = thread._tick_prompt(now)
             except Exception as error:  # noqa: BLE001 - a bad watch pauses, never loops
                 _logger.warning("[AI Pro] thread %s watch failed: %s", thread.id, error)
                 thread.write({"paused": True})
@@ -188,46 +199,75 @@ class Thread(models.Model):
             interval = timedelta(minutes=max(1, thread.watch_interval))
             thread.write({"next_tick_at": now + interval})
             if prompt is None:
-                thread.write({"watch_cursor": now})
+                thread.write({"watch_cursor": seen_until[0], "watch_cursor_id": seen_until[1]})
                 continue
             try:
                 run = self.env["pan_ai.run"].start(
                     thread, prompt, kind="continuous", caller=thread.user_id
                 )
+            except StillAnswering:
+                # The other worker cron got this tick first: not a pause.
+                continue
             except UserError as error:
                 # The cursor stays: the changes are seen again after Resume.
                 _logger.warning("[AI Pro] thread %s tick refused: %s", thread.id, error)
                 thread.write({"paused": True})
                 continue
-            thread.write({"watch_cursor": now})
+            thread.write({"watch_cursor": seen_until[0], "watch_cursor_id": seen_until[1]})
             commit(self.env)
             run._wake_worker()
 
     def _tick_prompt(self, now):
-        """What changed since the cursor, as the thread's user sees it, or
-        None when nothing did."""
+        """What changed since the cursor, as the thread's user sees it, and
+        where the cursor moves to: (now, 0), or the last change named when
+        more than TICK_BATCH changed (the rest waits for the next tick).
+        (None, cursor) when nothing changed. A new watch starts from now: it
+        does not walk the model's history."""
         self.ensure_one()
+        if not self.watch_cursor:
+            return None, (now, 0)
         env = api.Environment(self.env.cr, self.user_id.id, {})
         Model = env[self.watch_model_id.model]
-        domain = Domain(literal_eval(self.watch_domain or "[]"))
-        if self.watch_cursor:
-            domain &= Domain("write_date", ">", self.watch_cursor)
-        records = Model.search(domain, limit=50, order="write_date desc")
+        domain = Domain(literal_eval(self.watch_domain or "[]")) & (
+            Domain("write_date", ">", self.watch_cursor)
+            | (
+                Domain("write_date", "=", self.watch_cursor)
+                & Domain("id", ">", self.watch_cursor_id)
+            )
+        )
+        records = Model.search(domain, limit=TICK_BATCH + 1, order="write_date asc, id asc")
         if not records:
-            return None
+            return None, (now, 0)
+        seen_until = (now, 0)
+        more = ""
+        if len(records) > TICK_BATCH:
+            records = records[:TICK_BATCH]
+            seen_until = (records[-1].write_date, records[-1].id)
+            more = " More changed after these; they come next time."
         lines = [f"- {r._name} {r.id}: {r.display_name}" for r in records]
         return (
-            f"Since your last look at {fields.Datetime.to_string(self.watch_cursor or now)} UTC, "
+            f"Since your last look at {fields.Datetime.to_string(self.watch_cursor)} UTC, "
             f"{len(records)} {Model._description} record(s) changed:\n"
             + "\n".join(lines)
             + "\nDo what your instructions say about them. Remember what you did in your answer; it is your memory for the next look."
-        )
+            + more
+        ), seen_until
+
+    def _own_or_manager(self):
+        """The thread's owner and a manager may flip it; the rows themselves
+        are the runtime's to write."""
+        self.check_access("read")
+        if not self.env.user.has_group("pan_ai_pro.group_manager") and any(
+            thread.user_id != self.env.user for thread in self
+        ):
+            raise AccessError(_("This thread is not yours."))
+        return self.sudo()
 
     def action_pause(self):
-        self.write({"paused": True})
+        self._own_or_manager().write({"paused": True})
 
     def action_resume(self):
-        self.write({"paused": False, "next_tick_at": fields.Datetime.now()})
+        self._own_or_manager().write({"paused": False, "next_tick_at": fields.Datetime.now()})
         self.env["pan_ai.run"]._wake_worker()
 
     def action_open_chat(self):

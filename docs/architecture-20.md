@@ -56,13 +56,13 @@ action is "Run agent" with a prompt. We add nothing of our own there.
 │   runtime/agent.py        build_agent(record) -> pydantic_ai.Agent│
 │   runtime/deps.py         OdooDeps(env, user, record, thread)    │
 │   runtime/odoo_toolset    FunctionToolset over env (ACLs apply)  │
-│   runtime/mcp_toolset     MCPServerStreamableHTTP (later, PR C)   │
+│   runtime/mcp_toolset     MCPToolset over HTTP, bearer, host gate │
 │   runtime/stream.py       run events -> batched bus events       │
 │   data/ir_cron.xml        two worker crons, woken by _trigger()  │
 │   models/                 the records; AI field metadata         │
-│   pan_ai_license.py       pairing, heartbeat, entitlement        │
+│   models/license.py       pairing, heartbeat, entitlement        │
 └───────┬──────────────────────┬──────────────────────┬────────────┘
-   (2) ORM                (3) OpenRouter          (4) MCP servers, later
+   (2) ORM                (3) OpenRouter          (4) MCP servers
    as the user            key from Settings       any server, bearer token
                           + web plugin            on the row; never MCP Pro
                                                        │
@@ -73,9 +73,9 @@ action is "Run agent" with a prompt. We add nothing of our own there.
 | Box | Owns | Never does |
 |---|---|---|
 | Window | the patches on `mail`'s components, the bus handler, markdown, tool rows, approval cards | hold a key, talk to a model, keep state the thread does not have |
-| Runtime | building the `Agent`, the slice loop, streaming, limits, cost, the worker crons | `sudo`, a second cursor per tool, a path outside `env`, a thread of its own |
+| Runtime | building the `Agent`, the slice loop, streaming, limits, cost, the worker crons | `sudo` or `with_user` inside a tool (the run row's bookkeeping is sudo; the record is touched as the run user), a second cursor per tool, a path outside `env`, a thread of its own |
 | Odoo toolset | the built-ins and the server actions, as the user | widen rights, swallow an AccessError |
-| MCP toolset (later) | one remote server per row, its bearer token, its filter | reach a host the SSRF gate refuses; hold a token per user |
+| MCP toolset | one remote server per row, its bearer token, its filter | reach a host the SSRF gate refuses; hold a token per user |
 | License | pairing, heartbeat, cached signed entitlement | send a prompt, a record or a thread title |
 | Platform (`apps/ai_pro.py`) | entitlement, tiers, telemetry counts | see a message |
 
@@ -88,19 +88,19 @@ user types in the ai channel's composer, presses Send
   │          a placeholder message from the agent follows, body "Thinking"
   ├─ (1)     the runtime starts Run(kind=chat) inline in the same request:
   │          loads thread.conversation, builds the Agent, drives agent.iter()
-  │          and batches events every ~100 ms into one bus event on the
-  │          user's partner channel, then commits:
-  │            part_delta {text}                       ← the message body grows
-  │            function_tool_call {name, args}         ← "Searching sales orders…"
-  │            function_tool_result {name, summary}    ← "12 found", foldable
-  │            final_result | deferred {approvals}     ← the body is written once
-  │            run_finished {usage, cost}
+  │          and batches events every ~100 ms into one pan_ai.run_event
+  │          on the channel's bus, then commits:
+  │            delta {text}                            ← the message body grows
+  │            tool_call {id, name, args}              ← a tool row
+  │            tool_result {id, summary}               ← "12 records" on the row
+  │            open {model, id or domain}              ← what a tool asked to open
+  │            run_finished {status, error, pending}   ← the body is written once
   ├─ (2)     each Odoo tool: env[model].search/read/write as the user
   ├─ (3)     each model call: OpenRouter, the database's key
   ├─ (4)     each MCP tool: the toolset's server, the user's token
   ├─ slice   past the slice budget: conversation persisted, run stays
   │          `running`, a worker cron is woken with ir.cron._trigger(),
-  │          the stream continues from there; "Still working" in the row
+  │          the stream continues into the same message from there
   └─ stop    Stop in the composer sets the run cancelled; the loop sees it
              at its next check; the body keeps what came
 ```
@@ -109,14 +109,17 @@ Approval, when a tool has `requires_approval`:
 
 ```
 the run ends with DeferredToolRequests on thread.conversation
-the message shows a card: the change, Apply, Skip             run.status = interrupted
-Apply or Skip posts deferred_tool_results; the next run resumes the conversation
+the message shows a card per call: the tool, its arguments, Allow, Skip     run.status = interrupted
+Allow or Skip writes deferred_results on the run; the same run continues inline
 ```
 
 Scheduled, triggered and continuous runs follow the same loop on a worker
-cron, without the placeholder: their answer is posted to the agent's
-channel with the thread's owner when done, and continuous threads tick on
-their watch (plan, section 3a). The slice boundary, measured in S4: stop
+cron, without the placeholder. A scheduled or triggered run gets a fresh
+thread per execution (per record for a rule); when the record allows it
+the answer lands as a note in its chatter and, when asked, as an activity;
+a scheduled run without a record keeps its answer on the run. A continuous
+thread keeps one thread and its memory, trimmed to the last 60 messages,
+and ticks on its watch settings (plan, section 3a). The slice boundary, measured in S4: stop
 when the next node is a model request, persist `all_messages()` plus that
 node's request, resume with `message_history` and no prompt.
 
@@ -135,8 +138,10 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   any user. No `sudo` in a tool, no user with everything. An `AccessError`
   inside a tool is returned to the model as the tool's error, never caught
   into a wider path.
-- Who may chat: the groups on the `Agent`. Who may configure: Settings
-  administrators (`base.group_system`).
+- Who may chat: the groups on the `Agent`. Who may configure agents,
+  toolsets, tools and AI fields: the AI Pro Administrator group
+  (`pan_ai_pro.group_manager`). Settings, the OpenRouter key and the
+  connection to Pantalytics: Settings administrators (`base.group_system`).
 - No Odoo user ever signs in to Zitadel from Odoo. The module's one
   sign-in is Connect to Pantalytics, once per database, by a Settings
   administrator, Mail Pro's pairing (decision 14). An MCP toolset holds
@@ -147,10 +152,10 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
 
 | What | Where | Rule |
 |---|---|---|
-| Tokens | OpenRouter key in Settings, one per database | no key, no chat; the window says "No key, ask your administrator" |
-| Web search | Pydantic AI `WebSearch(native=WebSearchTool(max_uses, search_context_size))` on OpenRouter's server tool (S5: works on Sonnet, GPT, Gemini; 8 to 13k input tokens per question) | on per agent, off by default; `max_uses` and `search_context_size` on the agent |
-| Per run | `UsageLimits` on the agent, and the slice loop for the clock | defaults in `defaults.py` and the agent's fields: 25 requests, 200k tokens, 300 s across slices; a run past any of them fails with the reason, and a continuous thread that hits one pauses |
-| Per user | `pan_ai.run` rows | chats per hour per person, a setting (watches and field fills are the administrator's, not counted); one live run per thread |
+| Tokens | OpenRouter key in Settings, one per database | no key, no chat; the agent's bubble says "No OpenRouter key. Add one in Settings > AI Pro." |
+| Web search | Pydantic AI `WebSearch(native=WebSearchTool(max_uses))` on OpenRouter's server tool (S5: works on Sonnet, GPT, Gemini; 8 to 13k input tokens per question) | on per agent, off by default; `max_uses` on the agent (`search_context_size` not exposed); never on an AI field fill that keeps the tools off |
+| Per run | `UsageLimits` on the agent, carried from slice to slice, and the slice loop for the clock | defaults in `defaults.py` and the agent's fields: 25 requests, 200k tokens, 300 s, all across slices; a run past any of them fails with the reason, and a continuous thread that hits one pauses |
+| Per user | `pan_ai.run` rows | chats per hour per person, a setting; it counts what a person starts by hand (a chat, a Fill button, the Action menu); a watch's ticks, schedules and the nightly fills are the administrator's and never refused; one live run per thread (a unique index) |
 | Per database | the signed entitlement, required | not connected or revoked: no run; the beta is "connected is entitled", as Mail Pro; tiers decided later |
 
 ## 7. AI fields

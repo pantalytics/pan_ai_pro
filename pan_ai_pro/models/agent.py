@@ -65,8 +65,10 @@ class Agent(models.Model):
     web_search_max_uses = fields.Integer(default=3)
 
     # usage_limits, per run
-    request_limit = fields.Integer(default=25, help="Model requests per run.")
-    total_tokens_limit = fields.Integer(default=200000, help="Tokens per run, in and out.")
+    request_limit = fields.Integer(default=25, help="Model requests per run, across slices.")
+    total_tokens_limit = fields.Integer(
+        default=200000, help="Tokens per run, in and out, across slices."
+    )
     time_limit = fields.Integer(default=TIME_LIMIT, help="Seconds per run, across slices.")
 
     # Identity

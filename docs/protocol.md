@@ -30,7 +30,7 @@ the whole list; a field not here is refused (400):
 in front (`20.0.2.0.0`) and the module strips that before sending, so the
 platform's `latest_version` compares to it. `errors` counts the failed
 runs of the last day by `pan_ai.run.error_code`, one of `limit`, `model`,
-`timeout`, `build`, `access`, `unresolved`, `stuck`, `other`: never the
+`timeout`, `build`, `unresolved`, `stuck`, `other`: never the
 run's error text, which can quote a record.
 
 Answers: 200 with the entitlement below; 401 unknown key; 403

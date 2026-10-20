@@ -59,7 +59,14 @@ class DiscussChannel(models.Model):
                 ],
             }
         )
-        Thread.create({"name": agent.name, "agent_id": agent.id, "channel_id": channel.id})
+        Thread.sudo().create(
+            {
+                "name": agent.name,
+                "agent_id": agent.id,
+                "channel_id": channel.id,
+                "user_id": self.env.uid,
+            }
+        )
         return channel.with_env(self.env)
 
     @api.model
@@ -68,7 +75,9 @@ class DiscussChannel(models.Model):
         the call, else from the channel the person is in, else the first
         agent open to them."""
         if not agent_id and channel_id:
-            thread = self.browse(channel_id)._pan_ai_thread()
+            channel = self.browse(channel_id)
+            channel.check_access("read")
+            thread = channel._pan_ai_thread()
             agent_id = thread.agent_id.id if thread else None
         if not agent_id:
             agents = self.env["pan_ai.agent"].search([], limit=50).filtered(lambda a: a.may_use())

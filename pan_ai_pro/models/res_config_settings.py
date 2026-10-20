@@ -2,11 +2,13 @@
 
 The OpenRouter key is stored in `ir.config_parameter` (`pan_ai.openrouter_key`),
 readable by `base.group_system` only, never shown back: the page says
-Connected or No key and offers Replace and Remove. The 19.0 module kept its
+Saved, ends in the last four, or shows an empty paste field; Remove key sits
+in the Danger zone. The 19.0 module kept its
 key the same way; there was no encryption helper to inherit.
 """
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import AccessError
 
 from ..compat import params
 from ..defaults import DEFAULT_MODEL, RETENTION_DAYS, RUNS_PER_USER_PER_HOUR
@@ -100,20 +102,30 @@ class ResConfigSettings(models.TransientModel):
     def _reload(self):
         return {"type": "ir.actions.client", "tag": "reload"}
 
+    def _pan_ai_check_admin(self):
+        """Every button on this page: a public method any session can call
+        by name, so it asks for the Settings administrator itself."""
+        if not (self.env.su or self.env.user.has_group("base.group_system")):
+            raise AccessError(_("Only a Settings administrator can do this."))
+
     def action_pan_ai_remove_key(self):
         """The kill switch: every new run refuses at once."""
+        self._pan_ai_check_admin()
         params(self.env).set_str("pan_ai.openrouter_key", "")
         return self._reload()
 
     def action_pan_ai_connect(self):
+        self._pan_ai_check_admin()
         link = self.env["pan_ai.license"].action_connect()
         return {"type": "ir.actions.act_url", "url": link.verify_url, "target": "new"}
 
     def action_pan_ai_check(self):
+        self._pan_ai_check_admin()
         link = self.env["pan_ai.license"].current()
         return (link and link.action_check_approval()) or self._reload()
 
     def action_pan_ai_disconnect(self):
+        self._pan_ai_check_admin()
         link = self.env["pan_ai.license"].current()
         if link:
             link.action_disconnect()
@@ -121,5 +133,6 @@ class ResConfigSettings(models.TransientModel):
 
     def action_pan_ai_delete_threads(self):
         """Every thread of every kind, with its chat window and its runs."""
+        self._pan_ai_check_admin()
         self.env["pan_ai.thread"].sudo().search([])._unlink_with_channels()
         return self._reload()

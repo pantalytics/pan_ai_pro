@@ -35,6 +35,14 @@ export const runEventsService = {
 
         bus_service.subscribe("pan_ai.run_event", ({ message_id, run_id, channel_id, events, sent_at, final }) => {
             const latency = Date.now() - sent_at * 1000;
+            if (final && !streams[message_id]) {
+                // A run that ended while this page was loading: its body is
+                // in the store already, nothing to rebuild and then tear down.
+                if (channel_id && live[channel_id] === run_id) {
+                    delete live[channel_id];
+                }
+                return;
+            }
             if (channel_id && !final) {
                 live[channel_id] = run_id;
             }

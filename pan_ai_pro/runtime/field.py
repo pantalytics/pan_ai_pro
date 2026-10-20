@@ -16,6 +16,7 @@ from pydantic_ai.output import StructuredDict
 from odoo import _, fields
 from odoo.exceptions import UserError
 
+from ..models.run import FILL_WORKER, worker_name
 from ..tools import commit
 from .agent import build_agent
 from .deps import OdooDeps
@@ -176,6 +177,8 @@ def fill(records, ir_field, caller, by_hand=False, deadline=None):
             # Recorded, so the nightly batch does not pick it again tomorrow.
             state(record, last_error=_("%s may not write this record.", run_user.name)[:250])
             continue
+        # Claimed from birth: the worker crons never see it as theirs to run.
+        token = f"{worker_name()}:fill:{record.id}"
         run = (
             env["pan_ai.run"]
             .sudo()
@@ -186,11 +189,20 @@ def fill(records, ir_field, caller, by_hand=False, deadline=None):
                     "caller_id": caller.id if by_hand else False,
                     "kind": "triggered",
                     "prompt": f"{ir_field.model}.{ir_field.name}",
+                    "claimed_at": fields.Datetime.now(),
+                    "heartbeat_at": fields.Datetime.now(),
+                    "worker": FILL_WORKER,
+                    "claim_token": token,
                 }
             )
         )
         deps = OdooDeps(
-            env=env, user=run_user.with_env(env), run=run, thread=run.thread_id, record=record
+            env=env,
+            user=run_user.with_env(env),
+            run=run,
+            thread=run.thread_id,
+            record=record,
+            token=token,
         )
         try:
             result = asyncio.run(
@@ -232,10 +244,27 @@ def fill(records, ir_field, caller, by_hand=False, deadline=None):
             cause = output.get("unresolved_cause") or _("Could not resolve")
             failed(run, record, cause, "unresolved", is_stale=False)
             continue
+        raw = output.get("value")
+        if raw is None or raw == "":
+            # An empty answer is no answer: left alone for a day like a failure.
+            failed(run, record, _("The model gave no value."), "unresolved", is_stale=False)
+            continue
         try:
-            record.with_context(pan_ai_filling=True).write(
-                {ir_field.name: _cast(output.get("value"), ir_field)}
+            value = _cast(raw, ir_field)
+            missing = ir_field.ttype == "many2one" and not (
+                env[ir_field.relation].browse(value).exists()
             )
+        except (ValueError, TypeError) as error:
+            failed(run, record, _("The model's value does not fit: %s", error), "other")
+            continue
+        if missing:
+            failed(run, record, _("The model named a record that does not exist."), "unresolved")
+            continue
+        try:
+            # A flushing savepoint: the database's own refusal (a constraint)
+            # lands here, not at the commit below, outside this try.
+            with env.cr.savepoint():
+                record.with_context(pan_ai_filling=True).write({ir_field.name: value})
         except Exception as error:  # noqa: BLE001 - a value the field refuses is the state row's to tell
             failed(run, record, str(error), "other")
             continue

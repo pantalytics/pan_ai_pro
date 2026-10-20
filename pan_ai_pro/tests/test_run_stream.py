@@ -108,6 +108,10 @@ class TestRunStream(AiProCase):
         self.env["pan_ai.run"]._cron_run_slices()
         self.assertEqual(run.status, "cancelled", (run.slices, run.error, run.text))
         self.assertIn("Stopped", run.message_id.body)
+        # the round that ran keeps its real returns in the thread's memory
+        last = thread.messages()[-1]
+        self.assertEqual(last["kind"], "request")
+        self.assertNotIn("Stopped by the user", str(last))
 
     def test_an_injected_instruction_is_data(self):
         """The record says 'ignore your rules'; the fake model echoes what
@@ -215,7 +219,12 @@ class TestRunStream(AiProCase):
             channel, thread = self.chat(text="Go")
         run = thread.run_ids[:1]
         self.assertEqual(run.status, "running")
-        run.write({"started_at": fields.Datetime.now() - timedelta(hours=2)})
+        run.write(
+            {
+                "started_at": fields.Datetime.now() - timedelta(hours=2),
+                "heartbeat_at": fields.Datetime.now() - timedelta(hours=2),
+            }
+        )
         self.env["pan_ai.run"]._cron_mark_stuck()
         self.assertEqual(run.status, "failed")
         self.assertEqual(run.error_code, "stuck")
@@ -420,3 +429,19 @@ class TestSliceHelpers(AiProCase):
         entries = json.loads(run.tool_log)
         self.assertEqual(len(entries), TOOL_LOG_ENTRIES)
         self.assertLessEqual(len(entries[-1]["args"]), 2000)
+
+    def test_the_request_limit_holds_across_slices(self):
+        """Each slice starts from what the run spent, so a run cannot make
+        request_limit requests per slice."""
+        self.agent.sudo().write({"request_limit": 2})
+        self.addCleanup(self.agent.sudo().write, {"request_limit": 25})
+        calls = [("today", {})]
+        self.fake([calls, calls, calls, "Done after three."])
+        with patch.object(slices, "slice_budget", return_value=0.0):
+            channel, thread = self.chat(text="Take your time")
+        run = thread.run_ids[:1]
+        self.assertEqual((run.status, run.requests), ("running", 1))
+        self.env["pan_ai.run"]._cron_run_slices()
+        self.assertEqual(run.status, "failed", run.error)
+        self.assertEqual(run.error_code, "limit")
+        self.assertLessEqual(run.requests, 2)

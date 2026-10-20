@@ -42,7 +42,6 @@ ERROR_CODES = [
     ("model", "Model error"),
     ("timeout", "Timeout"),
     ("build", "Agent could not be built"),
-    ("access", "Access refused"),
     ("unresolved", "Could not resolve"),
     ("stuck", "Nobody picked it up"),
     ("other", "Other"),
@@ -54,6 +53,9 @@ STALE_SECONDS = 90
 # Nobody holds the run.
 NO_CLAIM = {"claimed_at": False, "worker": False, "claim_token": False}
 WORKER_CRONS = ("pan_ai_pro.cron_worker_1", "pan_ai_pro.cron_worker_2")
+# The worker name of an AI-field fill: the fill holds it from birth to end,
+# and the slice loop never takes it, dead or alive (the stuck cron does).
+FILL_WORKER = "fill"
 # The tool log of a run: the last calls, their arguments clipped.
 TOOL_LOG_ENTRIES = 200
 TOOL_LOG_ARGS = 2000
@@ -61,6 +63,11 @@ TOOL_LOG_ARGS = 2000
 
 def worker_name():
     return f"{os.getpid()}:{threading.get_ident()}"
+
+
+class StillAnswering(UserError):
+    """The thread has a live run: a second start waits, it is not an error
+    of the watch or the person."""
 
 
 class Run(models.Model):
@@ -95,6 +102,7 @@ class Run(models.Model):
         "mail.message", ondelete="set null", help="The agent's message in the chat."
     )
     text = fields.Text(default="", help="The answer so far, markdown.")
+    text_html = fields.Html(compute="_compute_text_html", sanitize=False)
     slices = fields.Integer(default=0)
     requests = fields.Integer(default=0)
     input_tokens = fields.Integer(default=0)
@@ -113,7 +121,8 @@ class Run(models.Model):
     )
     cancel_requested = fields.Boolean()
     tool_log = fields.Text(
-        default="[]", help="JSON: every tool call with its outcome, for the Runs view."
+        default="[]",
+        help="JSON: the last 200 tool calls with their outcome, arguments clipped, for the Runs view.",
     )
     deferred_results = fields.Text(help="JSON: the person's approvals for the next slice.")
 
@@ -151,6 +160,13 @@ class Run(models.Model):
                 ("Stopped: two runs were live on one thread.",),
             )
         return result
+
+    @api.depends("text")
+    def _compute_text_html(self):
+        from ..runtime.stream import render_markdown
+
+        for run in self:
+            run.text_html = render_markdown(run.text) if run.text else False
 
     @api.depends("agent_id.name")
     def _compute_display_name(self):
@@ -193,14 +209,15 @@ class Run(models.Model):
             raise UserError(_("You reached the hourly limit of %s. Try again later.", per_hour))
 
     @api.model
-    def start(self, thread, prompt, kind="chat", message=None, caller=None):
+    def start(self, thread, prompt, kind="chat", message=None, caller=None, by_hand=None):
         """Create the run for a prompt on a thread; the caller decides where
-        the first slice runs (inline or on a worker)."""
+        the first slice runs (inline or on a worker). `by_hand`: the person
+        pressed something, so their hourly cap applies (a chat always)."""
         caller = caller or self.env.user
         agent = thread.agent_id
-        self._check_may_start(agent, caller, kind)
+        self._check_may_start(agent, caller, kind, by_hand=by_hand)
         if thread.live_run_id:
-            raise UserError(_("The agent is still answering. Stop it first, or wait."))
+            raise StillAnswering(_("The agent is still answering. Stop it first, or wait."))
         run_user = agent.run_user(caller)
         try:
             with self.env.cr.savepoint():
@@ -215,7 +232,9 @@ class Run(models.Model):
                     }
                 )
         except psycopg2.errors.UniqueViolation as error:
-            raise UserError(_("The agent is still answering. Stop it first, or wait.")) from error
+            raise StillAnswering(
+                _("The agent is still answering. Stop it first, or wait.")
+            ) from error
         thread.sudo().write({"last_activity": fields.Datetime.now()})
         return run
 
@@ -303,7 +322,8 @@ class Run(models.Model):
             # Least recently served first: a paused run keeps its heartbeat,
             # a run nobody touched has none.
             for run in self.sudo().search(
-                self._claimable_domain(), order="heartbeat_at asc nulls first, id"
+                self._claimable_domain() + [("worker", "!=", FILL_WORKER)],
+                order="heartbeat_at asc nulls first, id",
             ):
                 if not in_budget():
                     break
@@ -325,13 +345,17 @@ class Run(models.Model):
 
     @api.model
     def _cron_mark_stuck(self):
-        """A run past its agent's time limit and nobody's claim is failed,
-        so it is visible as such and the thread is free again."""
+        """A run nobody has touched for twice its agent's time limit (its last
+        heartbeat, or its start when no worker ever served it) and that
+        nobody holds is failed, so it is visible as such and the thread is
+        free again. Waiting for an approval does not count: that run is
+        `interrupted`, not claimable."""
         from ..runtime import stream
 
         for run in self.sudo().search(self._claimable_domain()):
             limit = run.agent_id.time_limit
-            if run.started_at < fields.Datetime.now() - timedelta(seconds=limit * 2):
+            last = run.heartbeat_at or run.started_at
+            if last < fields.Datetime.now() - timedelta(seconds=limit * 2):
                 error = _("Stopped: nobody picked the run up in time.")
                 run._finish("failed", error=error, code="stuck")
                 stream.finish_outside(run, "failed", error=error)

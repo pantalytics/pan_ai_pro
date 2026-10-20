@@ -156,3 +156,26 @@ class TestFields(AiProCase):
             self.assertFalse(Fields._pan_ai_column_ready())
             self.assertFalse(Fields.pan_ai_fields_of("res.partner"))
         self.assertTrue(Fields._pan_ai_column_ready())
+
+    def test_an_empty_or_invented_value_is_unresolved(self):
+        partner = self.user.partner_id
+        self._ai_field(name="comment")
+        self.fake(self._value(None))
+        n = partner.with_user(self.env.ref("base.user_admin")).pan_ai_fill("comment")
+        self.assertEqual(n, 0)
+        state = self.env["pan_ai.field.metadata"].search(
+            [("model_name", "=", "res.partner"), ("res_id", "=", partner.id)]
+        )
+        self.assertIn("no value", state.last_error)
+        run = self.env["pan_ai.run"].search([("thread_id.res_id", "=", partner.id)], limit=1)
+        self.assertEqual(run.error_code, "unresolved")
+        # a many2one id the model invented never reaches the database
+        self._ai_field(name="comment", pan_ai_prompt=False)
+        field = self._ai_field(name="country_id", prompt="The country of {{ object.name }}.")
+        self.assertEqual(field.ttype, "many2one")
+        partner.with_context(pan_ai_filling=True).write({"country_id": False})
+        self.fake(self._value(999999999))
+        n = partner.with_user(self.env.ref("base.user_admin")).pan_ai_fill("country_id")
+        self.assertEqual(n, 0)
+        self.assertFalse(partner.country_id)
+        self._ai_field(name="country_id", pan_ai_prompt=False)

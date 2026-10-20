@@ -14,6 +14,9 @@ from odoo.exceptions import AccessError, UserError
 
 from ..tools import commit
 
+# What the Action menu may start at once, like a Fill button (models/base.py).
+BY_HAND_MAX = 50
+
 
 class IrActionsServer(models.Model):
     _inherit = "ir.actions.server"
@@ -64,14 +67,16 @@ class IrActionsServer(models.Model):
         records = (
             eval_context.get("records") or eval_context.get("record") if eval_context else None
         )
-        if (
-            records is None
-            and self.env.context.get("active_model")
-            and self.env.context.get("active_ids")
-        ):
-            records = self.env[self.env.context["active_model"]].browse(
-                self.env.context["active_ids"]
-            )
+        # A rule (base.automation) marks its context; a schedule has no
+        # records. Anything else with records is the Action menu: the
+        # person's doing, capped like a Fill button and bounded.
+        context = self.env.context
+        by_hand = bool(records) and not ("__action_done" in context or "domain_post" in context)
+        if records is None and context.get("active_model") and context.get("active_ids"):
+            by_hand = True
+            records = self.env[context["active_model"]].browse(context["active_ids"])
+        if by_hand and len(records) > BY_HAND_MAX:
+            raise UserError(_("Run the agent on at most %s records at once.", BY_HAND_MAX))
         kind = "triggered" if records else "scheduled"
         targets = list(records) if records else [None]
         Thread = self.env["pan_ai.thread"]
@@ -91,7 +96,9 @@ class IrActionsServer(models.Model):
                     "activity": self.pan_ai_activity and record is not None,
                 }
             )
-            run = self.env["pan_ai.run"].start(thread, prompt, kind=kind, caller=caller)
+            run = self.env["pan_ai.run"].start(
+                thread, prompt, kind=kind, caller=caller, by_hand=by_hand
+            )
             inline = self.env.context.get("pan_ai_inline")
             if kind == "triggered" and not inline:
                 run._wake_worker()

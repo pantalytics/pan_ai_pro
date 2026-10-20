@@ -14,7 +14,7 @@ import time
 from datetime import timedelta
 
 import psycopg2.extensions
-from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults
+from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults, RunUsage
 from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
@@ -76,11 +76,14 @@ def slice_budget(where):
     return max(10.0, server_limit("limit_time_real_cron") * 0.6)
 
 
-def beat(run):
+def beat(run, token):
     """The heartbeat: this worker is alive on this run. Written by the
     slice's clock task while the model is awaited and by every Odoo tool
     before and after its work, which runs on the slice's thread and keeps
-    the clock task from firing."""
+    the clock task from firing. Behind the fence: a worker that lost its
+    claim commits nothing and stops (`LostClaim`)."""
+    if token is not None and not run._holds(token):
+        raise LostClaim()
     run.sudo().write({"heartbeat_at": fields.Datetime.now()})
     commit(run.env)
 
@@ -145,6 +148,7 @@ def run_slice(run, token, where):
         run=run,
         thread=thread,
         record=thread.with_env(run_env).record(),
+        token=token,
     )
     try:
         agent = build_agent(thread.agent_id.with_env(run_env), run_env)
@@ -180,7 +184,9 @@ def run_slice(run, token, where):
             await asyncio.sleep(HEARTBEAT_SECONDS)
             if not run._holds(token):
                 return
-            beat(run)
+            beat(run, token)
+
+    spent = {}
 
     async def go():
         pulse = asyncio.ensure_future(heartbeat())
@@ -190,14 +196,26 @@ def run_slice(run, token, where):
                 message_history=history,
                 deferred_tool_results=deferred,
                 deps=deps,
+                # The limits are per run, across slices: this slice starts
+                # from what the run spent so far, and the bookkeeping below
+                # takes the difference.
+                usage=RunUsage(
+                    requests=run.requests,
+                    input_tokens=run.input_tokens,
+                    output_tokens=run.output_tokens,
+                ),
                 usage_limits=usage_limits(thread.agent_id),
             ) as agent_run:
+                spent["usage"] = agent_run.usage
                 rounds = 0
                 async for node in agent_run:
                     if _cancelled(run):
-                        messages = close_open_calls(
-                            list(agent_run.all_messages()), _("Stopped by the user.")
-                        )
+                        messages = list(agent_run.all_messages())
+                        if Agent.is_model_request_node(node):
+                            # The round that just ran: its returns are in
+                            # node.request, not in the history yet.
+                            messages.append(node.request)
+                        messages = close_open_calls(messages, _("Stopped by the user."))
                         return messages, "cancelled", None, agent_run.usage
                     if Agent.is_model_request_node(node):
                         if run.worked_seconds + time.monotonic() - started > time_limit:
@@ -222,16 +240,17 @@ def run_slice(run, token, where):
         _drop(run)
         return
     except TimeLimit:
-        if run._holds(token):
-            run.write({"worked_seconds": run.worked_seconds + time.monotonic() - started})
+        _book(run, thread, token, spent.get("usage"), started)
         _fail(
             run, stream, _("The agent hit its time limit of %s seconds.", time_limit), code="limit"
         )
         return
     except UsageLimitExceeded as error:
+        _book(run, thread, token, spent.get("usage"), started)
         _fail(run, stream, _("The agent hit its limit: %s", str(error)[:200]), code="limit")
         return
     except ModelHTTPError as error:
+        _book(run, thread, token, spent.get("usage"), started)
         _fail(
             run,
             stream,
@@ -244,6 +263,7 @@ def run_slice(run, token, where):
         return
     except Exception:  # noqa: BLE001 - every outcome lands on the run
         _logger.exception("[AI Pro] run %s failed", run.id)
+        _book(run, thread, token, spent.get("usage"), started)
         _fail(
             run,
             stream,
@@ -261,13 +281,17 @@ def run_slice(run, token, where):
     )
     if outcome != "paused":
         messages = trim_history(messages)
+    # What this slice spent: the run's usage now, less what it started with.
+    spent_requests = usage.requests - run.requests
+    spent_in = usage.input_tokens - run.input_tokens
+    spent_out = usage.output_tokens - run.output_tokens
     thread.write(
         {
             "conversation": json.dumps(to_jsonable_python(messages)),
             "pending_tool_calls": json.dumps(pending or []),
-            "usage_requests": thread.usage_requests + usage.requests,
-            "usage_input_tokens": thread.usage_input_tokens + usage.input_tokens,
-            "usage_output_tokens": thread.usage_output_tokens + usage.output_tokens,
+            "usage_requests": thread.usage_requests + spent_requests,
+            "usage_input_tokens": thread.usage_input_tokens + spent_in,
+            "usage_output_tokens": thread.usage_output_tokens + spent_out,
             "cost": thread.cost + cost,
             "last_activity": fields.Datetime.now(),
         }
@@ -278,9 +302,9 @@ def run_slice(run, token, where):
             "deferred_results": False,
             "slices": run.slices + 1,
             "worked_seconds": run.worked_seconds + time.monotonic() - started,
-            "requests": run.requests + usage.requests,
-            "input_tokens": run.input_tokens + usage.input_tokens,
-            "output_tokens": run.output_tokens + usage.output_tokens,
+            "requests": usage.requests,
+            "input_tokens": usage.input_tokens,
+            "output_tokens": usage.output_tokens,
             "cost": run.cost + cost,
             "text": stream.text,
         }
@@ -368,6 +392,30 @@ def _fail(run, stream, message, code="other"):
         stream.finish("failed", error=message)
     except LostClaim:
         pass
+
+
+def _book(run, thread, token, usage, started):
+    """A slice that failed still spent: its requests, tokens and time land
+    on the run and the thread, when this worker still holds the run."""
+    if usage is None or not run._holds(token):
+        return
+    thread.write(
+        {
+            "usage_requests": thread.usage_requests + usage.requests - run.requests,
+            "usage_input_tokens": thread.usage_input_tokens + usage.input_tokens - run.input_tokens,
+            "usage_output_tokens": thread.usage_output_tokens
+            + usage.output_tokens
+            - run.output_tokens,
+        }
+    )
+    run.write(
+        {
+            "worked_seconds": run.worked_seconds + time.monotonic() - started,
+            "requests": usage.requests,
+            "input_tokens": usage.input_tokens,
+            "output_tokens": usage.output_tokens,
+        }
+    )
 
 
 def _drop(run):
