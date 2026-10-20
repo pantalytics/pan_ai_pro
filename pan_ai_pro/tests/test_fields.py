@@ -157,6 +157,33 @@ class TestFields(AiProCase):
             self.assertFalse(Fields.pan_ai_fields_of("res.partner"))
         self.assertTrue(Fields._pan_ai_column_ready())
 
+    def test_a_pull_before_the_upgrade_gets_its_columns_at_registry_load(self):
+        from odoo.tools.sql import column_exists
+
+        cr = self.env.cr
+        self.env.flush_all()
+        self.env.invalidate_all()
+        cr.execute("ALTER TABLE ir_model_fields DROP COLUMN pan_ai_prompt")
+        cr.execute("ALTER TABLE ir_model_fields DROP COLUMN pan_ai_use_tools")
+        actions = self.env["ir.actions.server"]._table
+        cr.execute(f"ALTER TABLE {actions} DROP COLUMN pan_ai_post")
+        self.assertFalse(column_exists(cr, "ir_model_fields", "pan_ai_prompt"))
+        added = self.env["ir.model.fields"]._pan_ai_add_missing_columns()
+        self.assertEqual(
+            sorted(added),
+            [
+                (actions, "pan_ai_post"),
+                ("ir_model_fields", "pan_ai_prompt"),
+                ("ir_model_fields", "pan_ai_use_tools"),
+            ],
+        )
+        self.assertTrue(column_exists(cr, "ir_model_fields", "pan_ai_prompt"))
+        # what every /web request does: read ir.model.fields whole
+        cr.execute("SELECT pan_ai_prompt, pan_ai_use_tools FROM ir_model_fields LIMIT 1")
+        self.assertEqual(cr.fetchone(), (None, False))
+        # a second load adds nothing
+        self.assertEqual(self.env["ir.model.fields"]._pan_ai_add_missing_columns(), [])
+
     def test_an_empty_or_invented_value_is_unresolved(self):
         partner = self.user.partner_id
         self._ai_field(name="comment")

@@ -430,7 +430,12 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
       and Odoo's own banner see a newer module (a pull with auto-upgrade on
       a clone did nothing at `1.1.0`, twice); and `pan_ai_fields_of` answers
       empty while the column is not there, so a pull before the upgrade no
-      longer breaks writes
+      longer breaks writes. Reads still broke: on 2026-10-20 08:00 the clone
+      answered 500 on every `/web` (`ir_model_fields.pan_ai_prompt does not
+      exist`, read by `session_info`). Since then the module adds its own
+      missing columns at registry load (`_pan_ai_add_missing_columns`, run
+      from `base._register_hook` before any other hook), so a pulled, not
+      yet upgraded instance keeps working until Apps > AI Pro > Upgrade
 - [ ] the default branch switched to `main` on GitHub (a repository
       setting, Rutger)
 - [ ] Enterprise 19: `_fill_ai_field` measured on a real Enterprise 19 (the
