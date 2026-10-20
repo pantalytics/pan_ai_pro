@@ -123,7 +123,6 @@ class TestAccess(AiProCase):
         Settings = self.env["res.config.settings"].with_user(self.user)
         for method in (
             "action_pan_ai_remove_key",
-            "action_pan_ai_delete_threads",
             "action_pan_ai_disconnect",
             "action_pan_ai_connect",
             "action_pan_ai_check",

@@ -7,6 +7,7 @@ from . import (
     test_compat,
     test_fields,
     test_license,
+    test_llm,
     test_mcp_toolset,
     test_odoo_toolset,
     test_onboarding,

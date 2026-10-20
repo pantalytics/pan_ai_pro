@@ -11,6 +11,7 @@ from . import (
     ir_model_fields,
     ir_ui_menu,
     license,
+    llm,
     res_config_settings,
     run,
     thread,

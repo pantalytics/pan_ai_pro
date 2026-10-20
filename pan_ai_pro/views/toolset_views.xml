@@ -33,6 +33,7 @@
                         </group>
                         <group string="MCP server" invisible="kind != 'mcp'">
                             <field name="url" required="kind == 'mcp'" placeholder="https://example.com/mcp"/>
+                            <field name="host_allowed" groups="base.group_system"/>
                             <field name="bearer_token" password="True" groups="base.group_system"/>
                             <field name="allowed_tool_names" placeholder="search, read"/>
                             <field name="tool_prefix" placeholder="crm"/>

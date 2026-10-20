@@ -81,6 +81,8 @@ ACCESS = [
         "crud",
         "",
     ),
+    ("access_llm_user", "model list: user reads", "pan_ai.llm", "base.group_user", "r", ""),
+    ("access_llm_system", "model list: system", "pan_ai.llm", "base.group_system", "crud", ""),
     (
         "access_field_metadata_user",
         "field state: user reads",

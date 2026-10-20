@@ -64,10 +64,10 @@ $pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
     .o_pan_ai_step_msg {
         margin-top: 0.4rem;
     }
-    .o_pan_ai_step_field {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    // The way to the place the step is changed, at the end of its line.
+    .o_pan_ai_step_edit {
+        flex: 0 0 auto;
+        margin-left: auto;
     }
     .o_pan_ai_msg_warn {
         color: $pan-ai-broken;

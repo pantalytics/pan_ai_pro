@@ -62,4 +62,14 @@
         <field name="interval_type">days</field>
         <field name="user_id" ref="base.user_root"/>
     </record>
+    <record id="cron_llm_refresh" model="ir.cron">
+        <field name="name">AI Pro: refresh the OpenRouter model list</field>
+        <field name="model_id" ref="model_pan_ai_llm"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_refresh()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="priority">200</field>
+    </record>
 </odoo>
