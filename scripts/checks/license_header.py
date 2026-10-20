@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2025-2026 Pantalytics B.V. All rights reserved.
+# SPDX-License-Identifier: Elastic-2.0
 """Fail if a source file is missing the Pantalytics copyright and licence header.
 
 The Elastic License 2.0 forbids removing or obscuring the licensor's notices,
