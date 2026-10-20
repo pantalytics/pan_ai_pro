@@ -151,10 +151,15 @@
                     <!-- About: the version the database is on, the first thing
                          a support mail asks, and on screen before step 1 too. -->
                     <block title="About" name="pan_ai_about_block">
-                        <setting id="pan_ai_version_setting" string="AI Pro"
-                                 help="© Pantalytics B.V. Licensed under the Elastic License 2.0.">
-                            <field name="pan_ai_version" readonly="1"/>
-                        </setting>
+                        <!-- Mail Pro's About: no setting pane, whose empty left
+                             half draws a divider beside one line. -->
+                        <div class="col-12 o_setting_box o_pan_ai_about">
+                            <div>
+                                <span class="o_form_label">AI Pro</span>
+                                <field name="pan_ai_version" nolabel="1" readonly="1" class="ms-1"/>
+                            </div>
+                            <div class="text-muted">© Pantalytics B.V. Licensed under the Elastic License 2.0.</div>
+                        </div>
                     </block>
 
                 </app>
