@@ -21,8 +21,9 @@ key, with any model. Odoo 19 and 20, Community and Enterprise, one module.
 ## Install
 
 1. Put `pan_ai_pro` (and `pan_ai_pro_enterprise` on Enterprise) in your
-   addons path. Odoo.sh and Cloudpepper install `pan_ai_pro/requirements.txt`
-   on pull; elsewhere `pip install -r pan_ai_pro/requirements.txt`. On Odoo's
+   addons path. Odoo.sh and Cloudpepper install the repository's `requirements.txt`
+   on pull (it points at `pan_ai_pro/requirements.txt`); elsewhere
+   `pip install -r pan_ai_pro/requirements.txt`. On Odoo's
    Docker image install them in a venv over the system packages
    (`python3 -m venv --system-site-packages`), the way `.github/workflows/ci.yml` does.
 2. Install AI Pro from Apps.
