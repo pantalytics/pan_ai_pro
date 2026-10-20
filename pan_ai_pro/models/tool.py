@@ -49,12 +49,12 @@ class Tool(models.Model):
     )
     parameters_json_schema = fields.Text(
         string="Parameters (JSON schema)",
-        help="Built-in tools carry their own. A server action's parameters land in the action's context as 'pan_ai_args'.",
+        help="A server action's parameters, handed to it as pan_ai_args in the context.",
     )
     model_ids = fields.Many2many(
         "ir.model",
         string="Models",
-        help="Built-in tools: the models the tool may touch. Empty: any model the user may access.",
+        help="The models a built-in tool may touch; empty is any model the user may access.",
     )
     # The names, stored: the toolset reads them as the run's user, who may
     # not read ir.model itself (Odoo 19 gives plain users no access to it).

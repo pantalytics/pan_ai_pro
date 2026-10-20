@@ -16,6 +16,8 @@ class OdooDeps:
     run: Any
     thread: Any
     record: Any = None
+    # The slice's claim token: a tool's heartbeat checks it before writing.
+    token: Any = None
     # Things a tool asks the window to do (open a record); the streamer
     # drains them after each tool call.
     ui_actions: list = field(default_factory=list)

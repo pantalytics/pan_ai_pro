@@ -2,7 +2,6 @@
 // (brand.pantalytics.com, Product UI): no new chrome, the accent only on
 // the one primary action, status in colour, motion only on transform and
 // opacity.
-$pan-ai-accent: #9b99ff;
 
 .pan-ai-stream {
     .pan-ai-text {
@@ -22,8 +21,13 @@ $pan-ai-accent: #9b99ff;
         content: "…";
         animation: pan-ai-pulse 1s ease-in-out infinite;
     }
+    // Waiting for the person is a status: amber (Bootstrap's border-warning
+    // in the template), never the accent.
     .pan-ai-approval-card {
-        border-color: $pan-ai-accent !important;
+        .pan-ai-approve:focus-visible, .pan-ai-skip:focus-visible {
+            outline: 2px solid var(--primary, #714b67);
+            outline-offset: 2px;
+        }
         .pan-ai-approval-args {
             max-height: 6rem;
             overflow: auto;

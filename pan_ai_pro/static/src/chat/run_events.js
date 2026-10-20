@@ -35,6 +35,14 @@ export const runEventsService = {
 
         bus_service.subscribe("pan_ai.run_event", ({ message_id, run_id, channel_id, events, sent_at, final }) => {
             const latency = Date.now() - sent_at * 1000;
+            if (final && !streams[message_id]) {
+                // A run that ended while this page was loading: its body is
+                // in the store already, nothing to rebuild and then tear down.
+                if (channel_id && live[channel_id] === run_id) {
+                    delete live[channel_id];
+                }
+                return;
+            }
             if (channel_id && !final) {
                 live[channel_id] = run_id;
             }
@@ -119,7 +127,33 @@ export const runEventsService = {
             live[channelId] = runId;
         }
 
-        return { streams, live, metrics, decide, stop, markLive, streamFor };
+        /**
+         * A channel just opened (a reload, another device, a second tab):
+         * what the bus already sent is gone, so ask the server where the run
+         * stands and rebuild the approval card and Stop from that.
+         */
+        const hydrated = new Set();
+        async function hydrate(channelId) {
+            if (hydrated.has(channelId)) {
+                return;
+            }
+            hydrated.add(channelId);
+            const state = await orm.call("discuss.channel", "pan_ai_state", [[channelId]]);
+            if (!state.run_id) {
+                return;
+            }
+            if (state.message_id && !streams[state.message_id]) {
+                const s = streamFor(state.message_id, state.run_id);
+                s.text = state.text || "";
+                s.status = state.run_status;
+                s.pending = state.pending || [];
+            }
+            if (!live[channelId]) {
+                markLive(channelId, state.run_id);
+            }
+        }
+
+        return { streams, live, metrics, decide, stop, markLive, streamFor, hydrate };
     },
 };
 registry.category("services").add("pan_ai_pro.run_events", runEventsService);

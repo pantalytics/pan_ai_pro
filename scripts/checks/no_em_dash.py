@@ -4,9 +4,9 @@
 Em-dashes are a tell-tale sign of unedited AI text; we use a hyphen, comma, or
 period instead (see .claude/rules/conventions.md).
 
-Scope is deliberately narrow: only prose files where every line is content
-(newsletters and the changelog). Templates are excluded because they mix code,
-comments, and copy, which a plain scan cannot tell apart.
+Scope: the prose (markdown) and everything a person reads on screen (the
+views, the data records, the chat bundle). Python is left out: its strings
+are checked where they are rendered, and its comments are not copy.
 
 Usage:
     python scripts/checks/no_em_dash.py [path ...]
@@ -34,7 +34,8 @@ def iter_files(paths: list[str]):
     for raw in paths:
         p = Path(raw)
         if p.is_dir():
-            yield from sorted(p.rglob("*.md"))
+            for pattern in ("*.md", "*.xml", "*.js", "*.scss"):
+                yield from sorted(p.rglob(pattern))
         elif p.is_file():
             yield p
 

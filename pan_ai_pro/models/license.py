@@ -24,11 +24,9 @@ is the answer. The server side is `pantalytics/odoo-mcp-pro-admin`,
 `mcp_server_odoo_admin/apps/ai_pro.py`. Mail Pro's client, paths swapped.
 """
 
-import base64
 import json
 import logging
-import os
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import requests
 
@@ -36,20 +34,17 @@ from odoo import _, api, fields, models, release
 from odoo.exceptions import AccessError, UserError
 
 from ..compat import params
+from .platform import (
+    HEARTBEAT_PATH,
+    LINK_PREFIX,
+    TIMEOUT,
+    _naive_utc,
+    _public_key,
+    _server_url,
+    verify_signature,
+)
 
 _logger = logging.getLogger(__name__)
-
-SERVER_URL = "https://mcp.pantalytics.com"
-# The verifying half of the key Pantalytics signs entitlements with: the same
-# one Mail Pro and Self Learning pin. It can only check a signature.
-PUBLIC_KEY = "ZWLGGpks2iRjFguGsGlhpDl64ekFiDCM7L/O/g3xK/8="
-
-ENV_URL = "PAN_AI_PRO_SERVER_URL"
-ENV_PUBLIC_KEY = "PAN_AI_PRO_PUBLIC_KEY"
-
-LINK_PREFIX = "/api/v1/ai-pro/link"
-HEARTBEAT_PATH = "/api/v1/ai-pro/heartbeat"
-TIMEOUT = 15
 
 STATUS_SELECTION = [
     ("not_connected", "Not connected"),
@@ -59,45 +54,6 @@ STATUS_SELECTION = [
     ("invalid", "Key refused"),
 ]
 NOT_CONNECTED_MESSAGE = "Connect to Pantalytics in Settings > AI Pro before running an agent."
-
-
-def _server_url():
-    return (os.environ.get(ENV_URL) or SERVER_URL).rstrip("/")
-
-
-def _public_key():
-    return os.environ.get(ENV_PUBLIC_KEY) or PUBLIC_KEY
-
-
-def canonical_json(payload):
-    """The bytes the server signed. Must match the platform's `apps/signing.py`."""
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
-        "utf-8"
-    )
-
-
-def verify_signature(payload, signature_b64, public_key_b64):
-    """True only for a payload our server signed. Any doubt is a no."""
-    from cryptography.exceptions import InvalidSignature
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-    if not public_key_b64 or not signature_b64:
-        return False
-    try:
-        key = Ed25519PublicKey.from_public_bytes(base64.b64decode(public_key_b64))
-        key.verify(base64.b64decode(signature_b64), canonical_json(payload))
-    except (InvalidSignature, ValueError, TypeError):
-        return False
-    return True
-
-
-def _naive_utc(iso_value):
-    if not iso_value:
-        return False
-    value = datetime.fromisoformat(iso_value)
-    if value.tzinfo:
-        value = value.astimezone(UTC).replace(tzinfo=None)
-    return value
 
 
 class License(models.Model):
@@ -142,7 +98,38 @@ class License(models.Model):
     def require_entitled(self):
         link = self.current()
         if not link or not link.is_entitled():
-            raise UserError(_(NOT_CONNECTED_MESSAGE))
+            raise UserError(link._why_not_entitled() if link else _(NOT_CONNECTED_MESSAGE))
+
+    def _why_not_entitled(self):
+        """The one reason agents do not run, in the words of the state."""
+        self.ensure_one()
+        if self.status == "pending":
+            return _("The connection to Pantalytics is waiting for approval. Settings > AI Pro.")
+        if self.status == "revoked":
+            return _("Pantalytics disconnected this Odoo. Connect again in Settings > AI Pro.")
+        if self.status == "invalid":
+            return _("Pantalytics refused the key: %s Settings > AI Pro.", self.last_error or "")
+        if self.status == "active" and not self.sudo().key:
+            return _(
+                "The connection to Pantalytics has no key. Connect again in Settings > AI Pro."
+            )
+        if self.status == "active" and not self.plan:
+            return _("This Odoo has no AI Pro plan at Pantalytics.")
+        if (
+            self.status == "active"
+            and self.valid_until
+            and self.valid_until <= fields.Datetime.now()
+        ):
+            return _(
+                "The AI Pro plan for this Odoo lapsed on %s and the daily check has not renewed it. "
+                "See Settings > AI Pro.",
+                fields.Datetime.to_string(self.valid_until),
+            )
+        if self.status == "active":
+            return _(
+                "Pantalytics has not confirmed the plan yet. Check the connection in Settings > AI Pro."
+            )
+        return _(NOT_CONNECTED_MESSAGE)
 
     def _check_admin(self):
         if not self.env.su and not self.env.user.has_group("base.group_system"):
@@ -316,7 +303,7 @@ class License(models.Model):
         since = fields.Datetime.now() - timedelta(days=1)
         Run = self.env["pan_ai.run"].sudo()
         errors = Run._read_group(
-            [("started_at", ">=", since), ("status", "=", "failed")], ["error"], ["__count"]
+            [("started_at", ">=", since), ("status", "=", "failed")], ["error_code"], ["__count"]
         )
         return {
             "db_uuid": self._db_uuid(),
@@ -328,9 +315,7 @@ class License(models.Model):
             else "community",
             "agents": self.env["pan_ai.agent"].sudo().search_count([]),
             "runs_24h": Run.search_count([("started_at", ">=", since)]),
-            "errors": [
-                {"code": (e or "unknown")[:64].split(":")[0], "count": c} for e, c in errors
-            ][:20],
+            "errors": [{"code": code or "other", "count": count} for code, count in errors],
         }
 
     def _heartbeat(self):
@@ -408,8 +393,13 @@ class License(models.Model):
     def _post(self, path, payload, key=None):
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         try:
+            # Never follow a redirect: the key would be replayed to wherever it points.
             response = requests.post(
-                _server_url() + path, json=payload, headers=headers, timeout=TIMEOUT
+                _server_url() + path,
+                json=payload,
+                headers=headers,
+                timeout=TIMEOUT,
+                allow_redirects=False,
             )
         except requests.RequestException as error:
             _logger.warning("[AI Pro] %s unreachable: %s", path, error)

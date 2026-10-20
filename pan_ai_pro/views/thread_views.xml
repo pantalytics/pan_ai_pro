@@ -4,7 +4,7 @@
         <field name="name">pan_ai.thread.list</field>
         <field name="model">pan_ai.thread</field>
         <field name="arch" type="xml">
-            <list>
+            <list create="false">
                 <field name="name"/>
                 <field name="kind"/>
                 <field name="agent_id"/>
@@ -12,7 +12,7 @@
                 <field name="last_activity"/>
                 <field name="run_count" string="Runs"/>
                 <field name="cost" sum="Cost"/>
-                <field name="paused" invisible="kind != 'continuous'"/>
+                <field name="paused" optional="hide"/>
             </list>
         </field>
     </record>
@@ -20,55 +20,55 @@
         <field name="name">pan_ai.thread.form</field>
         <field name="model">pan_ai.thread</field>
         <field name="arch" type="xml">
-            <form>
+            <form create="false">
                 <header>
                     <button name="action_open_chat" type="object" string="Open chat" class="btn-primary" invisible="not channel_id"/>
                     <button name="action_pause" type="object" string="Pause" invisible="kind != 'continuous' or paused"/>
-                    <button name="action_resume" type="object" string="Resume" class="btn-primary" invisible="kind != 'continuous' or not paused"/>
-                    <field name="kind" widget="statusbar"/>
+                    <button name="action_resume" type="object" string="Resume" invisible="kind != 'continuous' or not paused"/>
                 </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="name"/></h1></div>
                     <group>
                         <group>
+                            <field name="kind" readonly="1"/>
                             <field name="agent_id"/>
                             <field name="user_id"/>
-                            <field name="channel_id" invisible="not channel_id"/>
+                            <field name="channel_id" invisible="not channel_id" readonly="1"/>
                             <field name="res_model" invisible="not res_model"/>
                             <field name="res_id" invisible="not res_model"/>
                         </group>
                         <group>
-                            <field name="last_activity"/>
-                            <field name="usage_requests"/>
-                            <field name="usage_input_tokens"/>
-                            <field name="usage_output_tokens"/>
-                            <field name="cost"/>
+                            <field name="last_activity" readonly="1"/>
+                            <field name="usage_requests" readonly="1"/>
+                            <field name="usage_input_tokens" readonly="1"/>
+                            <field name="usage_output_tokens" readonly="1"/>
+                            <field name="cost" readonly="1"/>
                         </group>
                     </group>
-                    <group string="Watch" invisible="kind != 'continuous'">
+                    <group string="Records to watch" invisible="kind != 'continuous'">
                         <field name="watch_model_id"/>
-                        <field name="watch_domain" widget="domain" options="{'model': 'watch_model_id'}"/>
+                        <field name="watch_model" invisible="1"/>
+                        <field name="watch_domain" widget="domain" options="{'model': 'watch_model'}"/>
                         <field name="watch_interval"/>
-                        <field name="watch_cursor"/>
-                        <field name="next_tick_at"/>
-                        <field name="paused"/>
+                        <field name="watch_cursor" readonly="1"/>
+                        <field name="next_tick_at" readonly="1"/>
                     </group>
                     <notebook>
                         <page string="Runs" name="runs">
-                            <field name="run_ids" nolabel="1">
-                                <list>
+                            <field name="run_ids" nolabel="1" readonly="1" string="Run">
+                                <list create="false" edit="false">
                                     <field name="started_at"/>
                                     <field name="kind"/>
                                     <field name="status"/>
                                     <field name="slices"/>
                                     <field name="requests"/>
                                     <field name="cost"/>
-                                    <field name="duration" widget="float_time"/>
+                                    <field name="duration" string="Seconds" digits="[16, 1]"/>
                                     <field name="error"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="Conversation" name="conversation" groups="pan_ai_pro.group_manager">
+                        <page string="Messages" name="conversation" groups="pan_ai_pro.group_manager">
                             <field name="conversation" nolabel="1" readonly="1"/>
                         </page>
                     </notebook>

@@ -97,3 +97,33 @@ class TestOdooToolset(AiProCase):
             # the slice may post the answer as the run's user, nothing else
             text = (runtime / name).read_text().replace("with_user(run.user_id)", "")
             self.assertIsNone(re.search(r"with_user\(|SUPERUSER", text), name)
+
+    def test_a_server_action_is_a_tool(self):
+        self.user.write({"group_ids": [(4, self.env.ref("base.group_partner_manager").id)]})
+        action = self.env["ir.actions.server"].create(
+            {
+                "name": "Double",
+                "model_id": self.env["ir.model"]._get_id("res.partner"),
+                "state": "code",
+                "code": "action = {'n': env.context['pan_ai_args']['n'] * 2, 'uid': env.uid, 'fields': env.context['pan_ai_args'].get('fields'), 'active_id': env.context.get('active_id')}",
+            }
+        )
+        self.env["pan_ai.tool"].create(
+            {
+                "name": "double",
+                "description": "Double n",
+                "source": "server_action",
+                "action_id": action.id,
+                "toolset_id": self.env.ref("pan_ai_pro.toolset_odoo").id,
+                "parameters_json_schema": '{"type":"object","properties":{"n":{"type":"integer"},"fields":{"type":"string"}},"required":["n"]}',
+            }
+        )
+        toolset = build_toolset(self.env.ref("pan_ai_pro.toolset_odoo"), self.env)
+        ctx, _env = self._ctx(self.user)
+        out = self._call(self._tool(toolset, "double"), ctx, n=21, fields="kept")
+        self.assertEqual(
+            out["result"], {"n": 42, "uid": self.user.id, "fields": "kept", "active_id": None}
+        )
+        ctx.deps.record = self.user.partner_id
+        out = self._call(self._tool(toolset, "double"), ctx, n=1)
+        self.assertEqual(out["result"]["active_id"], self.user.partner_id.id)

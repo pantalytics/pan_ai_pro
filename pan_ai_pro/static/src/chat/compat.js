@@ -16,6 +16,17 @@ export function useLive(obj) {
     return owl.useState ? owl.useState(obj) : obj;
 }
 
+/**
+ * A component's props: Owl 3 sets `this.props` only through `useProps(spec)`
+ * in setup (and ships the `t` type helpers); Owl 2 sets it by itself.
+ * `spec` is a function of `t`, so it is never built on Owl 2.
+ */
+export function declareProps(component, spec) {
+    if (owl.useProps) {
+        component.props = owl.useProps(spec(owl.t));
+    }
+}
+
 /** The store's thread model: `mail.thread` on 20, `Thread` on 19. */
 export function threadModel(store) {
     return store["mail.thread"] || store.Thread;
@@ -24,4 +35,12 @@ export function threadModel(store) {
 /** A thread's channel type: on 20 it sits on the channel, on 19 on the thread. */
 export function channelType(thread) {
     return thread?.channel?.channel_type ?? thread?.channel_type;
+}
+
+/**
+ * An action's icon: 20 names a Material symbol ("add"), 19 a Font Awesome
+ * class ("fa fa-fw fa-plus"). A Material name on 19 renders nothing.
+ */
+export function actionIcon(material, fa) {
+    return owl.proxy ? material : fa;
 }

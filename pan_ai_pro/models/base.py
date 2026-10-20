@@ -2,7 +2,12 @@
 an input of an AI field marks the value stale. Also the method a button or
 Enterprise's own AI-field button lands on."""
 
-from odoo import api, models
+from odoo import _, api, models
+from odoo.exceptions import AccessError, UserError
+
+# What one RPC may fill at once: a form button or a list selection, not a
+# whole table.
+FILL_MAX = 50
 
 
 class Base(models.AbstractModel):
@@ -33,9 +38,16 @@ class Base(models.AbstractModel):
                 Metadata._set(self._name, self.ids, ir_field.name, is_stale=True)
 
     def pan_ai_fill(self, fname):
-        """Compute this AI field for these records now, as the caller."""
+        """Compute this AI field for these records now, as the caller: an
+        internal user who may write these records and use the field's agent
+        (runtime/field.py checks the agent)."""
         from ..runtime import field as field_runtime
 
+        if self.env.user.share:
+            raise AccessError(_("Only internal users can fill an AI field."))
+        if len(self) > FILL_MAX:
+            raise UserError(_("Fill at most %s records at once.", FILL_MAX))
+        self.check_access("write")
         ir_field = (
             self.env["ir.model.fields"]
             .pan_ai_fields_of(self._name)
@@ -43,11 +55,12 @@ class Base(models.AbstractModel):
         )
         if not ir_field:
             return False
-        return field_runtime.fill(self, ir_field, self.env.user)
+        return field_runtime.fill(self, ir_field, self.env.user, by_hand=True)
 
     @api.model
     def pan_ai_stale_fields(self, res_id):
         """For a form: which AI fields of this record are stale, and which recompute by themselves."""
+        self.browse(res_id).check_access("read")
         rows = (
             self.env["pan_ai.field.metadata"]
             .sudo()

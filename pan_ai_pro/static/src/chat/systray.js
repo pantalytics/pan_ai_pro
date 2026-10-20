@@ -27,16 +27,20 @@ registry.category("systray").add(
     { sequence: 26 }
 );
 
-// Ctrl+K: "Ask AI".
+// Ctrl+K: "Ask AI". Odoo 19 calls provide(env, options); 20 calls
+// provide(options) inside a scope where useService works.
 registry.category("command_provider").add("pan_ai_pro", {
-    provide(env) {
+    provide(first) {
+        const env = first?.services ? first : null;
+        const orm = env ? env.services.orm : useService("orm");
+        const store = env ? env.services["mail.store"] : useService("mail.store");
         return [
             {
                 name: _t("Ask AI"),
                 category: "app",
                 async action() {
-                    const id = await env.services.orm.call("discuss.channel", "pan_ai_open", []);
-                    await openChannel(env.services["mail.store"], id);
+                    const id = await orm.call("discuss.channel", "pan_ai_open", []);
+                    await openChannel(store, id);
                 },
             },
         ];

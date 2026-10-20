@@ -2,16 +2,17 @@
 
 `Streamer` collects Pydantic AI's events as small JSON dicts and sends them
 as `pan_ai.run_event` on the channel's bus every ~100 ms (measured in S2:
-first token 50 ms after the server sent it). Every flush commits, so the
-browser sees the batch now, and writes the run's heartbeat behind the claim
-fence, so a worker that lost its claim stops writing.
+first token 50 ms after the server sent it). Every flush checks the claim
+fence (a worker that lost its claim stops writing) and commits, so the
+browser sees the batch now. The heartbeat is the slice's clock task and the
+tools' `beat()` in runtime/slices.py, never the flush; the text lands on the
+run at a slice boundary and at the end.
 """
 
 import time
 
 from markdown2 import markdown
 
-from odoo import fields
 from odoo.tools import html_sanitize
 
 from ..compat import send_fields
@@ -34,6 +35,9 @@ class LostClaim(Exception):
 
 
 class Streamer:
+    """`token` is the slice's claim; None is a finish from outside a slice
+    (Stop on a waiting run, the stuck cron), where there is no claim to hold."""
+
     def __init__(self, run, token):
         self.run = run
         self.env = run.env
@@ -42,15 +46,16 @@ class Streamer:
         self.message_id = run.message_id.id if run.message_id else None
         self.batch = []
         self.last_flush = time.monotonic()
-        self.text = [run.text or ""]
-        self.batches = 0
+        # The answer so far, from the last persisted boundary (a slice end):
+        # what a reclaimed slice continues from, never a dead worker's half.
+        self.text = run.text or ""
 
     # ---- events --------------------------------------------------------
 
     def event(self, kind, **data):
         self.batch.append({"type": kind, **data})
         if kind == "delta":
-            self.text[0] += data["text"]
+            self.text += data["text"]
         now = time.monotonic()
         if kind != "delta" or now - self.last_flush >= BATCH_SECONDS:
             self.flush()
@@ -59,12 +64,13 @@ class Streamer:
     def flush(self, final=False):
         if not self.batch and not final:
             return
-        if not self.run._holds(self.token):
+        if self.token is not None and not self.run._holds(self.token):
             raise LostClaim()
         if self.channel and self.message_id:
             self.channel._bus_send(
                 "pan_ai.run_event",
                 {
+                    "channel_id": self.channel.id,
                     "message_id": self.message_id,
                     "run_id": self.run.id,
                     "events": list(self.batch),
@@ -73,20 +79,23 @@ class Streamer:
                 },
             )
         self.batch.clear()
-        self.batches += 1
-        self.run.sudo().write({"heartbeat_at": fields.Datetime.now(), "text": self.text[0]})
+        # The commit delivers the bus row. The text lands on the run at the
+        # slice's end (runtime/slices.py) and in finish(); the heartbeat is
+        # the slice's clock task, so no row is rewritten ten times a second.
+        if final:
+            self.run.sudo().write({"text": self.text})
         commit(self.env)
 
     # ---- the end -------------------------------------------------------
 
     def finish(self, status, error=None, pending=None):
         """Write the final body once, tell the window, and commit."""
-        text = self.text[0]
+        text = self.text
         if status == "cancelled":
             text += "\n\n*Stopped.*"
         elif status == "failed":
             text += f"\n\n*{error}*"
-        self.text[0] = text
+        self.text = text
         if self.channel and self.message_id:
             message = self.env["mail.message"].sudo().browse(self.message_id)
             body = (
@@ -101,3 +110,10 @@ class Streamer:
             {"type": "run_finished", "status": status, "error": error, "pending": pending or []}
         )
         self.flush(final=True)
+
+
+def finish_outside(run, status, error=None):
+    """A run finished by a button or a cron, not by its slice: the message
+    gets its final body and the window hears `run_finished`, so the card and
+    Stop go away. `run._finish` has been called already."""
+    Streamer(run.sudo(), None).finish(status, error=error)

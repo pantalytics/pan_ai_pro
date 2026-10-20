@@ -34,10 +34,15 @@ class FieldMetadata(models.Model):
                 ]
             )
         }
-        for res_id in res_ids:
-            if res_id in existing:
-                existing[res_id].write(values)
-            else:
-                Metadata.create(
+        res_ids = list(dict.fromkeys(res_ids))
+        found = Metadata.browse([existing[r].id for r in res_ids if r in existing])
+        if found:
+            found.write(values)
+        missing = [r for r in res_ids if r not in existing]
+        if missing:
+            Metadata.create(
+                [
                     {"model_name": model_name, "res_id": res_id, "field_name": field_name, **values}
-                )
+                    for res_id in missing
+                ]
+            )

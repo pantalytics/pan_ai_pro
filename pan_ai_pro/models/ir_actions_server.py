@@ -9,10 +9,13 @@ record. The run carries the rule's or the scheduled action's user, never
 the superuser: a scheduled action set to run as OdooBot refuses.
 """
 
-from odoo import _, api, fields, models
+from odoo import SUPERUSER_ID, _, api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from ..tools import commit
+
+# What the Action menu may start at once, like a Fill button (models/base.py).
+BY_HAND_MAX = 50
 
 
 class IrActionsServer(models.Model):
@@ -28,12 +31,6 @@ class IrActionsServer(models.Model):
     )
     pan_ai_post = fields.Boolean(string="Post the answer on the record", default=True)
     pan_ai_activity = fields.Boolean(string="Create an activity with the answer")
-    pan_ai_tool_ids = fields.One2many("pan_ai.tool", "action_id", string="AI tools")
-    pan_ai_tool_count = fields.Integer(compute="_compute_pan_ai_tool_count")
-
-    def _compute_pan_ai_tool_count(self):
-        for action in self:
-            action.pan_ai_tool_count = len(action.pan_ai_tool_ids)
 
     @api.constrains("state", "pan_ai_agent_id", "pan_ai_prompt")
     def _check_pan_ai(self):
@@ -54,12 +51,13 @@ class IrActionsServer(models.Model):
             records.check_access("read")
 
     def _run_action_pan_ai_run_multi(self, eval_context=None):
-        """One run per record, or one run without a record. The first slice
-        runs here; the rest on the worker crons."""
-        from ..runtime import slices
+        """One run per record, or one run without a record. A scheduled run
+        (a cron) takes its first slice here, the rest on the worker crons. A
+        triggered run (an automation in somebody's request, the Action menu)
+        goes to the workers whole: the person's transaction is theirs."""
 
         self.ensure_one()
-        if self.env.uid == self.env.ref("base.user_root").id or self.env.su and self.env.uid == 1:
+        if self.env.uid == SUPERUSER_ID:
             raise UserError(
                 _(
                     "Run AI agent must run as a real user, not as OdooBot. Pick a user on the action."
@@ -69,14 +67,16 @@ class IrActionsServer(models.Model):
         records = (
             eval_context.get("records") or eval_context.get("record") if eval_context else None
         )
-        if (
-            records is None
-            and self.env.context.get("active_model")
-            and self.env.context.get("active_ids")
-        ):
-            records = self.env[self.env.context["active_model"]].browse(
-                self.env.context["active_ids"]
-            )
+        # A rule (base.automation) marks its context; a schedule has no
+        # records. Anything else with records is the Action menu: the
+        # person's doing, capped like a Fill button and bounded.
+        context = self.env.context
+        by_hand = bool(records) and not ("__action_done" in context or "domain_post" in context)
+        if records is None and context.get("active_model") and context.get("active_ids"):
+            by_hand = True
+            records = self.env[context["active_model"]].browse(context["active_ids"])
+        if by_hand and len(records) > BY_HAND_MAX:
+            raise UserError(_("Run the agent on at most %s records at once.", BY_HAND_MAX))
         kind = "triggered" if records else "scheduled"
         targets = list(records) if records else [None]
         Thread = self.env["pan_ai.thread"]
@@ -96,13 +96,15 @@ class IrActionsServer(models.Model):
                     "activity": self.pan_ai_activity and record is not None,
                 }
             )
-            run = self.env["pan_ai.run"].start(thread, prompt, kind=kind, caller=caller)
+            run = self.env["pan_ai.run"].start(
+                thread, prompt, kind=kind, caller=caller, by_hand=by_hand
+            )
+            inline = self.env.context.get("pan_ai_inline")
+            if kind == "triggered" and not inline:
+                run._wake_worker()
+                continue
             commit(self.env)
-            token = run._claim()
-            if token:
-                slices.run_slice(
-                    run, token, where="inline" if self.env.context.get("pan_ai_inline") else "cron"
-                )
+            run._run_now("inline" if inline else "cron")
         return False
 
     def _pan_ai_render(self, record):

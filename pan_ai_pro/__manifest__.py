@@ -42,9 +42,6 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
         "web.assets_backend": [
             "pan_ai_pro/static/src/chat/**/*",
         ],
-        "web.assets_tests": [
-            "pan_ai_pro/static/tests/tours/**/*",
-        ],
     },
     "images": ["static/description/banner.png"],
     "installable": True,

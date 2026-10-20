@@ -21,10 +21,17 @@ panel can also pair directly through `pan_ai.license.accept_key(key)`.
 the whole list; a field not here is refused (400):
 
 ```json
-{"db_uuid": "...", "module_version": "20.0.1.0.0", "odoo_version": "20.0",
+{"db_uuid": "...", "module_version": "2.0.0", "odoo_version": "20.0",
  "edition": "community", "agents": 3, "runs_24h": 41,
- "errors": [{"code": "model_timeout", "count": 2}]}
+ "errors": [{"code": "timeout", "count": 2}]}
 ```
+
+`module_version` is the manifest's (`2.0.0`); Odoo stores it with its serie
+in front (`20.0.2.0.0`) and the module strips that before sending, so the
+platform's `latest_version` compares to it. `errors` counts the failed
+runs of the last day by `pan_ai.run.error_code`, one of `limit`, `model`,
+`timeout`, `build`, `unresolved`, `stuck`, `other`: never the
+run's error text, which can quote a record.
 
 Answers: 200 with the entitlement below; 401 unknown key; 403
 `wrong_database` (a copy of the database); 429 `too_soon`.
@@ -40,7 +47,13 @@ Answers: 200 with the entitlement below; 401 unknown key; 403
 ```
 
 Canonical JSON: `sort_keys=True, separators=(",", ":"), ensure_ascii=False`.
+
+The server and the key are constants in `models/platform.py`. A browser check or
+CI points the module at a stand-in with `PAN_AI_PRO_SERVER_URL` (https, or
+http on this machine only) and `PAN_AI_PRO_PUBLIC_KEY`; both are logged on
+every use, so a production server with either set cannot go unnoticed.
+Redirects are never followed.
 The module stores an answer only when the signature verifies against the
-public key it ships (`PUBLIC_KEY` in `license.py`, the same key as Mail Pro
+public key it ships (`PUBLIC_KEY` in `models/platform.py`, the same key as Mail Pro
 and Self Learning) and `db_uuid` is its own. A run starts only while
 `status` is `active`, `plan` is set and `valid_until` is in the future.

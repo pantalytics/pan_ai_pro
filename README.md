@@ -13,8 +13,8 @@ key, with any model. Odoo 19 and 20, Community and Enterprise, one module.
   "Run AI agent" works in automation rules and scheduled actions. A
   continuous thread watches a model and wakes up when records change.
 - **AI fields.** Write a prompt on any stored field; the agent fills it.
-  Auto fill for empty records, auto update when an input changes, a value a
-  person typed is left alone.
+  Auto fill for empty records, auto update nightly for values whose inputs
+  changed, a value a person typed is left alone.
 - **Open source** (LGPL-3). A connection to Pantalytics is required to run
   (Settings > AI Pro > Connect to Pantalytics), the same pairing as Mail Pro.
 

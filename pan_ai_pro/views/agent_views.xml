@@ -37,11 +37,11 @@
                     <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
                     <field name="active" invisible="1"/>
                     <div class="oe_title">
-                        <h1><field name="name" placeholder="Sales assistant"/></h1>
+                        <h1><field name="name" placeholder="Sales agent"/></h1>
                         <field name="description" placeholder="One line under the name"/>
                     </div>
                     <group>
-                        <group string="Model">
+                        <group string="Model and tools">
                             <field name="model" placeholder="Default model from Settings"/>
                             <field name="toolset_ids" widget="many2many_tags"/>
                             <field name="web_search"/>

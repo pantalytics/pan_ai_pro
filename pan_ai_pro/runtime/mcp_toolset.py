@@ -1,8 +1,10 @@
 """An MCP server as a toolset: Pydantic AI's `MCPToolset` over HTTP, the
 row's bearer token, its tools filtered by name and prefixed. Before any
-connection the host passes the gate: a public host on the allowed list
-in Settings (`pan_ai.mcp_allowed_hosts`), never a private or loopback
-address unless the list names it by hand. Redirects are not followed.
+connection the host passes the gate: it must be on the allowed list in
+Settings (`pan_ai.mcp_allowed_hosts`), and a private, loopback or link-local
+address is refused unless the config parameter `pan_ai.mcp_allow_private_hosts`
+is true (set by hand, for a test or a server on the same network). Redirects
+are not followed.
 """
 
 import ipaddress
