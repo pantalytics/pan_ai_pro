@@ -37,7 +37,8 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
    `pip install -r pan_ai_pro/requirements.txt`. On Odoo's
    Docker image install them in a venv over the system packages
    (`python3 -m venv --system-site-packages`), the way `.github/workflows/ci.yml` does.
-2. Install AI Pro from Apps.
+2. Install AI Pro from Apps. On Enterprise, installing or upgrading AI Pro
+   also installs `pan_ai_pro_enterprise`, on a database upgraded from 1.x too.
 3. Settings > AI Pro: Connect to Pantalytics and paste an OpenRouter key.
    Each agent picks its model from AI Pro > Configuration > Models.
 4. Press the sparkle top right and ask something.

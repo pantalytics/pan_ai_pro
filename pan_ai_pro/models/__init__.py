@@ -10,6 +10,7 @@ from . import (
     ir_actions_server,
     ir_http,
     ir_model_fields,
+    ir_module_module,
     ir_ui_menu,
     license,
     res_config_settings,

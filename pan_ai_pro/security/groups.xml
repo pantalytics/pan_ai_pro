@@ -29,4 +29,7 @@
     <record id="base.group_system" model="res.groups">
         <field name="implied_ids" eval="[(4, ref('group_manager'))]"/>
     </record>
+    <!-- An Enterprise database upgraded from 1.x never auto installs
+         pan_ai_pro_enterprise (issue #25); this marks it. -->
+    <function model="ir.module.module" name="_pan_ai_install_enterprise"/>
 </odoo>
