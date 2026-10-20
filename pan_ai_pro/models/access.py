@@ -30,6 +30,15 @@ ACCESS = [
         "crud",
         "",
     ),
+    ("access_model_user", "model: user reads", "pan_ai.model", "pan_ai_pro.group_user", "r", ""),
+    (
+        "access_model_manager",
+        "model: manager",
+        "pan_ai.model",
+        "pan_ai_pro.group_manager",
+        "crud",
+        "",
+    ),
     (
         "access_toolset_user",
         "toolset: user reads",

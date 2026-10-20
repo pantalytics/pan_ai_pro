@@ -13,11 +13,11 @@ in the Danger zone. The 19.0 module kept its
 key the same way; there was no encryption helper to inherit.
 """
 
-from odoo import _, api, fields, models
+from odoo import _, fields, models
 from odoo.exceptions import AccessError
 
 from ..compat import params
-from ..defaults import DEFAULT_MODEL, RETENTION_DAYS, RUNS_PER_USER_PER_HOUR
+from ..defaults import RETENTION_DAYS, RUNS_PER_USER_PER_HOUR
 from .license import STATUS_SELECTION
 
 STATE_SELECTION = [
@@ -36,11 +36,6 @@ class ResConfigSettings(models.TransientModel):
     pan_ai_has_key = fields.Boolean(compute="_compute_pan_ai_key")
     pan_ai_key_last4 = fields.Char(compute="_compute_pan_ai_key")
     pan_ai_new_key = fields.Char(string="OpenRouter key")
-    pan_ai_default_model = fields.Char(
-        string="Default model",
-        config_parameter="pan_ai.default_model",
-        default=DEFAULT_MODEL,
-    )
     # Limits
     pan_ai_runs_per_user_per_hour = fields.Integer(
         string="Chats per person per hour",
@@ -79,7 +74,6 @@ class ResConfigSettings(models.TransientModel):
             record.pan_ai_has_key = bool(key)
             record.pan_ai_key_last4 = key[-4:] if key else ""
 
-    @api.depends("pan_ai_default_model")
     def _compute_pan_ai_link(self):
         link = self.env["pan_ai.license"].current()
         status = (link and link.status) or "not_connected"

@@ -3,7 +3,7 @@
 from pydantic_ai import Agent
 
 from ..compat import params
-from ..runtime.agent import build_agent, output_type, usage_limits
+from ..runtime.agent import build_agent, model_for, output_type, usage_limits
 from .common import AiProCase
 
 
@@ -58,3 +58,28 @@ class TestAgentBuild(AiProCase):
         self.agent.group_ids = [(6, 0, [self.env.ref("base.group_system").id])]
         self.assertFalse(self.agent.may_use(self.user))
         self.assertTrue(self.agent.may_use(self.env.ref("base.user_admin")))
+
+    def test_the_model_is_the_agents_own(self):
+        """Pydantic AI's model is an argument of the Agent: no default from
+        Settings, a parameter that says otherwise is not read."""
+        gpt = self.env.ref("pan_ai_pro.model_gpt")
+        self.agent.model_id = gpt
+        params(self.env).set_str("pan_ai.default_model", "someone/else")
+        self.assertEqual(model_for(self.agent, self.env).model_name, gpt.model_name)
+
+    def test_a_new_agent_starts_on_the_first_model(self):
+        agent = self.env["pan_ai.agent"].create({"name": "New"})
+        self.assertEqual(agent.model_id, self.env["pan_ai.model"].first())
+
+    def test_a_model_in_use_cannot_be_deleted(self):
+        import psycopg2
+
+        from odoo.tools import mute_logger
+
+        with (
+            mute_logger("odoo.sql_db"),
+            self.assertRaises(psycopg2.errors.ForeignKeyViolation),
+            self.env.cr.savepoint(),
+        ):
+            self.agent.model_id.unlink()
+            self.env.cr.flush()

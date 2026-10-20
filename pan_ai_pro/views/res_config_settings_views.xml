@@ -88,8 +88,8 @@
                     <div invisible="not pan_ai_entitled">
 
                     <!-- Step 2. The key is typed here, and the page's Save
-                         keeps it. The default model sits with it: both are
-                         answered on openrouter.ai. -->
+                         keeps it. Models are picked per agent, from
+                         AI Pro > Configuration > Models. -->
                     <div class="o_pan_ai_step">
                         <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done"
                               invisible="not pan_ai_has_key"/>
@@ -111,10 +111,6 @@
                             <div class="o_pan_ai_step_msg">
                                 <field name="pan_ai_new_key" nolabel="1" password="True" class="w-100"
                                        placeholder="Paste a key and save"/>
-                            </div>
-                            <div class="o_pan_ai_step_msg o_pan_ai_step_field">
-                                <label for="pan_ai_default_model" string="Default model"/>
-                                <field name="pan_ai_default_model" placeholder="anthropic/claude-sonnet-5.5"/>
                             </div>
                         </div>
                     </div>

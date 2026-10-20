@@ -24,7 +24,6 @@ from odoo import _, fields
 from odoo.exceptions import UserError
 
 from ..compat import params
-from ..defaults import DEFAULT_MODEL
 from .deps import OdooDeps
 from .mcp_toolset import build_mcp_toolset
 from .odoo_toolset import build_toolset
@@ -52,7 +51,9 @@ def openrouter_key(env):
 def model_for(agent_record, env):
     if TEST_MODEL is not None:
         return TEST_MODEL
-    name = agent_record.model or params(env).get_str("pan_ai.default_model", "") or DEFAULT_MODEL
+    name = agent_record.model_id.model_name
+    if not name:
+        raise UserError(_("The agent %s has no model. Pick one on the agent.", agent_record.name))
     base_url = os.environ.get(ENV_BASE_URL, "").strip()
     if base_url:
         _logger.warning(

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
+<!-- SPDX-License-Identifier: Elastic-2.0 -->
+<odoo>
+    <!-- Two columns, edited in the list: a form would be a page for two fields. -->
+    <record id="view_model_list" model="ir.ui.view">
+        <field name="name">pan_ai.model.list</field>
+        <field name="model">pan_ai.model</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" default_order="sequence, name">
+                <field name="sequence" widget="handle"/>
+                <field name="name" placeholder="Claude Sonnet 5.5"/>
+                <field name="model_name" placeholder="anthropic/claude-sonnet-5.5"/>
+                <field name="agent_count"/>
+                <field name="active" widget="boolean_toggle" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_model" model="ir.actions.act_window">
+        <field name="name">Models</field>
+        <field name="res_model">pan_ai.model</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add a model</p>
+            <p>A name and its id from <a href="https://openrouter.ai/models" target="_blank" rel="noopener">openrouter.ai/models</a>.</p>
+        </field>
+    </record>
+</odoo>

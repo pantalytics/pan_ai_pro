@@ -25,12 +25,13 @@ from the record is a dozen lines, and the form view reads like the docs.
 
 | Record | Pydantic AI | Fields |
 |---|---|---|
-| `pan_ai.agent` | `Agent` | name, `model` (OpenRouter id), `instructions` (markdown), `toolset_ids`, `output_type` (JSON schema, optional), `model_settings` (temperature, max tokens, reasoning), `usage_limits` (request limit, token limit, time limit), `web_search` (on, max uses), `run_as` (the caller or a dedicated user), who may use it (groups) |
+| `pan_ai.agent` | `Agent` | name, `model_id` (required, no default from Settings), `instructions` (markdown), `toolset_ids`, `output_type` (JSON schema, optional), `model_settings` (temperature, max tokens, reasoning), `usage_limits` (request limit, token limit, time limit), `web_search` (on, max uses), `run_as` (the caller or a dedicated user), who may use it (groups) |
+| `pan_ai.model` | the `model` argument | name, OpenRouter id (`OpenRouterModel(model_name)`); AI Pro > Configuration > Models, three seeded; an agent picks one, as Pydantic AI takes the model per `Agent` and has no global default |
 | `pan_ai.toolset` | `Toolset` | kind: `odoo` (function tools) or `mcp`; for `odoo`: the `tool_ids`; for `mcp`: url, auth (none, bearer), `allowed_tool_names`, `tool_prefix`; `requires_approval` default for its tools |
 | `pan_ai.tool` | `Tool` | name, description, `parameters_json_schema`; source: a server action with "Use in AI" (parameters from its AI schema), or a built-in (search, read, read_group, create, write, open menu, compute date); `requires_approval` |
 | `pan_ai.thread` | `Conversation` | user, agent, record context, `conversation` (`ConversationTypeAdapter` JSON: messages, usage across runs, `deferred_tool_requests`), the `discuss.channel` it shows in (chat kind), `continuous` with its watch (model, domain, cursor, interval), paused, last activity |
 | `pan_ai.run` | `agent.run` / `agent.iter()` | thread, user, `kind` (chat, scheduled, triggered, continuous), status (running, ok, cancelled, failed, interrupted), slices, `requests`, `input_tokens`, `output_tokens`, `cost` (OpenRouter reports it), started, finished, error, worker claim and heartbeat |
-| settings | `Model` provider | OpenRouter key (an `ir.config_parameter` readable by Settings administrators only, never shown back; plain, decision 16), default model, retention days, allowed MCP hosts |
+| settings | `Model` provider | OpenRouter key (an `ir.config_parameter` readable by Settings administrators only, never shown back; plain, decision 16), retention days, allowed MCP hosts |
 
 Triggers stay Odoo's: an automation rule or a scheduled action whose server
 action is "Run agent" with a prompt. We add nothing of our own there.

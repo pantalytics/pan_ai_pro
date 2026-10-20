@@ -3,6 +3,7 @@
 from . import (
     access,
     agent,
+    ai_model,
     base,
     discuss_channel,
     field_metadata,

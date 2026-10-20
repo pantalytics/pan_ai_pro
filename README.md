@@ -38,8 +38,8 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
    Docker image install them in a venv over the system packages
    (`python3 -m venv --system-site-packages`), the way `.github/workflows/ci.yml` does.
 2. Install AI Pro from Apps.
-3. Settings > AI Pro: Connect to Pantalytics, paste an OpenRouter key, pick
-   a default model.
+3. Settings > AI Pro: Connect to Pantalytics and paste an OpenRouter key.
+   Each agent picks its model from AI Pro > Configuration > Models.
 4. Press the sparkle top right and ask something.
 
 ## Documentation
