@@ -62,6 +62,13 @@ class TestAccess(AiProCase):
         self.env.invalidate_all()
         self.assertTrue(self.agent.may_use(self.eve))
 
+    def test_a_light_user_stays_light_and_may_chat(self):
+        role = self.env["res.users"]._fields.get("role")
+        if not role or "light_user" not in dict(role.selection):
+            self.skipTest("Odoo 19 has no Light and regular users")
+        self.assertEqual(self.eve.role, "light_user")
+        self.assertTrue(self.agent.may_use(self.eve))
+
     def test_a_user_sees_their_own_threads_and_runs(self):
         Thread = self.env["pan_ai.thread"].with_user(self.user)
         self.assertEqual(Thread.search([]), self.sams.with_user(self.user))

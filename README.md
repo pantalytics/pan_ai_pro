@@ -13,7 +13,7 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
   you set up. That user's groups and record rules are the agent's reach.
   Every tool runs through the ORM; nothing is sudo'ed.
 - **Tools.** Built-ins search, read, total, create, update and open records.
-  A server action marked "Use in AI" becomes a tool, and any MCP server can
+  Add any server action to a toolset and it becomes a tool, and any MCP server can
   be added as a toolset. Tools that change data ask for approval.
 - **Automations.** The server action "Run AI agent" works in automation
   rules and scheduled actions, and posts its answer in the record's chatter

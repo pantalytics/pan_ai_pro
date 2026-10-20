@@ -253,15 +253,7 @@ def run_slice(run, token, where):
         return
     except ModelHTTPError as error:
         _book(run, thread, token, spent.get("usage"), started)
-        _fail(
-            run,
-            stream,
-            _(
-                "The model answered with an error (HTTP %s). Try again in a minute.",
-                error.status_code,
-            ),
-            code="model",
-        )
+        _fail(run, stream, _model_error(error.status_code), code="model")
         return
     except Exception:  # noqa: BLE001 - every outcome lands on the run
         _logger.exception("[AI Pro] run %s failed", run.id)
@@ -375,6 +367,15 @@ def _end(node, agent_run, stream):
             text="\n```json\n" + json.dumps(output, ensure_ascii=False, indent=1) + "\n```\n",
         )
     return list(agent_run.all_messages()), "ok", None, agent_run.usage
+
+
+def _model_error(status):
+    """What the person can do about the model host's refusal."""
+    if status in (401, 403):
+        return _("OpenRouter refused the key (HTTP %s). Check it in Settings > AI Pro.", status)
+    if status == 402:
+        return _("The OpenRouter key has no credit left. Top it up at openrouter.ai.")
+    return _("The model answered with an error (HTTP %s). Try again in a minute.", status)
 
 
 def _fail(run, stream, message, code="other"):

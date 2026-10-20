@@ -84,11 +84,20 @@ class TestFields(AiProCase):
         partner = self.user.partner_id
         partner.write({"comment": "mine"})
         partner.write({"comment": False})
+        untouched = self.env["res.partner"].create({"name": "Nobody edited me"})
+        # first in the fill's order (write_date), however many partners the db has
+        self.env.flush_all()
+        self.env.cr.execute(
+            "UPDATE res_partner SET write_date = '2000-01-01' WHERE id = %s", [untouched.id]
+        )
+        self.env.invalidate_all()
         self.fake(self._value("generated"))
         from ..runtime import field as field_runtime
 
         field_runtime.fill_missing(field, self.env.ref("base.user_admin"), limit=50)
         self.assertFalse(partner.comment)
+        # the skip is measured against a fill that did happen
+        self.assertIn("generated", untouched.comment or "")
 
     def test_only_stored_fillable_fields(self):
         from odoo.exceptions import UserError

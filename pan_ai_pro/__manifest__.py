@@ -32,7 +32,7 @@ Odoo's groups and record rules decide what it may see and touch.
 Tools
 -----
 Built-in tools search, read, total, create, update and open records. Any
-server action marked "Use in AI" becomes a tool, and any MCP server can be
+server action added to a toolset becomes a tool, and any MCP server can be
 added as a toolset. Tools that change data ask for approval by default.
 
 Automations

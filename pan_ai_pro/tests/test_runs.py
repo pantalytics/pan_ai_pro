@@ -7,7 +7,9 @@ from datetime import timedelta
 
 from odoo import fields
 from odoo.exceptions import UserError
+from odoo.tests import tagged
 
+from ..compat import params
 from .common import AiProCase
 
 
@@ -343,3 +345,33 @@ class TestRuns(AiProCase):
         run.write({"heartbeat_at": fields.Datetime.now() - timedelta(hours=2)})
         self.env["pan_ai.run"]._cron_mark_stuck()
         self.assertEqual(run.status, "failed")
+
+
+# A rule is wired into the registry only once it is ready, so after install.
+@tagged("post_install", "-at_install")
+class TestRuleSave(AiProCase):
+    _action = TestRuns._action
+
+    def test_a_rule_never_fails_the_save_when_the_agent_may_not_run(self):
+        """A rule whose agent is refused (no key, lapsed plan, closed agent)
+        lets the person's save through and runs nothing; the log says why."""
+        rule = self.env["base.automation"].create(
+            {
+                "name": "Summarise on save",
+                "model_id": self.env["ir.model"]._get_id("res.partner"),
+                "trigger": "on_create_or_write",
+            }
+        )
+        self._action(base_automation_id=rule.id)
+        params(self.env).set_str("pan_ai.openrouter_key", "")
+        admin = self.env.ref("base.user_admin")
+        with self.assertLogs("odoo.addons.pan_ai_pro.models.ir_actions_server", "WARNING") as log:
+            partner = self.env["res.partner"].with_user(admin).create({"name": "Saved anyway"})
+            partner.write({"name": "Saved anyway, twice"})
+        self.assertEqual(partner.name, "Saved anyway, twice")
+        self.assertIn("OpenRouter key", log.output[0])
+        self.assertFalse(
+            self.env["pan_ai.thread"].search(
+                [("res_model", "=", "res.partner"), ("res_id", "=", partner.id)]
+            )
+        )

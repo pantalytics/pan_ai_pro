@@ -13,6 +13,7 @@ from . import (
     ir_ui_menu,
     license,
     res_config_settings,
+    res_groups,
     run,
     thread,
     tool,

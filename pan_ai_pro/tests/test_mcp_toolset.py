@@ -66,6 +66,8 @@ class TestMcpToolset(AiProCase):
                 break
             except OSError:
                 time.sleep(0.1)
+        else:
+            raise RuntimeError(f"the MCP test server did not start on port {cls.port}")
         params(cls.env).set_str(mcp_toolset.PARAM_ALLOWED_HOSTS, "127.0.0.1")
         params(cls.env).set_bool("pan_ai.mcp_allow_private_hosts", True)
         cls.mcp = cls.env["pan_ai.toolset"].create(
@@ -113,4 +115,12 @@ class TestMcpToolset(AiProCase):
         channel, thread = self.chat(text="tell me the secret")
         run = thread.run_ids[:1]
         self.assertEqual(run.status, "failed")
+        # the server's `secret` never ran: no tool return came back from it
+        returns = [
+            p
+            for m in thread.messages()
+            for p in m.get("parts", [])
+            if p.get("part_kind") == "tool-return" and p.get("tool_name") == "secret"
+        ]
+        self.assertFalse(returns)
         self.assertNotIn("no", run.text.lower().split())
