@@ -1,0 +1,79 @@
+// Settings > AI Pro: the setup checklist. Mail Pro's shape (pan_mail_pro,
+// static/src/scss/setup_status.scss): a dot, the name, the answer, and under
+// it what to do. Colours from brand.pantalytics.com: green works, amber
+// needs the user, red broken, an outline for not started.
+
+// Odoo compiles this file once per colour scheme.
+$pan-ai-dark: if(global-variable-exists(o-webclient-color-scheme),
+                 $o-webclient-color-scheme == dark, false);
+$pan-ai-ink: if($pan-ai-dark, #fff, #001d21);
+$pan-ai-ok: #1f9d63;
+$pan-ai-wait: if($pan-ai-dark, #f5b942, #b7791f);
+$pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
+
+// One column, capped: a name on the left and its answer a screen away is two
+// things, not one line.
+.o_pan_ai_steps {
+    max-width: 46rem;
+}
+
+.o_pan_ai_step {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba($pan-ai-ink, 0.06);
+
+    .o_pan_ai_dot {
+        flex: 0 0 auto;
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 50%;
+        margin-top: 0.45rem;
+    }
+    .o_pan_ai_dot_ok { background: $pan-ai-ok; }
+    .o_pan_ai_dot_wait { background: $pan-ai-wait; }
+    .o_pan_ai_dot_broken { background: $pan-ai-broken; }
+    // Not started is not wrong: an outline, not a fill.
+    .o_pan_ai_dot_todo {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px rgba($pan-ai-ink, 0.65);
+    }
+
+    .o_pan_ai_step_body {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .o_pan_ai_step_head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    // A fixed column, so the three answers start at the same x.
+    .o_pan_ai_step_name {
+        font-weight: 600;
+        color: $pan-ai-ink;
+        min-width: 11.5rem;
+    }
+    .o_pan_ai_step_value {
+        color: rgba($pan-ai-ink, 0.7);
+    }
+    .o_pan_ai_step_msg {
+        margin-top: 0.4rem;
+    }
+    .o_pan_ai_step_field {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .o_pan_ai_msg_warn {
+        color: $pan-ai-broken;
+    }
+}
+
+// The last step's rule separates it from nothing.
+.o_pan_ai_steps > .o_pan_ai_step:last-child,
+.o_pan_ai_steps > div:last-child > .o_pan_ai_step:last-child {
+    border-bottom: 0;
+}

@@ -33,7 +33,7 @@ import requests
 from odoo import _, api, fields, models, release
 from odoo.exceptions import AccessError, UserError
 
-from ..compat import params
+from ..compat import clear_ormcache, params
 from .platform import (
     HEARTBEAT_PATH,
     LINK_PREFIX,
@@ -53,6 +53,7 @@ STATUS_SELECTION = [
     ("revoked", "Disconnected at Pantalytics"),
     ("invalid", "Key refused"),
 ]
+ENTITLEMENT_FIELDS = {"status", "key", "plan", "valid_until"}
 NOT_CONNECTED_MESSAGE = "Connect to Pantalytics in Settings > AI Pro before running an agent."
 
 
@@ -79,6 +80,18 @@ class License(models.Model):
     last_error = fields.Char(readonly=True, copy=False)
     connected_user_id = fields.Many2one("res.users", readonly=True, copy=False, ondelete="set null")
     connected_on = fields.Datetime(readonly=True, copy=False)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        clear_ormcache(self.env)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        # The menu hides AI Pro until this row says entitled, and the menu is cached.
+        result = super().write(vals)
+        if ENTITLEMENT_FIELDS & set(vals):
+            clear_ormcache(self.env)
+        return result
 
     # ---- one row -------------------------------------------------------
 

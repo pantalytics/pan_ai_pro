@@ -18,7 +18,7 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "license": "LGPL-3",
     "external_dependencies": {"python": ["pydantic_ai", "markdown2", "cryptography", "requests"]},
     "depends": ["mail", "bus", "base_automation"],
@@ -41,6 +41,7 @@ Works on Community and Enterprise. Requires a connection to Pantalytics
     "assets": {
         "web.assets_backend": [
             "pan_ai_pro/static/src/chat/**/*",
+            "pan_ai_pro/static/src/settings/**/*",
         ],
     },
     "images": ["static/description/banner.png"],
