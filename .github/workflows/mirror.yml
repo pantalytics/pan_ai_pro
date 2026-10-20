@@ -1,12 +1,12 @@
 name: mirror
 
 # Odoo.sh and Cloudpepper attach a branch named after the Odoo version. The
-# module is one code base for 19 and 20, so `19.0` and `20.0` are mirrors of
-# `main`: every push to main lands on both. Nobody commits to a mirror.
+# module is one code base for 19 and 20: work lands on `19.0` (the default
+# branch) and every push there lands on `20.0` too. Nobody commits to 20.0.
 
 on:
   push:
-    branches: [main]
+    branches: ['19.0']
 
 jobs:
   mirror:
@@ -18,4 +18,4 @@ jobs:
         with:
           fetch-depth: 0
       - run: |
-          git push --force origin HEAD:refs/heads/19.0 HEAD:refs/heads/20.0
+          git push --force origin HEAD:refs/heads/20.0
