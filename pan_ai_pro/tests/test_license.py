@@ -179,3 +179,14 @@ class TestLicense(TransactionCase):
             platform._server_url()
         with patch.dict("os.environ", {platform.ENV_URL: ""}):
             self.assertEqual(platform._server_url(), platform.SERVER_URL)
+
+    def test_only_a_newer_release_is_offered(self):
+        from ..models.res_config_settings import _newer
+
+        self.assertTrue(_newer("2.5.0", "2.4.1"))
+        self.assertTrue(_newer("2.10.0", "2.9.0"))
+        # the screenshot that asked for this: 2.0.0 offered on 2.4.1
+        self.assertFalse(_newer("2.0.0", "2.4.1"))
+        self.assertFalse(_newer("2.4.1", "2.4.1"))
+        self.assertFalse(_newer(False, "2.4.1"))
+        self.assertFalse(_newer("beta", "2.4.1"))

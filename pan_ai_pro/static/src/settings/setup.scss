@@ -79,3 +79,8 @@ $pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
 .o_pan_ai_steps > div:last-child > .o_pan_ai_step:last-child {
     border-bottom: 0;
 }
+
+// About lines up with the checklist above it.
+.o_pan_ai_about {
+    max-width: 46rem;
+}
