@@ -74,12 +74,11 @@ class TestAgentBuild(AiProCase):
     def test_a_model_in_use_cannot_be_deleted(self):
         import psycopg2
 
-        from odoo.exceptions import UserError
         from odoo.tools import mute_logger
 
         with (
             mute_logger("odoo.sql_db"),
-            self.assertRaises((UserError, psycopg2.IntegrityError)),
+            self.assertRaises(psycopg2.errors.ForeignKeyViolation),
             self.env.cr.savepoint(),
         ):
             self.agent.model_id.unlink()
