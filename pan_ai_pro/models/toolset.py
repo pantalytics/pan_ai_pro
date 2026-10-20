@@ -13,7 +13,7 @@ from odoo.exceptions import ValidationError
 
 class Toolset(models.Model):
     _name = "pan_ai.toolset"
-    _description = "AI toolset"
+    _description = "AI tool group"
     _order = "name"
 
     name = fields.Char(required=True)

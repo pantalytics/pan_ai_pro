@@ -44,6 +44,7 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
 
 ## Documentation
 
+- [docs/concepts.md](docs/concepts.md): the words on screen, and their Pydantic AI names.
 - [docs/architecture-20.md](docs/architecture-20.md): the objects, the
   boxes, one chat turn, rights, money, the decisions.
 - [docs/plans/ai-pro-20.md](docs/plans/ai-pro-20.md): why, and what Odoo 20

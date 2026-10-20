@@ -36,7 +36,9 @@ class Tool(models.Model):
     description = fields.Text(required=True, help="What the model reads to decide when to call it.")
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
-    toolset_id = fields.Many2one("pan_ai.toolset", required=True, ondelete="cascade")
+    toolset_id = fields.Many2one(
+        "pan_ai.toolset", string="Tool group", required=True, ondelete="cascade"
+    )
     source = fields.Selection(
         [("builtin", "Built in"), ("server_action", "Server action")],
         default="builtin",

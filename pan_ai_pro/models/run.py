@@ -77,7 +77,9 @@ class Run(models.Model):
     _description = "AI run"
     _order = "id desc"
 
-    thread_id = fields.Many2one("pan_ai.thread", required=True, ondelete="cascade", index=True)
+    thread_id = fields.Many2one(
+        "pan_ai.thread", string="Conversation", required=True, ondelete="cascade", index=True
+    )
     agent_id = fields.Many2one(related="thread_id.agent_id", store=True)
     user_id = fields.Many2one(
         "res.users",

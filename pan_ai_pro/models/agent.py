@@ -52,7 +52,11 @@ class Agent(models.Model):
         ondelete="restrict",
     )
     instructions = fields.Text(default=DEFAULT_INSTRUCTIONS)
-    toolset_ids = fields.Many2many("pan_ai.toolset", string="Toolsets")
+    toolset_ids = fields.Many2many(
+        "pan_ai.toolset",
+        string="Tool groups",
+        help="What the agent may use: Odoo records, server actions, a connected server.",
+    )
     output_type = fields.Text(
         help="A JSON schema the answer must match; empty is free text.",
     )
@@ -196,7 +200,7 @@ class Agent(models.Model):
     def action_open_threads(self):
         return {
             "type": "ir.actions.act_window",
-            "name": _("Threads"),
+            "name": _("Conversations"),
             "res_model": "pan_ai.thread",
             "view_mode": "list,form",
             "domain": [("agent_id", "=", self.id)],
@@ -206,7 +210,7 @@ class Agent(models.Model):
     def action_open_runs(self):
         return {
             "type": "ir.actions.act_window",
-            "name": _("Runs"),
+            "name": _("Activity"),
             "res_model": "pan_ai.run",
             "view_mode": "list,form",
             "domain": [("agent_id", "=", self.id)],

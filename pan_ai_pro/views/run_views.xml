@@ -81,13 +81,13 @@
         </field>
     </record>
     <record id="action_run" model="ir.actions.act_window">
-        <field name="name">Runs</field>
+        <field name="name">Activity</field>
         <field name="res_model">pan_ai.run</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_run_search"/>
         <field name="context">{'search_default_attention': 1}</field>
         <field name="help" type="html">
-            <p>Nothing needs a look. Remove the filter to see every run.</p>
+            <p>A run is one question to one answer. Nothing needs a look; remove the filter to see them all.</p>
         </field>
     </record>
 </odoo>
