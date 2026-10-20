@@ -442,7 +442,7 @@ measurements in `scripts/spikes/s7_one_module/README.md`.
       AI Pro > Upgrade by hand: a Cloudpepper pull never runs `-u`, with
       auto-upgrade on or off (measured three times on the clone). Then, on
       Enterprise, install `pan_ai_pro_enterprise` by hand; #25 may make that
-      automatic. The upgrade to 2.2.1 removes what 1.6.1 left (the
+      automatic. The upgrade to 2.3.1 removes what 1.6.1 left (the
       `x_ai.*` parameters with the Anthropic key, the `x_ai_field_metadata`
       table); uninstall removes the `pan_ai.*` parameters
 - [ ] the default branch switched to `main` on GitHub (a repository

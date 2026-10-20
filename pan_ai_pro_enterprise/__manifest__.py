@@ -6,7 +6,7 @@
     "author": "Pantalytics",
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "category": "Productivity",
-    "version": "2.2.1",
+    "version": "2.3.1",
     "license": "Other proprietary",
     "depends": ["pan_ai_pro", "ai_fields"],
     "data": [],
