@@ -11,14 +11,14 @@ and Enterprise; upgrade from the 1.x module on 19 Enterprise.
 | Agents: run as user or dedicated user | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | test_agent_build, test_runs::test_a_dedicated_user_carries_the_run |
 | Every internal user may chat, also after an upgrade; a Light user stays Light (20) | ✓ | – | – | ✓ | ✓ | ✓ | – | test_access::test_an_upgrade_gives_every_internal_user_the_chat, ::test_a_light_user_stays_light_and_may_chat |
 | Built-in Odoo tools | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | test_odoo_toolset |
-| Server action as tool | ✓ | ✗ | ✗ | ✗ approval #26 | ✓ | ✓ | – | test_odoo_toolset::test_a_server_action_is_a_tool |
-| MCP toolset | ✓ | ✓ | ✗ server down | ✓ allow list, ✗ approval #26 | ✓ | ✓ | – | test_mcp_toolset |
-| Automation rule, schedule, Action menu | ✓ | ✓ | ✓ refusal never fails a save (logged, nothing runs), ✗ nobody told #28 | ✓ | ✓ | ✓ | – | test_runs, test_runs::TestRuleSave |
+| Server action as tool | ✓ | ✗ | ✗ | ✓ asks by default | ✓ | ✓ | – | test_odoo_toolset::test_a_server_action_is_a_tool, ::test_a_server_action_tool_asks_by_default |
+| MCP toolset | ✓ | ✓ | ✗ server down | ✓ allow list, asks by default | ✓ | ✓ | – | test_mcp_toolset |
+| Automation rule, schedule, Action menu | ✓ | ✓ | ✓ refusal never fails a save (logged, nothing runs), ✓ a failed run on a record posts a note | ✓ | ✓ | ✓ | – | test_runs, test_runs::TestRuleSave, ::test_a_failed_triggered_run_says_so_on_the_record |
 | Continuous watch | ✓ | ✓ | ✓ | – | ✓ | ✓ | – | test_runs::test_a_continuous_thread_ticks_on_changes_only |
 | AI fields (Community) | ✓ | ✓ | ✗ model error | ✓ | ✓ | ✓ | – | test_fields |
 | AI fields (Enterprise seam) | ✗ #27 | ✗ | ✗ | ✗ | ✗ | ✗ | – | none |
 | Control: tokens, limits, retention | ✓ tokens, ✗ cost | ✓ | ✓ | ✓ | ✓ | ✓ | – | test_run_stream, test_channel::test_retention_deletes_old_chats_and_their_runs |
 | License connection | ✓ | ✓ | ✓ outage keeps plan, 401 stops | ✓ | ✓ | ✓ | – | test_license |
 | Onboarding and menus | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | test_onboarding |
-| Multi-company | ✗ #28 | ✗ | ✗ | ✗ | ✗ | ✗ | – | none |
-| Install, upgrade from 1.6.1, upgrade in place | ✓ | – | – | – | ✓ | ✓ | – | local matrix (not in CI); pan_ai_pro_enterprise on upgrade ✗ #25 |
+| Multi-company | ✓ | – | – | ✓ | ✓ | ✓ | – | test_runs::test_a_run_sees_every_company_of_its_user |
+| Install, upgrade from 1.6.1, upgrade in place | ✓ | – | – | – | ✓ | ✓ | – | local matrix (not in CI); pan_ai_pro_enterprise installed on upgrade (#25) |
