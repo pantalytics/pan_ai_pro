@@ -31,7 +31,7 @@ from the record is a dozen lines, and the form view reads like the docs.
 | `pan_ai.tool` | `Tool` | name, description, `parameters_json_schema`; source: a server action with "Use in AI" (parameters from its AI schema), or a built-in (search, read, read_group, create, write, open menu, compute date); `requires_approval` |
 | `pan_ai.thread` | `Conversation` | user, agent, record context, `conversation` (`ConversationTypeAdapter` JSON: messages, usage across runs, `deferred_tool_requests`), the `discuss.channel` it shows in (chat kind), `continuous` with its watch (model, domain, cursor, interval), paused, last activity |
 | `pan_ai.run` | `agent.run` / `agent.iter()` | thread, user, `kind` (chat, scheduled, triggered, continuous), status (running, ok, cancelled, failed, interrupted), slices, `requests`, `input_tokens`, `output_tokens`, `cost` (OpenRouter reports it), started, finished, error, worker claim and heartbeat |
-| settings | `Model` provider | OpenRouter key (an `ir.config_parameter` readable by Settings administrators only, never shown back; plain, decision 16), retention days, allowed MCP hosts |
+| settings | `Model` provider | OpenRouter key (an `ir.config_parameter` readable by Settings administrators only, never shown back; plain, decision 16), typed in step 2's dialog. Retention days and runs per hour keep their defaults (config parameters, no screen); the MCP allow list is Allow this host on the tool group |
 
 Triggers stay Odoo's: an automation rule or a scheduled action whose server
 action is "Run agent" with a prompt. We add nothing of our own there.
@@ -163,7 +163,7 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
 | Tokens | OpenRouter key in Settings, one per database | no key, no chat; the agent's bubble says "No OpenRouter key. Add one in Settings > AI Pro." |
 | Web search | Pydantic AI `WebSearch(native=WebSearchTool(max_uses))` on OpenRouter's server tool (S5: works on Sonnet, GPT, Gemini; 8 to 13k input tokens per question) | on per agent, off by default; `max_uses` on the agent (`search_context_size` not exposed); never on an AI field fill that keeps the tools off |
 | Per run | `UsageLimits` on the agent, carried from slice to slice, and the slice loop for the clock | defaults in `defaults.py` and the agent's fields: 25 requests, 200k tokens, 300 s, all across slices; a run past any of them fails with the reason, and a continuous thread that hits one pauses |
-| Per user | `pan_ai.run` rows | chats per hour per person, a setting; it counts what a person starts by hand (a chat, a Fill button, the Action menu); a watch's ticks, schedules and the nightly fills are the administrator's and never refused; one live run per thread (a unique index) |
+| Per user | `pan_ai.run` rows | chats per hour per person (`pan_ai.runs_per_user_per_hour`, default 30, no screen); it counts what a person starts by hand (a chat, a Fill button, the Action menu); a watch's ticks, schedules and the nightly fills are the administrator's and never refused; one live run per thread (a unique index) |
 | Per database | the signed entitlement, required | not connected or revoked: no run; the beta is "connected is entitled", as Mail Pro; tiers decided later |
 
 ## 7. AI fields

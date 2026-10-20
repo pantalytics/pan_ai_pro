@@ -87,6 +87,14 @@ class TestMcpToolset(AiProCase):
         with self.assertRaises(UserError):
             mcp_toolset.check_url(self.env, self.mcp.url)
 
+    def test_allow_this_host_on_the_toolset(self):
+        params(self.env).set_str(mcp_toolset.PARAM_ALLOWED_HOSTS, "other.example.com")
+        self.assertFalse(self.mcp.host_allowed)
+        self.mcp.host_allowed = True
+        self.assertEqual(mcp_toolset.allowed_hosts(self.env), {"127.0.0.1", "other.example.com"})
+        self.mcp.host_allowed = False
+        self.assertEqual(mcp_toolset.allowed_hosts(self.env), {"other.example.com"})
+
     def test_a_private_host_needs_the_switch(self):
         params(self.env).set_bool("pan_ai.mcp_allow_private_hosts", False)
         with self.assertRaises(UserError):

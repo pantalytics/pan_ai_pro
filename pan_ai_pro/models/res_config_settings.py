@@ -1,6 +1,6 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
-"""Settings > AI Pro: the setup checklist, the limits, the danger zone.
+"""Settings > AI Pro: the setup checklist, and nothing else.
 
 Three steps, in the order a person has to take them: connect to Pantalytics,
 save an OpenRouter key, have a first chat. Until the first is done nothing
@@ -8,16 +8,16 @@ else is on the page (or in the menu, `ir_ui_menu.py`).
 
 The OpenRouter key is stored in `ir.config_parameter` (`pan_ai.openrouter_key`),
 readable by `base.group_system` only, never shown back: the page says
-Saved, ends in the last four, or shows an empty paste field; Remove key sits
-in the Danger zone. The 19.0 module kept its
-key the same way; there was no encryption helper to inherit.
+the last four. It is typed in a dialog of its own, like Mail Pro's provider:
+this same transient model in a small form (`action_pan_ai_openrouter`), with
+Remove key beside Save. The 19.0 module kept its key the same way; there was
+no encryption helper to inherit.
 """
 
 from odoo import _, fields, models
 from odoo.exceptions import AccessError
 
 from ..compat import params
-from ..defaults import RETENTION_DAYS, RUNS_PER_USER_PER_HOUR
 from .license import STATUS_SELECTION
 
 STATE_SELECTION = [
@@ -36,22 +36,6 @@ class ResConfigSettings(models.TransientModel):
     pan_ai_has_key = fields.Boolean(compute="_compute_pan_ai_key")
     pan_ai_key_last4 = fields.Char(compute="_compute_pan_ai_key")
     pan_ai_new_key = fields.Char(string="OpenRouter key")
-    # Limits
-    pan_ai_runs_per_user_per_hour = fields.Integer(
-        string="Chats per person per hour",
-        config_parameter="pan_ai.runs_per_user_per_hour",
-        default=RUNS_PER_USER_PER_HOUR,
-    )
-    pan_ai_retention_days = fields.Integer(
-        string="Keep chats for (days)",
-        config_parameter="pan_ai.retention_days",
-        default=RETENTION_DAYS,
-    )
-    pan_ai_mcp_allowed_hosts = fields.Char(
-        string="Allowed MCP hosts",
-        config_parameter="pan_ai.mcp_allowed_hosts",
-        help="Comma separated.",
-    )
     # Connection
     pan_ai_state = fields.Selection(STATE_SELECTION, compute="_compute_pan_ai_link")
     pan_ai_link_status = fields.Selection(STATUS_SELECTION, compute="_compute_pan_ai_link")
@@ -118,6 +102,18 @@ class ResConfigSettings(models.TransientModel):
         if not (self.env.su or self.env.user.has_group("base.group_system")):
             raise AccessError(_("Only a Settings administrator can do this."))
 
+    def action_pan_ai_openrouter(self):
+        """Step 2's arrow: the key, in a dialog."""
+        self._pan_ai_check_admin()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("OpenRouter key"),
+            "res_model": "res.config.settings",
+            "view_mode": "form",
+            "views": [(self.env.ref("pan_ai_pro.res_config_settings_view_openrouter").id, "form")],
+            "target": "new",
+        }
+
     def action_pan_ai_remove_key(self):
         """The kill switch: every new run refuses at once."""
         self._pan_ai_check_admin()
@@ -148,10 +144,4 @@ class ResConfigSettings(models.TransientModel):
         link = self.env["pan_ai.license"].current()
         if link:
             link.action_disconnect()
-        return self._reload()
-
-    def action_pan_ai_delete_threads(self):
-        """Every thread of every kind, with its chat window and its runs."""
-        self._pan_ai_check_admin()
-        self.env["pan_ai.thread"].sudo().search([])._unlink_with_channels()
         return self._reload()

@@ -7,13 +7,18 @@ tools it offers filtered by name). MCP Pro is not one of them (decision
 14): an agent inside Odoo does not call the platform's MCP.
 """
 
+from urllib.parse import urlparse
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+
+from ..compat import params
+from ..runtime.mcp_toolset import PARAM_ALLOWED_HOSTS, allowed_hosts
 
 
 class Toolset(models.Model):
     _name = "pan_ai.toolset"
-    _description = "AI tool group"
+    _description = "AI toolset"
     _order = "name"
 
     name = fields.Char(required=True)
@@ -38,12 +43,19 @@ class Toolset(models.Model):
     # MCP server
     url = fields.Char(
         string="Server URL",
-        help="https://host/mcp, on a host allowed in Settings.",
+        help="https://host/mcp.",
+    )
+    # The SSRF gate's list (`pan_ai.mcp_allowed_hosts`), set where the URL is.
+    host_allowed = fields.Boolean(
+        string="Allow this host",
+        compute="_compute_host_allowed",
+        inverse="_inverse_host_allowed",
+        groups="base.group_system",
+        help="A Settings administrator allows the server's host once.",
     )
     bearer_token = fields.Char(
         groups="base.group_system",
         copy=False,
-        string="Key",
         help="Sent as Authorization: Bearer; empty for a server without authentication.",
     )
     allowed_tool_names = fields.Char(help="Comma separated; empty is every tool the server offers.")
@@ -61,6 +73,23 @@ class Toolset(models.Model):
         for toolset in self.filtered(lambda t: t.kind == "mcp"):
             if not (toolset.url or "").startswith(("https://", "http://")):
                 raise ValidationError(_("An MCP server needs an http(s) URL."))
+
+    def _host(self):
+        return (urlparse(self.url or "").hostname or "").lower()
+
+    def _compute_host_allowed(self):
+        allowed = allowed_hosts(self.env)
+        for toolset in self:
+            toolset.host_allowed = bool(toolset._host()) and toolset._host() in allowed
+
+    def _inverse_host_allowed(self):
+        allowed = allowed_hosts(self.env)
+        for toolset in self.filtered(lambda t: t._host()):
+            if toolset.host_allowed:
+                allowed.add(toolset._host())
+            else:
+                allowed.discard(toolset._host())
+        params(self.env).set_str(PARAM_ALLOWED_HOSTS, ",".join(sorted(allowed)))
 
     def _compute_tool_count(self):
         for toolset in self:
