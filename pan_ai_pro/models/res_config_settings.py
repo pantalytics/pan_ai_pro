@@ -1,6 +1,6 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
-"""Settings > AI Pro: the setup checklist, and nothing else.
+"""Settings > AI Pro: the setup checklist, and the version under About.
 
 Three steps, in the order a person has to take them: connect to Pantalytics,
 save an OpenRouter key, have a first chat. Until the first is done nothing
@@ -14,7 +14,7 @@ Remove key beside Save. The 19.0 module kept its key the same way; there was
 no encryption helper to inherit.
 """
 
-from odoo import _, fields, models
+from odoo import _, fields, models, release
 from odoo.exceptions import AccessError
 
 from ..compat import params
@@ -49,6 +49,17 @@ class ResConfigSettings(models.TransientModel):
     pan_ai_why_not = fields.Char(compute="_compute_pan_ai_link")
     # Step 3: a run that finished proves the connection, the key and the model.
     pan_ai_has_chatted = fields.Boolean(compute="_compute_pan_ai_key")
+    # About
+    pan_ai_version = fields.Char(string="Version", compute="_compute_pan_ai_version")
+
+    def _compute_pan_ai_version(self):
+        """The version the database is on, as Mail Pro shows it: after a pull
+        without an upgrade the code on disk is newer, and the screen behaves
+        like the database's version."""
+        module = self.env["ir.module.module"].sudo().search([("name", "=", "pan_ai_pro")], limit=1)
+        version = (module.latest_version or "").removeprefix(f"{release.serie}.")
+        for record in self:
+            record.pan_ai_version = version
 
     def _compute_pan_ai_key(self):
         key = params(self.env).get_str("pan_ai.openrouter_key", "")

@@ -76,3 +76,9 @@ class TestOnboarding(AiProCase):
         action = self.env["res.config.settings"].create({}).action_pan_ai_open_chat()
         self.assertEqual(action["tag"], "pan_ai_pro.open_chat")
         self.assertTrue(action["params"]["channel_id"])
+
+    def test_settings_show_the_installed_version(self):
+        settings = self.env["res.config.settings"].create({})
+        module = self.env["ir.module.module"].search([("name", "=", "pan_ai_pro")])
+        self.assertTrue(settings.pan_ai_version)
+        self.assertTrue(module.latest_version.endswith(settings.pan_ai_version))
