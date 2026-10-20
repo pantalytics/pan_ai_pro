@@ -139,9 +139,11 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   any user. No `sudo` in a tool, no user with everything. An `AccessError`
   inside a tool is returned to the model as the tool's error, never caught
   into a wider path.
-- Who may chat: the groups on the `Agent`. Who may configure agents,
-  toolsets, tools and AI fields: the AI Pro Administrator group
-  (`pan_ai_pro.group_manager`). Settings, the OpenRouter key and the
+- Who may chat: the groups on the `Agent`, from the sparkle and Ctrl+K; a
+  Member (`pan_ai_pro.group_user`) never sees the AI Pro app. Who may
+  configure agents, toolsets, tools and AI fields, and read the runs: the
+  AI Pro Administrator group (`pan_ai_pro.group_manager`), the only one with
+  the menu. Settings, the OpenRouter key and the
   connection to Pantalytics: Settings administrators (`base.group_system`).
 - Onboarding: Settings > AI Pro is a checklist of three steps (Pantalytics
   account, OpenRouter key, first chat). Until the Odoo is entitled the AI Pro

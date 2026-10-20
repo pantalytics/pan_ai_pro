@@ -83,3 +83,10 @@ class TestAgentBuild(AiProCase):
         ):
             self.agent.model_id.unlink()
             self.env.cr.flush()
+
+    def test_the_list_says_when_an_agent_has_no_tools(self):
+        self.assertEqual(self.agent.status, "ready")
+        self.agent.toolset_ids = [(5, 0, 0)]
+        self.assertEqual(self.agent.status, "no_tools")
+        self.agent.web_search = True
+        self.assertEqual(self.agent.status, "ready")
