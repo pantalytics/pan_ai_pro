@@ -61,7 +61,7 @@
                                 </span>
                             </div>
                         </div>
-                        <i class="oi oi-arrow-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
+                        <i class="oi oi-chevron-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
                     </button>
 
                     <!-- 2. Starts with a sensible default; the first line is the value. -->
@@ -77,7 +77,7 @@
                                 </span>
                             </div>
                         </div>
-                        <i class="oi oi-arrow-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
+                        <i class="oi oi-chevron-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
                     </button>
 
                     <!-- 3. The one row a new agent has to do: without a tool
@@ -97,7 +97,7 @@
                                 Without tools it answers from memory only.
                             </div>
                         </div>
-                        <i class="oi oi-arrow-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
+                        <i class="oi oi-chevron-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
                     </button>
 
                     <!-- 4. Who may use it, and whose rights a run carries. -->
@@ -111,7 +111,7 @@
                                 </span>
                             </div>
                         </div>
-                        <i class="oi oi-arrow-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
+                        <i class="oi oi-chevron-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
                     </button>
 
                     <!-- 5. A finished chat proves the four above in one go. The
@@ -132,7 +132,7 @@
                                 <button name="action_chat" type="object" string="Chat" class="btn-primary"/>
                             </div>
                         </div>
-                        <button name="action_chat" type="object" icon="oi-arrow-right" title="Chat"
+                        <button name="action_chat" type="object" icon="oi-chevron-right" title="Chat"
                                 class="oe_link o_pan_ai_step_edit" invisible="not run_count"/>
                     </div>
 
@@ -146,7 +146,7 @@
                                 <span class="o_pan_ai_step_value">Model settings, usage limits, output type</span>
                             </div>
                         </div>
-                        <i class="oi oi-arrow-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
+                        <i class="oi oi-chevron-right o_pan_ai_step_edit" role="img" aria-hidden="true"/>
                     </button>
 
                     </div>
