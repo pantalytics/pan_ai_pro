@@ -1,6 +1,6 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
-"""The model list mirrors OpenRouter's catalogue, and an outage changes nothing."""
+"""The model list is a shortlist; the daily sync only retires what OpenRouter dropped."""
 
 from unittest.mock import MagicMock, patch
 
@@ -9,10 +9,21 @@ import requests
 from odoo.tests import TransactionCase, tagged
 
 
-def _answer(*models):
+def _answer(*ids):
     response = MagicMock()
-    response.json.return_value = {"data": [{"id": i, "name": n} for i, n in models]}
+    response.json.return_value = {"data": [{"id": i, "name": i} for i in ids]}
     return response
+
+
+@tagged("post_install", "-at_install")
+class TestModelsSeed(TransactionCase):
+    def test_shortlist_of_latest_aliases_sonnet_first(self):
+        rows = self.env["pan_ai.model"].search([])
+        self.assertEqual(rows[0].model_name, "~anthropic/claude-sonnet-latest")
+        self.assertEqual(self.env["pan_ai.model"].first(), rows[0])
+        self.assertIn("openrouter/auto", rows.mapped("model_name"))
+        self.assertTrue(all(m.endswith("-latest") for m in rows.mapped("model_name")[:-1]))
+        self.assertLess(len(rows), 10)
 
 
 @tagged("post_install", "-at_install")
@@ -32,18 +43,11 @@ class TestModelsSync(TransactionCase):
         ):
             self.Model._cron_sync()
 
-    def test_adds_new_archives_dropped_keeps_names(self):
-        self._sync(
-            return_value=_answer(
-                ("anthropic/sonnet", "Anthropic: Sonnet"), ("anthropic/opus", "Anthropic: Opus")
-            )
-        )
-        opus = self.Model.search([("model_name", "=", "anthropic/opus")])
-        self.assertEqual(opus.name, "Anthropic: Opus")
-        self.assertTrue(opus.active)
-        self.assertEqual(self.kept.name, "My Sonnet")
+    def test_archives_dropped_adds_nothing(self):
+        self._sync(return_value=_answer("anthropic/sonnet", "anthropic/opus"))
         self.assertFalse(self.dropped.active)
-        self.assertEqual(self.env["pan_ai.model"].first(), self.kept)
+        self.assertEqual(self.env["pan_ai.model"].search([]), self.kept)
+        self.assertEqual(self.kept.name, "My Sonnet")
         found = self.env["pan_ai.model"].search([("display_name", "ilike", "anthropic/son")])
         self.assertEqual(found, self.kept)
 
