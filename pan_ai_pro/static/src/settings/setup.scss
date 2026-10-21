@@ -74,6 +74,26 @@ $pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
     }
 }
 
+// A row that opens its dialog: the whole row is the target (Apple's
+// disclosure row, GOV.UK's task list), the arrow at its end says so.
+button.o_pan_ai_step_link {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid rgba($pan-ai-ink, 0.06);
+    border-radius: 0;
+    color: inherit;
+    cursor: pointer;
+    &:hover, &:focus-visible {
+        background: rgba($pan-ai-ink, 0.03);
+    }
+    .o_pan_ai_step_edit {
+        align-self: center;
+        color: rgba($pan-ai-ink, 0.45);
+    }
+}
+
 // The last step's rule separates it from nothing.
 .o_pan_ai_steps > .o_pan_ai_step:last-child,
 .o_pan_ai_steps > div:last-child > .o_pan_ai_step:last-child {
