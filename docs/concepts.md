@@ -16,8 +16,9 @@ names, so a developer can read its documentation and recognise every record.
 
 1. **Start.** Settings > AI Pro: connect, save a key, ask the agent that is
    already there. Nothing to configure.
-2. **Agents.** Name, model, instructions, which tool groups it may use, who
-   may use it.
+2. **Agents.** One agent is five steps, top to bottom: model, instructions,
+   tool groups, access, first chat. A dot per step says what is still to
+   do; a link under a step goes to the list it picks from.
 3. **Deeper.** The tools inside a tool group, models, AI fields; and in
    developer mode the agent's Advanced tab (model settings, usage limits,
    output type).

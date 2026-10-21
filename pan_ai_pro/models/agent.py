@@ -33,7 +33,7 @@ class Agent(models.Model):
     _order = "sequence, name"
 
     name = fields.Char(required=True)
-    description = fields.Char(help="One line under the name in the agent picker.")
+    description = fields.Char(help="Shown under the name when a person picks an agent in chat.")
     active = fields.Boolean(default=True)
     sequence = fields.Integer(default=10)
     partner_id = fields.Many2one(
@@ -50,8 +50,12 @@ class Agent(models.Model):
         string="Model",
         required=True,
         ondelete="restrict",
+        help="The language model the agent thinks with.",
     )
-    instructions = fields.Text(default=DEFAULT_INSTRUCTIONS)
+    instructions = fields.Text(
+        default=DEFAULT_INSTRUCTIONS,
+        help="What the agent is for, how it answers, and what it must never do.",
+    )
     toolset_ids = fields.Many2many(
         "pan_ai.toolset",
         string="Tool groups",
@@ -69,8 +73,10 @@ class Agent(models.Model):
         default="none",
         help="Reasoning effort, on models that support it.",
     )
-    web_search = fields.Boolean(help="Let the model search the web (the model's own search tool).")
-    web_search_max_uses = fields.Integer(default=3)
+    web_search = fields.Boolean(
+        string="May search the web", help="The model's own search tool, on the open web."
+    )
+    web_search_max_uses = fields.Integer(string="Searches per answer", default=3)
 
     # usage_limits, per run
     request_limit = fields.Integer(default=25, help="Model requests per run, across slices.")
@@ -82,9 +88,10 @@ class Agent(models.Model):
     # Identity
     run_as = fields.Selection(
         [("caller", "The person who asks"), ("user", "A dedicated user")],
+        string="Runs as",
         default="caller",
         required=True,
-        help="Whose access rights a run carries.",
+        help="Whose access rights a run carries: what that user may see and change, the agent may.",
     )
     user_id = fields.Many2one(
         "res.users",
@@ -95,7 +102,7 @@ class Agent(models.Model):
     group_ids = fields.Many2many(
         "res.groups",
         string="Who may use it",
-        help="Empty: every Member.",
+        help="The groups that may chat with it or trigger it. Empty: every Member.",
     )
 
     status = fields.Selection(

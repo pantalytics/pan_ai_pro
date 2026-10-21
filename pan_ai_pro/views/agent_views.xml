@@ -18,13 +18,20 @@
         </field>
     </record>
 
+    <!-- One agent is a checklist, the Settings page's shape (setup.scss):
+         a dot for where the step stands, its name, the field, and one line
+         with a link to the place the choice is managed. A new agent walks
+         it top to bottom and ends at Chat. Nothing on it explains the
+         product; the dots say what is still to do. -->
     <record id="view_agent_form" model="ir.ui.view">
         <field name="name">pan_ai.agent.form</field>
         <field name="model">pan_ai.agent</field>
         <field name="arch" type="xml">
             <form>
+                <!-- Chat sits in step 5 until the first conversation; then
+                     it is the form's one primary action, up here. -->
                 <header>
-                    <button name="action_chat" type="object" string="Chat" class="btn-primary"/>
+                    <button name="action_chat" type="object" string="Chat" class="btn-primary" invisible="not run_count"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -37,58 +44,133 @@
                     </div>
                     <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
                     <field name="active" invisible="1"/>
+                    <field name="status" invisible="1"/>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Sales agent"/></h1>
-                        <field name="description" placeholder="One line under the name"/>
+                        <field name="description" placeholder="Finds leads and drafts follow-ups, never sends mail"/>
                     </div>
-                    <!-- The model on top; three tabs for what every agent needs.
-                         The rest of Agent(...) sits under Advanced, in developer
-                         mode only: the defaults are right for nearly everyone. -->
-                    <group>
-                        <group>
-                            <field name="model_id" options="{'no_create': True}"/>
+
+                    <div class="o_pan_ai_steps">
+
+                    <!-- 1. The model is required and starts filled, so this
+                         step is done the moment the form opens. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">1. Model</span>
+                            </div>
+                            <div class="o_pan_ai_step_msg">
+                                <field name="model_id" nolabel="1" options="{'no_create': True, 'no_open': True}"/>
+                            </div>
+                            <div class="o_pan_ai_step_msg text-muted">
+                                More under
+                                <button type="action" name="%(action_model)d" string="Models" class="btn-link p-0 align-baseline"/>.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Instructions start with a sensible default. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done" invisible="not instructions"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_todo" role="img" aria-label="To do" title="To do" invisible="instructions"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">2. Instructions</span>
+                                <span class="o_pan_ai_step_value" invisible="instructions">Empty</span>
+                            </div>
+                            <div class="o_pan_ai_step_msg text-muted">What it is for, and what it must never do.</div>
+                            <div class="o_pan_ai_step_msg">
+                                <field name="instructions" nolabel="1" placeholder="You help the sales team. Never send mail."/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. The one step a new agent has to do: without a tool
+                         group it answers from memory only. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done" invisible="status != 'ready'"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_todo" role="img" aria-label="To do" title="To do" invisible="status == 'ready'"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">3. Tools</span>
+                                <span class="o_pan_ai_step_value" invisible="status == 'ready'">No tools</span>
+                                <span class="o_pan_ai_step_value" invisible="status != 'ready'">Ready</span>
+                            </div>
+                            <div class="o_pan_ai_step_msg text-muted" invisible="status == 'ready'">
+                                Without tools it answers from memory only.
+                            </div>
+                            <div class="o_pan_ai_step_msg">
+                                <field name="toolset_ids" nolabel="1" widget="many2many_tags"
+                                       options="{'no_quick_create': True}" placeholder="Pick a tool group"/>
+                            </div>
+                            <div class="o_pan_ai_step_msg">
+                                <field name="web_search" nolabel="1" class="me-1"/>
+                                <label for="web_search"/>
+                                <field name="web_search_max_uses" invisible="not web_search" nolabel="1" class="ms-3"/>
+                                <label for="web_search_max_uses" invisible="not web_search"/>
+                            </div>
+                            <div class="o_pan_ai_step_msg text-muted">
+                                More under
+                                <button type="action" name="%(action_toolset)d" string="Tool groups" class="btn-link p-0 align-baseline"/>.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Access: who may chat with it, and whose rights
+                         a run carries. The defaults fit nearly everyone. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">4. Access</span>
+                            </div>
+                            <group class="o_pan_ai_step_msg">
+                                <field name="group_ids" widget="many2many_tags" placeholder="Every Member"/>
+                                <field name="run_as" widget="radio"/>
+                                <field name="user_id" invisible="run_as != 'user'" required="run_as == 'user'"/>
+                            </group>
+                        </div>
+                    </div>
+
+                    <!-- 5. A finished chat proves the four above in one go. -->
+                    <div class="o_pan_ai_step">
+                        <span class="o_pan_ai_dot o_pan_ai_dot_ok" role="img" aria-label="Done" title="Done" invisible="not run_count"/>
+                        <span class="o_pan_ai_dot o_pan_ai_dot_todo" role="img" aria-label="To do" title="To do" invisible="run_count"/>
+                        <div class="o_pan_ai_step_body">
+                            <div class="o_pan_ai_step_head">
+                                <span class="o_pan_ai_step_name">5. First chat</span>
+                                <span class="o_pan_ai_step_value" invisible="run_count">Not yet</span>
+                                <span class="o_pan_ai_step_value" invisible="not run_count">Done</span>
+                            </div>
+                            <div class="o_pan_ai_step_msg text-muted" invisible="run_count">
+                                Ask it something, like how many contacts there are.
+                            </div>
+                            <div class="o_pan_ai_step_msg" invisible="run_count">
+                                <button name="action_chat" type="object" string="Chat" class="btn-primary"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    </div>
+
+                    <!-- The rest of Agent(...), in developer mode only: the
+                         defaults are right for nearly everyone. -->
+                    <group string="Advanced" groups="base.group_no_one">
+                        <group string="Model settings">
+                            <field name="temperature"/>
+                            <field name="max_tokens"/>
+                            <field name="reasoning"/>
+                        </group>
+                        <group string="Usage limits, per run">
+                            <field name="request_limit"/>
+                            <field name="total_tokens_limit"/>
+                            <field name="time_limit"/>
+                        </group>
+                        <group string="Output type" colspan="2">
+                            <field name="output_type" nolabel="1" colspan="2" placeholder='{"type": "object", "properties": {...}}'/>
                         </group>
                     </group>
-                    <notebook>
-                        <page string="Instructions" name="instructions">
-                            <field name="instructions" nolabel="1" placeholder="How the agent works and what it never does"/>
-                        </page>
-                        <page string="Tools" name="tools">
-                            <group>
-                                <group>
-                                    <field name="toolset_ids" widget="many2many_tags"/>
-                                    <field name="web_search"/>
-                                    <field name="web_search_max_uses" invisible="not web_search"/>
-                                </group>
-                            </group>
-                        </page>
-                        <page string="Access" name="access">
-                            <group>
-                                <group>
-                                    <field name="run_as" widget="radio"/>
-                                    <field name="user_id" invisible="run_as != 'user'" required="run_as == 'user'"/>
-                                    <field name="group_ids" widget="many2many_tags" placeholder="Every Member"/>
-                                </group>
-                            </group>
-                        </page>
-                        <page string="Advanced" name="advanced" groups="base.group_no_one">
-                            <group>
-                                <group string="Model settings">
-                                    <field name="temperature"/>
-                                    <field name="max_tokens"/>
-                                    <field name="reasoning"/>
-                                </group>
-                                <group string="Usage limits, per run">
-                                    <field name="request_limit"/>
-                                    <field name="total_tokens_limit"/>
-                                    <field name="time_limit"/>
-                                </group>
-                            </group>
-                            <group string="Output type">
-                                <field name="output_type" nolabel="1" colspan="2" placeholder='{"type": "object", "properties": {...}}'/>
-                            </group>
-                        </page>
-                    </notebook>
                 </sheet>
             </form>
         </field>
