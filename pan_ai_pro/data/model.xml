@@ -2,20 +2,46 @@
 <!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
 <!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo noupdate="1">
-    <!-- The three families spike S5 measured through OpenRouter. -->
+    <!-- A shortlist, not OpenRouter's catalogue. The `~vendor/family-latest`
+         ids are OpenRouter's own aliases: each always answers as the newest
+         model in its family, so an agent on "Claude Sonnet" moves from 5.5 to
+         5.6 the day OpenRouter does, and nobody re-picks a model. The last row
+         is OpenRouter's Auto Router, which picks a model per question. An
+         exact id, to pin a version, is typed into this list by hand.
+         migrations/2.6.0/pre-migrate.py carries the same list. -->
     <record id="model_claude_sonnet" model="pan_ai.model">
-        <field name="name">Claude Sonnet 5.5</field>
-        <field name="model_name">anthropic/claude-sonnet-5.5</field>
+        <field name="name">Claude Sonnet</field>
+        <field name="model_name">~anthropic/claude-sonnet-latest</field>
         <field name="sequence">1</field>
     </record>
-    <record id="model_gpt" model="pan_ai.model">
-        <field name="name">GPT 5.6</field>
-        <field name="model_name">openai/gpt-5.6-terra</field>
+    <record id="model_claude_haiku" model="pan_ai.model">
+        <field name="name">Claude Haiku</field>
+        <field name="model_name">~anthropic/claude-haiku-latest</field>
         <field name="sequence">2</field>
     </record>
-    <record id="model_gemini_flash" model="pan_ai.model">
-        <field name="name">Gemini 3.8 Flash</field>
-        <field name="model_name">google/gemini-3.8-flash</field>
+    <record id="model_claude_opus" model="pan_ai.model">
+        <field name="name">Claude Opus</field>
+        <field name="model_name">~anthropic/claude-opus-latest</field>
         <field name="sequence">3</field>
+    </record>
+    <record id="model_gemini_flash" model="pan_ai.model">
+        <field name="name">Gemini Flash</field>
+        <field name="model_name">~google/gemini-flash-latest</field>
+        <field name="sequence">4</field>
+    </record>
+    <record id="model_gemini_pro" model="pan_ai.model">
+        <field name="name">Gemini Pro</field>
+        <field name="model_name">~google/gemini-pro-latest</field>
+        <field name="sequence">5</field>
+    </record>
+    <record id="model_gpt" model="pan_ai.model">
+        <field name="name">GPT</field>
+        <field name="model_name">~openai/gpt-terra-latest</field>
+        <field name="sequence">6</field>
+    </record>
+    <record id="model_auto" model="pan_ai.model">
+        <field name="name">Auto (OpenRouter picks per question)</field>
+        <field name="model_name">openrouter/auto</field>
+        <field name="sequence">7</field>
     </record>
 </odoo>
