@@ -113,6 +113,12 @@ class Agent(models.Model):
     thread_count = fields.Integer(compute="_compute_counts")
     run_count = fields.Integer(compute="_compute_counts")
 
+    # The form shows each step as one line: its value in a few words, and
+    # an arrow to the dialog that changes it.
+    instructions_summary = fields.Char(compute="_compute_summaries")
+    tools_summary = fields.Char(compute="_compute_summaries")
+    access_summary = fields.Char(compute="_compute_summaries")
+
     _check_user = models.Constraint(
         "CHECK(run_as <> 'user' OR user_id IS NOT NULL)",
         "A dedicated user is required when the agent runs as one.",
@@ -143,6 +149,22 @@ class Agent(models.Model):
         for agent in self:
             has_tools = agent.web_search or agent.toolset_ids.filtered("active")
             agent.status = "ready" if has_tools else "no_tools"
+
+    @api.depends(
+        "instructions", "toolset_ids.name", "web_search", "group_ids.name", "run_as", "user_id.name"
+    )
+    def _compute_summaries(self):
+        for agent in self:
+            first = (agent.instructions or "").strip().splitlines()[:1]
+            line = first[0] if first else ""
+            agent.instructions_summary = line[:77] + "..." if len(line) > 80 else line
+            tools = agent.toolset_ids.mapped("name")
+            if agent.web_search:
+                tools.append(_("web search"))
+            agent.tools_summary = ", ".join(tools)
+            who = ", ".join(agent.group_ids.mapped("name")) or _("Every Member")
+            runs_as = agent.user_id.name if agent.run_as == "user" else _("the person who asks")
+            agent.access_summary = _("%(who)s, as %(runs_as)s", who=who, runs_as=runs_as)
 
     def _compute_counts(self):
         threads = self.env["pan_ai.thread"]._read_group(
@@ -203,6 +225,35 @@ class Agent(models.Model):
                 raise ValidationError(_("The agent's dedicated user is archived."))
             return self.user_id
         return caller
+
+    def _dialog(self, view, title):
+        """One step's dialog: this record, the step's fields, Save and Discard."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": title,
+            "res_model": "pan_ai.agent",
+            "res_id": self.id,
+            "view_mode": "form",
+            "views": [(self.env.ref(view).id, "form")],
+            "target": "new",
+            "context": {"dialog_size": "medium"},
+        }
+
+    def action_edit_model(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_model", _("Model"))
+
+    def action_edit_instructions(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_instructions", _("Instructions"))
+
+    def action_edit_tools(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_tools", _("Tools"))
+
+    def action_edit_access(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_access", _("Access"))
+
+    def action_edit_advanced(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_advanced", _("Advanced"))
 
     def action_open_threads(self):
         return {
