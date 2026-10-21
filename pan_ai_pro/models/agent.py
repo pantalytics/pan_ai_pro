@@ -33,7 +33,7 @@ class Agent(models.Model):
     _order = "sequence, name"
 
     name = fields.Char(required=True)
-    description = fields.Char(help="One line under the name in the agent picker.")
+    description = fields.Char(help="Shown under the name when a person picks an agent in chat.")
     active = fields.Boolean(default=True)
     sequence = fields.Integer(default=10)
     partner_id = fields.Many2one(
@@ -50,8 +50,12 @@ class Agent(models.Model):
         string="Model",
         required=True,
         ondelete="restrict",
+        help="The language model the agent thinks with.",
     )
-    instructions = fields.Text(default=DEFAULT_INSTRUCTIONS)
+    instructions = fields.Text(
+        default=DEFAULT_INSTRUCTIONS,
+        help="What the agent is for, how it answers, and what it must never do.",
+    )
     toolset_ids = fields.Many2many(
         "pan_ai.toolset",
         string="Tool groups",
@@ -69,8 +73,10 @@ class Agent(models.Model):
         default="none",
         help="Reasoning effort, on models that support it.",
     )
-    web_search = fields.Boolean(help="Let the model search the web (the model's own search tool).")
-    web_search_max_uses = fields.Integer(default=3)
+    web_search = fields.Boolean(
+        string="May search the web", help="The model's own search tool, on the open web."
+    )
+    web_search_max_uses = fields.Integer(string="Searches per answer", default=3)
 
     # usage_limits, per run
     request_limit = fields.Integer(default=25, help="Model requests per run, across slices.")
@@ -82,9 +88,10 @@ class Agent(models.Model):
     # Identity
     run_as = fields.Selection(
         [("caller", "The person who asks"), ("user", "A dedicated user")],
+        string="Runs as",
         default="caller",
         required=True,
-        help="Whose access rights a run carries.",
+        help="Whose access rights a run carries: what that user may see and change, the agent may.",
     )
     user_id = fields.Many2one(
         "res.users",
@@ -95,7 +102,7 @@ class Agent(models.Model):
     group_ids = fields.Many2many(
         "res.groups",
         string="Who may use it",
-        help="Empty: every Member.",
+        help="The groups that may chat with it or trigger it. Empty: every Member.",
     )
 
     status = fields.Selection(
@@ -105,6 +112,12 @@ class Agent(models.Model):
     )
     thread_count = fields.Integer(compute="_compute_counts")
     run_count = fields.Integer(compute="_compute_counts")
+
+    # The form shows each step as one line: its value in a few words, and
+    # an arrow to the dialog that changes it.
+    instructions_summary = fields.Char(compute="_compute_summaries")
+    tools_summary = fields.Char(compute="_compute_summaries")
+    access_summary = fields.Char(compute="_compute_summaries")
 
     _check_user = models.Constraint(
         "CHECK(run_as <> 'user' OR user_id IS NOT NULL)",
@@ -136,6 +149,22 @@ class Agent(models.Model):
         for agent in self:
             has_tools = agent.web_search or agent.toolset_ids.filtered("active")
             agent.status = "ready" if has_tools else "no_tools"
+
+    @api.depends(
+        "instructions", "toolset_ids.name", "web_search", "group_ids.name", "run_as", "user_id.name"
+    )
+    def _compute_summaries(self):
+        for agent in self:
+            first = (agent.instructions or "").strip().splitlines()[:1]
+            line = first[0] if first else ""
+            agent.instructions_summary = line[:77] + "..." if len(line) > 80 else line
+            tools = agent.toolset_ids.mapped("name")
+            if agent.web_search:
+                tools.append(_("web search"))
+            agent.tools_summary = ", ".join(tools)
+            who = ", ".join(agent.group_ids.mapped("name")) or _("Every Member")
+            runs_as = agent.user_id.name if agent.run_as == "user" else _("the person who asks")
+            agent.access_summary = _("%(who)s, as %(runs_as)s", who=who, runs_as=runs_as)
 
     def _compute_counts(self):
         threads = self.env["pan_ai.thread"]._read_group(
@@ -196,6 +225,35 @@ class Agent(models.Model):
                 raise ValidationError(_("The agent's dedicated user is archived."))
             return self.user_id
         return caller
+
+    def _dialog(self, view, title):
+        """One step's dialog: this record, the step's fields, Save and Discard."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": title,
+            "res_model": "pan_ai.agent",
+            "res_id": self.id,
+            "view_mode": "form",
+            "views": [(self.env.ref(view).id, "form")],
+            "target": "new",
+            "context": {"dialog_size": "medium"},
+        }
+
+    def action_edit_model(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_model", _("Model"))
+
+    def action_edit_instructions(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_instructions", _("Instructions"))
+
+    def action_edit_tools(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_tools", _("Tools"))
+
+    def action_edit_access(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_access", _("Access"))
+
+    def action_edit_advanced(self):
+        return self._dialog("pan_ai_pro.view_agent_dialog_advanced", _("Advanced"))
 
     def action_open_threads(self):
         return {

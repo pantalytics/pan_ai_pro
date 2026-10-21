@@ -1,8 +1,8 @@
 // Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 // SPDX-License-Identifier: Elastic-2.0
-// Settings > AI Pro: the setup checklist. Mail Pro's shape (pan_mail_pro,
-// static/src/scss/setup_status.scss): a dot, the name, the answer, and under
-// it what to do. Colours from brand.pantalytics.com: green works, amber
+// The checklist: Settings > AI Pro's setup and one agent's form share it.
+// Mail Pro's shape (pan_mail_pro, static/src/scss/setup_status.scss): a dot,
+// the name, the answer, and under it what to do. Colours from brand.pantalytics.com: green works, amber
 // needs the user, red broken, an outline for not started.
 
 // Odoo compiles this file once per colour scheme.
@@ -71,6 +71,26 @@ $pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
     }
     .o_pan_ai_msg_warn {
         color: $pan-ai-broken;
+    }
+}
+
+// A row that opens its dialog: the whole row is the target (Apple's
+// disclosure row, GOV.UK's task list), the arrow at its end says so.
+button.o_pan_ai_step_link {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid rgba($pan-ai-ink, 0.06);
+    border-radius: 0;
+    color: inherit;
+    cursor: pointer;
+    &:hover, &:focus-visible {
+        background: rgba($pan-ai-ink, 0.03);
+    }
+    .o_pan_ai_step_edit {
+        align-self: center;
+        color: rgba($pan-ai-ink, 0.45);
     }
 }
 

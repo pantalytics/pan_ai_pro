@@ -16,8 +16,10 @@ names, so a developer can read its documentation and recognise every record.
 
 1. **Start.** Settings > AI Pro: connect, save a key, ask the agent that is
    already there. Nothing to configure.
-2. **Agents.** Name, model, instructions, which tool groups it may use, who
-   may use it.
+2. **Agents.** One agent is five rows, top to bottom: model, instructions,
+   tool groups, access, first chat. A dot per row says what is still to do,
+   the row shows its value, and the arrow at its end opens the dialog that
+   changes it (with a link to the list it picks from).
 3. **Deeper.** The tools inside a tool group, models, AI fields; and in
    developer mode the agent's Advanced tab (model settings, usage limits,
    output type).
