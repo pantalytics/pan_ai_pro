@@ -46,9 +46,6 @@
                                     <field name="pan_ai_link_status" nolabel="1" readonly="1" class="d-inline"/>
                                 </span>
                             </div>
-                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state not in ('not_connected', 'broken')">
-                                AI Pro runs on an Odoo instance that is connected to a Pantalytics account.
-                            </div>
                             <div class="o_pan_ai_step_msg" invisible="pan_ai_state != 'broken' or not pan_ai_message">
                                 <field name="pan_ai_message" nolabel="1" readonly="1"/>
                             </div>
@@ -111,7 +108,7 @@
                                 </span>
                             </div>
                             <div class="o_pan_ai_step_msg" invisible="pan_ai_has_key">
-                                One key for every model. Create one at
+                                Create one at
                                 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>
                                 and add it with the arrow.
                             </div>

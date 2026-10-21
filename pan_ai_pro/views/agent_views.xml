@@ -99,7 +99,7 @@
         <field name="res_model">pan_ai.agent</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
-            <p>An agent answers questions and acts in Odoo. None yet.</p>
+            <p>No agents yet.</p>
         </field>
     </record>
 </odoo>
