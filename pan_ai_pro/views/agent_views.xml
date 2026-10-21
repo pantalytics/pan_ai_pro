@@ -104,11 +104,11 @@
                                 <field name="toolset_ids" nolabel="1" widget="many2many_tags"
                                        options="{'no_quick_create': True}" placeholder="Pick a tool group"/>
                             </div>
-                            <div class="o_pan_ai_step_msg">
-                                <field name="web_search" nolabel="1" class="me-1"/>
+                            <div class="o_pan_ai_step_msg o_pan_ai_inline">
+                                <field name="web_search" nolabel="1"/>
                                 <label for="web_search"/>
-                                <field name="web_search_max_uses" invisible="not web_search" nolabel="1" class="ms-3"/>
-                                <label for="web_search_max_uses" invisible="not web_search"/>
+                                <label for="web_search_max_uses" invisible="not web_search" class="ms-3"/>
+                                <field name="web_search_max_uses" invisible="not web_search" nolabel="1"/>
                             </div>
                             <div class="o_pan_ai_step_msg text-muted">
                                 More under

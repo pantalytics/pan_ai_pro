@@ -72,6 +72,17 @@ $pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
     .o_pan_ai_msg_warn {
         color: $pan-ai-broken;
     }
+    // A switch, its label and a small number on one line (the agent's web search).
+    .o_pan_ai_inline {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        .o_field_integer {
+            width: 4rem;
+            flex: 0 0 auto;
+        }
+    }
 }
 
 // The last step's rule separates it from nothing.
