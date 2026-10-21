@@ -8,6 +8,7 @@ from . import (
     test_fields,
     test_license,
     test_mcp_toolset,
+    test_models_sync,
     test_odoo_toolset,
     test_onboarding,
     test_run_stream,

@@ -20,7 +20,8 @@
                     <field name="pan_ai_has_key" invisible="1"/>
                     <field name="pan_ai_has_chatted" invisible="1"/>
 
-                    <block title="Setup" name="pan_ai_setup_block">
+                    <h2>Setup</h2>
+                    <div class="row mt-3 o_settings_container" name="pan_ai_setup_block">
                     <div class="col-12 o_setting_box o_pan_ai_steps">
 
                     <!-- Step 1. One action per state. Amber while it waits
@@ -73,19 +74,20 @@
                             <div class="o_pan_ai_step_msg" invisible="pan_ai_entitled or pan_ai_state != 'connected'">
                                 <button name="action_pan_ai_check" type="object" string="Check again" class="btn-secondary"/>
                             </div>
-                            <div class="o_pan_ai_step_msg text-muted" invisible="not pan_ai_entitled or not pan_ai_connected_by">
-                                By <field name="pan_ai_connected_by" nolabel="1" readonly="1" class="d-inline"/>
-                                <span invisible="not pan_ai_update_available">. Version
-                                    <field name="pan_ai_update_available" nolabel="1" readonly="1" class="d-inline"/> is available.</span>
-                            </div>
-                            <div class="o_pan_ai_step_msg" invisible="pan_ai_state != 'connected'">
-                                <button name="action_pan_ai_disconnect" type="object" string="Disconnect" class="btn-secondary"
+                            <div class="o_pan_ai_step_msg" invisible="pan_ai_entitled or pan_ai_state != 'connected'">
+                                <button name="action_pan_ai_disconnect" type="object" string="Disconnect" class="btn-link p-0"
                                         confirm="Disconnect this Odoo from Pantalytics? Agents stop until you connect it again."/>
                             </div>
                             <div class="o_pan_ai_step_msg o_pan_ai_msg_warn" invisible="not pan_ai_last_error">
                                 <field name="pan_ai_last_error" nolabel="1" readonly="1"/>
                             </div>
                         </div>
+                        <!-- Connected, the line is one word like the others:
+                             who, when, a newer version and Disconnect are in
+                             the dialog the arrow opens. -->
+                        <button name="action_pan_ai_account" type="object"
+                                icon="oi-arrow-right" title="Pantalytics account"
+                                class="oe_link o_pan_ai_step_edit" invisible="not pan_ai_entitled"/>
                     </div>
 
                     <!-- Nothing below exists until step 1 is done: a step you
@@ -142,15 +144,19 @@
                                 Save a key first.
                             </div>
                         </div>
+                        <button name="action_pan_ai_open_chat" type="object"
+                                icon="oi-arrow-right" title="Open chat"
+                                class="oe_link o_pan_ai_step_edit" invisible="not pan_ai_has_chatted"/>
                     </div>
 
                     </div>
                     </div>
-                    </block>
+                    </div>
 
                     <!-- About: the version the database is on, the first thing
                          a support mail asks, and on screen before step 1 too. -->
-                    <block title="About" name="pan_ai_about_block">
+                    <h2>About</h2>
+                    <div class="row mt-3 o_settings_container" name="pan_ai_about_block">
                         <!-- Mail Pro's About: no setting pane, whose empty left
                              half draws a divider beside one line. -->
                         <div class="col-12 o_setting_box o_pan_ai_about">
@@ -160,10 +166,34 @@
                             </div>
                             <div class="text-muted">© Pantalytics B.V. Licensed under the Elastic License 2.0.</div>
                         </div>
-                    </block>
+                    </div>
 
                 </app>
             </xpath>
+        </field>
+    </record>
+
+    <!-- Step 1's dialog: what the line no longer carries. -->
+    <record id="res_config_settings_view_account" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.pan_ai_pro.account</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="Pantalytics account">
+                <field name="pan_ai_update_available" invisible="1"/>
+                <group>
+                    <field name="pan_ai_connected_by" string="Connected by" readonly="1"/>
+                    <field name="pan_ai_version" string="Installed" readonly="1"/>
+                    <field name="pan_ai_update_available" string="Available" readonly="1"
+                           invisible="not pan_ai_update_available"/>
+                </group>
+                <footer>
+                    <button special="cancel" string="Close" class="btn-primary"/>
+                    <button name="action_pan_ai_disconnect" type="object" string="Disconnect"
+                            class="btn-secondary ms-auto"
+                            confirm="Disconnect this Odoo from Pantalytics? Agents stop until you connect it again."/>
+                </footer>
+            </form>
         </field>
     </record>
 
