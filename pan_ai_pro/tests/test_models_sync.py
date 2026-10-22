@@ -17,13 +17,18 @@ def _answer(*ids):
 
 @tagged("post_install", "-at_install")
 class TestModelsSeed(TransactionCase):
-    def test_shortlist_of_latest_aliases_sonnet_first(self):
+    def test_shortlist_of_four_providers_sonnet_first(self):
         rows = self.env["pan_ai.model"].search([])
         self.assertEqual(rows[0].model_name, "~anthropic/claude-sonnet-latest")
         self.assertEqual(self.env["pan_ai.model"].first(), rows[0])
-        self.assertIn("openrouter/auto", rows.mapped("model_name"))
-        self.assertTrue(all(m.endswith("-latest") for m in rows.mapped("model_name")[:-1]))
-        self.assertLess(len(rows), 10)
+        vendors = {m.lstrip("~").split("/")[0] for m in rows.mapped("model_name")}
+        self.assertEqual(vendors, {"anthropic", "google", "openai", "mistralai"})
+        self.assertNotIn("openrouter/auto", rows.mapped("model_name"))
+        # OpenRouter's family aliases wherever it has one; Mistral has none.
+        for model_name in rows.mapped("model_name"):
+            if not model_name.startswith("mistralai/"):
+                self.assertTrue(model_name.startswith("~") and model_name.endswith("-latest"))
+        self.assertLess(len(rows), 15)
         self.assertTrue(all(rows.mapped("recommended")))
 
     def test_first_prefers_a_recommended_row(self):
