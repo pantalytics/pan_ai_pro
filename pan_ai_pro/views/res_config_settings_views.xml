@@ -83,7 +83,7 @@
                              who, when, a newer version and Disconnect are in
                              the dialog the arrow opens. -->
                         <button name="action_pan_ai_account" type="object"
-                                icon="oi-arrow-right" title="Pantalytics account"
+                                icon="oi-chevron-right" title="Pantalytics account"
                                 class="oe_link o_pan_ai_step_edit" invisible="not pan_ai_entitled"/>
                     </div>
 
@@ -114,7 +114,7 @@
                             </div>
                         </div>
                         <button name="action_pan_ai_openrouter" type="object"
-                                icon="oi-arrow-right" title="OpenRouter key"
+                                icon="oi-chevron-right" title="OpenRouter key"
                                 class="oe_link o_pan_ai_step_edit"/>
                     </div>
 
@@ -142,7 +142,7 @@
                             </div>
                         </div>
                         <button name="action_pan_ai_open_chat" type="object"
-                                icon="oi-arrow-right" title="Open chat"
+                                icon="oi-chevron-right" title="Open chat"
                                 class="oe_link o_pan_ai_step_edit" invisible="not pan_ai_has_chatted"/>
                     </div>
 
