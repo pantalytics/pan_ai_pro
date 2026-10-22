@@ -156,26 +156,8 @@
     </record>
 
     <!-- One dialog per row: the row's fields, Save, Discard. Priority keeps
-         them off the default form. -->
-    <record id="view_agent_dialog_model" model="ir.ui.view">
-        <field name="name">pan_ai.agent.dialog.model</field>
-        <field name="model">pan_ai.agent</field>
-        <field name="priority">100</field>
-        <field name="arch" type="xml">
-            <form>
-                <field name="model_id" nolabel="1" widget="radio" options="{'horizontal': False}"/>
-                <div class="text-muted">
-                    More under
-                    <button type="action" name="%(action_model)d" string="Models" class="btn-link p-0 align-baseline"/>.
-                </div>
-                <footer>
-                    <button special="save" string="Save" class="btn-primary"/>
-                    <button special="cancel" string="Discard"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
+         them off the default form. The Model row has no dialog of its own:
+         it opens Odoo's record picker over the Models list. -->
     <record id="view_agent_dialog_instructions" model="ir.ui.view">
         <field name="name">pan_ai.agent.dialog.instructions</field>
         <field name="model">pan_ai.agent</field>

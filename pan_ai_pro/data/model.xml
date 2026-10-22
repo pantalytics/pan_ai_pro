@@ -13,35 +13,42 @@
         <field name="name">Claude Sonnet</field>
         <field name="model_name">~anthropic/claude-sonnet-latest</field>
         <field name="sequence">1</field>
+        <field name="recommended" eval="True"/>
     </record>
     <record id="model_claude_haiku" model="pan_ai.model">
         <field name="name">Claude Haiku</field>
         <field name="model_name">~anthropic/claude-haiku-latest</field>
         <field name="sequence">2</field>
+        <field name="recommended" eval="True"/>
     </record>
     <record id="model_claude_opus" model="pan_ai.model">
         <field name="name">Claude Opus</field>
         <field name="model_name">~anthropic/claude-opus-latest</field>
         <field name="sequence">3</field>
+        <field name="recommended" eval="True"/>
     </record>
     <record id="model_gemini_flash" model="pan_ai.model">
         <field name="name">Gemini Flash</field>
         <field name="model_name">~google/gemini-flash-latest</field>
         <field name="sequence">4</field>
+        <field name="recommended" eval="True"/>
     </record>
     <record id="model_gemini_pro" model="pan_ai.model">
         <field name="name">Gemini Pro</field>
         <field name="model_name">~google/gemini-pro-latest</field>
         <field name="sequence">5</field>
+        <field name="recommended" eval="True"/>
     </record>
     <record id="model_gpt" model="pan_ai.model">
         <field name="name">GPT</field>
         <field name="model_name">~openai/gpt-terra-latest</field>
         <field name="sequence">6</field>
+        <field name="recommended" eval="True"/>
     </record>
     <record id="model_auto" model="pan_ai.model">
         <field name="name">Auto (OpenRouter picks per question)</field>
         <field name="model_name">openrouter/auto</field>
         <field name="sequence">7</field>
+        <field name="recommended" eval="True"/>
     </record>
 </odoo>

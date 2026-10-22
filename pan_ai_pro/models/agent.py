@@ -241,7 +241,14 @@ class Agent(models.Model):
         }
 
     def action_edit_model(self):
-        return self._dialog("pan_ai_pro.view_agent_dialog_model", _("Model"))
+        """Odoo's own record picker over the Models list, opened on the
+        Recommended filter (static/src/agent/pick_model.js)."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.client",
+            "tag": "pan_ai_pro.pick_model",
+            "params": {"agent_id": self.id},
+        }
 
     def action_edit_instructions(self):
         return self._dialog("pan_ai_pro.view_agent_dialog_instructions", _("Instructions"))
