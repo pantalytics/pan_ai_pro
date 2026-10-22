@@ -24,6 +24,22 @@ class TestModelsSeed(TransactionCase):
         self.assertIn("openrouter/auto", rows.mapped("model_name"))
         self.assertTrue(all(m.endswith("-latest") for m in rows.mapped("model_name")[:-1]))
         self.assertLess(len(rows), 10)
+        self.assertTrue(all(rows.mapped("recommended")))
+
+    def test_first_prefers_a_recommended_row(self):
+        Model = self.env["pan_ai.model"]
+        pinned = Model.create({"name": "Pinned", "model_name": "openai/gpt-pinned", "sequence": 0})
+        self.assertFalse(pinned.recommended)
+        self.assertEqual(Model.first().model_name, "~anthropic/claude-sonnet-latest")
+        Model.search([]).write({"recommended": False})
+        self.assertEqual(Model.first(), pinned)
+
+    def test_the_agent_picks_a_model_in_odoos_record_dialog(self):
+        action = self.env.ref("pan_ai_pro.agent_assistant").action_edit_model()
+        self.assertEqual(action["tag"], "pan_ai_pro.pick_model")
+        self.assertEqual(
+            action["params"]["agent_id"], self.env.ref("pan_ai_pro.agent_assistant").id
+        )
 
 
 @tagged("post_install", "-at_install")

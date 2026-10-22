@@ -59,7 +59,7 @@ Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "2.7.1",
+    "version": "2.8.0",
     "license": "Other proprietary",
     "external_dependencies": {
         "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]
@@ -85,6 +85,7 @@ Requires a connection to Pantalytics
     ],
     "assets": {
         "web.assets_backend": [
+            "pan_ai_pro/static/src/agent/**/*",
             "pan_ai_pro/static/src/chat/**/*",
             "pan_ai_pro/static/src/settings/**/*",
         ],
