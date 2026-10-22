@@ -87,7 +87,7 @@
         <field name="search_view_id" ref="view_run_search"/>
         <field name="context">{'search_default_attention': 1}</field>
         <field name="help" type="html">
-            <p>A run is one question to one answer. Nothing needs a look; remove the filter to see them all.</p>
+            <p>Nothing needs a look. Remove the filter to see every run.</p>
         </field>
     </record>
 </odoo>

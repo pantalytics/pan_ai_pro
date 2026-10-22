@@ -59,7 +59,7 @@ Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "2.5.0",
+    "version": "2.7.1",
     "license": "Other proprietary",
     "external_dependencies": {
         "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]
@@ -73,8 +73,8 @@ Requires a connection to Pantalytics
         "data/agent.xml",
         "data/ir_cron.xml",
         "views/model_views.xml",
-        "views/agent_views.xml",
         "views/toolset_views.xml",
+        "views/agent_views.xml",
         "views/tool_views.xml",
         "views/thread_views.xml",
         "views/run_views.xml",

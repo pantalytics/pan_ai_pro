@@ -1,8 +1,8 @@
 // Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 // SPDX-License-Identifier: Elastic-2.0
-// Settings > AI Pro: the setup checklist. Mail Pro's shape (pan_mail_pro,
-// static/src/scss/setup_status.scss): a dot, the name, the answer, and under
-// it what to do. Colours from brand.pantalytics.com: green works, amber
+// The checklist: Settings > AI Pro's setup and one agent's form share it.
+// Mail Pro's shape (pan_mail_pro, static/src/scss/setup_status.scss): a dot,
+// the name, the answer, and under it what to do. Colours from brand.pantalytics.com: green works, amber
 // needs the user, red broken, an outline for not started.
 
 // Odoo compiles this file once per colour scheme.
@@ -14,17 +14,21 @@ $pan-ai-wait: if($pan-ai-dark, #f5b942, #b7791f);
 $pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
 
 // One column, capped: a name on the left and its answer a screen away is two
-// things, not one line.
+// things, not one line. The rows sit in one rounded group with a 1px border,
+// the way a phone's Settings app lists them (the brand: borders, no shadow).
 .o_pan_ai_steps {
     max-width: 46rem;
+    border: 1px solid rgba($pan-ai-ink, 0.12);
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 .o_pan_ai_step {
     display: flex;
     align-items: flex-start;
     gap: 0.7rem;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid rgba($pan-ai-ink, 0.06);
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba($pan-ai-ink, 0.08);
 
     .o_pan_ai_dot {
         flex: 0 0 auto;
@@ -49,28 +53,57 @@ $pan-ai-broken: if($pan-ai-dark, #ff7a6b, #c0392b);
     .o_pan_ai_step_head {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+        gap: 0.75rem;
+        min-height: 1.6rem;
     }
-    // A fixed column, so the three answers start at the same x.
     .o_pan_ai_step_name {
         font-weight: 600;
         color: $pan-ai-ink;
-        min-width: 11.5rem;
+        flex: 0 0 auto;
     }
+    // The answer at the trailing end, in a quieter grey, cut with an
+    // ellipsis rather than wrapped: the dialog holds the whole of it.
     .o_pan_ai_step_value {
-        color: rgba($pan-ai-ink, 0.7);
+        color: rgba($pan-ai-ink, 0.6);
+        margin-left: auto;
+        text-align: right;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        .o_field_widget, .o_field_widget span, .o_field_widget div {
+            display: inline;
+        }
     }
     .o_pan_ai_step_msg {
         margin-top: 0.4rem;
     }
-    // The way to the place the step is changed, at the end of its line.
+    // The chevron at the end of the line: the way to where the step is changed.
     .o_pan_ai_step_edit {
         flex: 0 0 auto;
-        margin-left: auto;
+        align-self: center;
+        color: rgba($pan-ai-ink, 0.35);
+        padding: 0;
+        &:hover { color: rgba($pan-ai-ink, 0.7); }
     }
     .o_pan_ai_msg_warn {
         color: $pan-ai-broken;
+    }
+}
+
+// A row that opens its dialog: the whole row is the target (Apple's
+// disclosure row, GOV.UK's task list), the arrow at its end says so.
+button.o_pan_ai_step_link {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid rgba($pan-ai-ink, 0.08);
+    border-radius: 0;
+    color: inherit;
+    cursor: pointer;
+    &:hover, &:focus-visible {
+        background: rgba($pan-ai-ink, 0.04);
     }
 }
 

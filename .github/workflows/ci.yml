@@ -108,3 +108,34 @@ jobs:
             odoo-server.log
             odoo-tests.log
             odoo-server.log
+
+  # Odoo.sh and Cloudpepper attach a branch named after the Odoo version, and
+  # the module is one code base for 19 and 20. So a merge into main is a
+  # release: once lint and both test runs are green, main is merged into
+  # 19.0 and 20.0 is set to match. Nobody commits to 19.0 or 20.0. A push
+  # made with the workflow's own token starts no second run, so this cannot
+  # loop.
+  release:
+    name: main lands on 19.0 and 20.0
+    needs: [lint, tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-branches
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin 19.0
+          git checkout -B 19.0 origin/19.0
+          # A fast-forward when 19.0 is behind, a merge commit when it carries
+          # the merge commits of the releases made by hand before this job.
+          git merge --no-edit origin/main
+          git push origin 19.0
+          git push --force origin 19.0:refs/heads/20.0

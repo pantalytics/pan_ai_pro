@@ -7,9 +7,11 @@ So it is a required choice on every agent, from this list, and Settings
 keeps only the key. A row is a name a person recognises and the OpenRouter
 id the runtime passes to `OpenRouterModel`.
 
-The list mirrors OpenRouter's catalogue once a day: a new model appears,
-one OpenRouter dropped is archived. A name a person changed, and a row a
-person archived, stay as they are.
+The list is a shortlist (data/model.xml): OpenRouter's `~vendor/family-latest`
+aliases, each of which answers as the newest model in its family, and its
+Auto Router. Nothing here tracks versions; OpenRouter does. An exact id, to
+pin a version, is typed into the list by hand. Once a day the rows OpenRouter
+no longer lists are archived; nothing is added.
 """
 
 import logging
@@ -35,7 +37,8 @@ class AiModel(models.Model):
     model_name = fields.Char(
         string="OpenRouter id",
         required=True,
-        help="As openrouter.ai/models lists it, like anthropic/claude-sonnet-5.5.",
+        help="As openrouter.ai/models lists it. A ~vendor/family-latest id follows the"
+        " family to its newest model; an exact id pins one version.",
     )
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
@@ -59,10 +62,11 @@ class AiModel(models.Model):
 
     @api.model
     def _cron_sync(self):
-        """Add what OpenRouter lists and this list lacks; archive what it dropped.
+        """Archive what OpenRouter no longer lists, so nobody picks a dead id.
 
-        The catalogue needs no key. An answer that fails or lists nothing
-        changes nothing: an outage must not empty every agent's picker.
+        Adds nothing: the list is a shortlist, not the catalogue. The
+        catalogue needs no key. An answer that fails or lists nothing changes
+        nothing: an outage must not empty every agent's picker.
         """
         from ..runtime.agent import ENV_BASE_URL
 
@@ -70,19 +74,10 @@ class AiModel(models.Model):
         try:
             response = requests.get(base.rstrip("/") + "/models", timeout=TIMEOUT)
             response.raise_for_status()
-            listed = {m["id"]: m.get("name") or m["id"] for m in response.json()["data"]}
+            listed = {m["id"] for m in response.json()["data"]}
         except (requests.RequestException, ValueError, KeyError, TypeError) as error:
             _logger.warning("[AI Pro] OpenRouter's model list unreadable: %s", error)
             return
         if not listed:
             return
-        rows = self.with_context(active_test=False).search([])
-        known = set(rows.mapped("model_name"))
-        self.create(
-            [
-                {"name": name, "model_name": model_id, "sequence": 100}
-                for model_id, name in listed.items()
-                if model_id not in known
-            ]
-        )
-        rows.filtered(lambda r: r.active and r.model_name not in listed).active = False
+        self.search([]).filtered(lambda r: r.model_name not in listed).active = False
