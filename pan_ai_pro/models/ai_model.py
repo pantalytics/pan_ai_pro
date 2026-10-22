@@ -42,6 +42,9 @@ class AiModel(models.Model):
     )
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
+    # The shortlist's rows. The agent's picker opens on this filter; a
+    # model somebody typed in by hand is one filter click away.
+    recommended = fields.Boolean(help="Shown first when an agent picks a model.")
     agent_count = fields.Integer(compute="_compute_agent_count", string="Agents")
 
     _model_name_unique = models.Constraint("UNIQUE(model_name)", "This model is already listed.")
@@ -57,8 +60,8 @@ class AiModel(models.Model):
 
     @api.model
     def first(self):
-        """The model a new agent starts with: the top of the list."""
-        return self.search([], limit=1)
+        """The model a new agent starts with: the top of the recommended list."""
+        return self.search([("recommended", "=", True)], limit=1) or self.search([], limit=1)
 
     @api.model
     def _cron_sync(self):

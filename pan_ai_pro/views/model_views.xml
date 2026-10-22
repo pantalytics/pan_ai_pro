@@ -12,8 +12,23 @@
                 <field name="name" placeholder="Claude Sonnet"/>
                 <field name="model_name" placeholder="~anthropic/claude-sonnet-latest"/>
                 <field name="agent_count"/>
+                <field name="recommended" widget="boolean_toggle"/>
                 <field name="active" widget="boolean_toggle" optional="hide"/>
             </list>
+        </field>
+    </record>
+
+    <!-- The agent's picker is Odoo's own record dialog over this list, opened
+         on the Recommended filter (static/src/agent/pick_model.js). -->
+    <record id="view_model_search" model="ir.ui.view">
+        <field name="name">pan_ai.model.search</field>
+        <field name="model">pan_ai.model</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="model_name"/>
+                <filter name="recommended" string="Recommended" domain="[('recommended', '=', True)]"/>
+            </search>
         </field>
     </record>
 
