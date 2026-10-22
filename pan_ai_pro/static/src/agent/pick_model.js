@@ -22,7 +22,10 @@ async function pickModel(env, action, options = {}) {
                 title: _t("Model"),
                 multiSelect: false,
                 noCreate: true,
-                context: { search_default_recommended: 1 },
+                context: {
+                    search_default_recommended: 1,
+                    list_view_ref: "pan_ai_pro.view_model_pick",
+                },
                 onSelected: async (ids) => {
                     await env.services.orm.write("pan_ai.agent", [agentId], { model_id: ids[0] });
                 },

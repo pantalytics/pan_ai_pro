@@ -18,8 +18,20 @@
         </field>
     </record>
 
-    <!-- The agent's picker is Odoo's own record dialog over this list, opened
-         on the Recommended filter (static/src/agent/pick_model.js). -->
+    <!-- The agent's picker is Odoo's own record dialog, opened on the
+         Recommended filter (static/src/agent/pick_model.js). Its list is
+         this one: a name and an id to pick from, no handle and no toggles. -->
+    <record id="view_model_pick" model="ir.ui.view">
+        <field name="name">pan_ai.model.pick</field>
+        <field name="model">pan_ai.model</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list default_order="sequence, name">
+                <field name="name"/>
+                <field name="model_name"/>
+            </list>
+        </field>
+    </record>
     <record id="view_model_search" model="ir.ui.view">
         <field name="name">pan_ai.model.search</field>
         <field name="model">pan_ai.model</field>
