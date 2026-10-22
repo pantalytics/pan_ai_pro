@@ -64,7 +64,7 @@ class TestAgentBuild(AiProCase):
     def test_the_model_is_the_agents_own(self):
         """Pydantic AI's model is an argument of the Agent: no default from
         Settings, a parameter that says otherwise is not read."""
-        gpt = self.env.ref("pan_ai_pro.model_gpt")
+        gpt = self.env.ref("pan_ai_pro.model_gpt_sol")
         self.agent.model_id = gpt
         params(self.env).set_str("pan_ai.default_model", "someone/else")
         agent_runtime.TEST_MODEL = None  # the real model object; built, never called

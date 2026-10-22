@@ -7,11 +7,13 @@ So it is a required choice on every agent, from this list, and Settings
 keeps only the key. A row is a name a person recognises and the OpenRouter
 id the runtime passes to `OpenRouterModel`.
 
-The list is a shortlist (data/model.xml): OpenRouter's `~vendor/family-latest`
-aliases, each of which answers as the newest model in its family, and its
-Auto Router. Nothing here tracks versions; OpenRouter does. An exact id, to
-pin a version, is typed into the list by hand. Once a day the rows OpenRouter
-no longer lists are archived; nothing is added.
+The list is a shortlist (data/model.xml): four providers, Claude, Gemini,
+GPT and Mistral, each with its families. Where OpenRouter has a
+`~vendor/family-latest` alias the row is that alias, which answers as the
+newest model in its family; Mistral has none, so its rows are pinned ids.
+Nothing here tracks versions; OpenRouter does. An exact id, to pin a
+version, is typed into the list by hand. Once a day the rows OpenRouter no
+longer lists are archived; nothing is added.
 """
 
 import logging

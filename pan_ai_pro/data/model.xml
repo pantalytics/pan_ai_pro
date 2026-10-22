@@ -2,13 +2,15 @@
 <!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
 <!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo noupdate="1">
-    <!-- A shortlist, not OpenRouter's catalogue. The `~vendor/family-latest`
-         ids are OpenRouter's own aliases: each always answers as the newest
-         model in its family, so an agent on "Claude Sonnet" moves from 5.5 to
-         5.6 the day OpenRouter does, and nobody re-picks a model. The last row
-         is OpenRouter's Auto Router, which picks a model per question. An
-         exact id, to pin a version, is typed into this list by hand.
-         migrations/2.6.0/pre-migrate.py carries the same list. -->
+    <!-- A shortlist, not OpenRouter's catalogue: four providers, Claude,
+         Gemini, GPT and Mistral, each with its families. The
+         `~vendor/family-latest` ids are OpenRouter's own aliases: each always
+         answers as the newest model in its family, so an agent on "Claude
+         Sonnet" moves from 5.5 to 5.6 the day OpenRouter does, and nobody
+         re-picks a model. Mistral has no such alias on OpenRouter, so its
+         rows are the newest id of each family, pinned; they move by hand.
+         An exact id, to pin any version, is typed into this list by hand.
+         migrations/2.9.0 carries the same list. -->
     <record id="model_claude_sonnet" model="pan_ai.model">
         <field name="name">Claude Sonnet</field>
         <field name="model_name">~anthropic/claude-sonnet-latest</field>
@@ -27,28 +29,58 @@
         <field name="sequence">3</field>
         <field name="recommended" eval="True"/>
     </record>
+    <record id="model_claude_fable" model="pan_ai.model">
+        <field name="name">Claude Fable</field>
+        <field name="model_name">~anthropic/claude-fable-latest</field>
+        <field name="sequence">4</field>
+        <field name="recommended" eval="True"/>
+    </record>
     <record id="model_gemini_flash" model="pan_ai.model">
         <field name="name">Gemini Flash</field>
         <field name="model_name">~google/gemini-flash-latest</field>
-        <field name="sequence">4</field>
+        <field name="sequence">5</field>
         <field name="recommended" eval="True"/>
     </record>
     <record id="model_gemini_pro" model="pan_ai.model">
         <field name="name">Gemini Pro</field>
         <field name="model_name">~google/gemini-pro-latest</field>
-        <field name="sequence">5</field>
-        <field name="recommended" eval="True"/>
-    </record>
-    <record id="model_gpt" model="pan_ai.model">
-        <field name="name">GPT</field>
-        <field name="model_name">~openai/gpt-terra-latest</field>
         <field name="sequence">6</field>
         <field name="recommended" eval="True"/>
     </record>
-    <record id="model_auto" model="pan_ai.model">
-        <field name="name">Auto (OpenRouter picks per question)</field>
-        <field name="model_name">openrouter/auto</field>
+    <record id="model_gpt_luna" model="pan_ai.model">
+        <field name="name">GPT Luna</field>
+        <field name="model_name">~openai/gpt-luna-latest</field>
         <field name="sequence">7</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_gpt_sol" model="pan_ai.model">
+        <field name="name">GPT Sol</field>
+        <field name="model_name">~openai/gpt-sol-latest</field>
+        <field name="sequence">8</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_gpt_astra" model="pan_ai.model">
+        <field name="name">GPT Astra</field>
+        <field name="model_name">~openai/gpt-astra-latest</field>
+        <field name="sequence">9</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_mistral_small" model="pan_ai.model">
+        <field name="name">Mistral Small</field>
+        <field name="model_name">mistralai/mistral-small-2603</field>
+        <field name="sequence">10</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_mistral_medium" model="pan_ai.model">
+        <field name="name">Mistral Medium</field>
+        <field name="model_name">mistralai/mistral-medium-3-5</field>
+        <field name="sequence">11</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_mistral_large" model="pan_ai.model">
+        <field name="name">Mistral Large</field>
+        <field name="model_name">mistralai/mistral-large-4-0</field>
+        <field name="sequence">12</field>
         <field name="recommended" eval="True"/>
     </record>
 </odoo>
