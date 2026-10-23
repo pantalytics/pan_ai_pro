@@ -8,6 +8,9 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
 - **Chat.** Ask from Odoo's own chat window: the sparkle top right, or
   Ctrl+K "Ask AI". Answers stream in, tool calls are shown, nothing is
   created or changed until you press Allow, and Stop works mid-answer.
+- **In channels.** Give an agent a dedicated user, tick "Answers in
+  channels", and invite that user to a Discuss channel. Mention it and it
+  answers in a thread under your message, for the whole channel to read.
 - **Agents.** Each agent has its own instructions, model, tools, limits and
   web search. It runs as the person who asks, or as a dedicated Odoo user
   you set up. That user's groups and record rules are the agent's reach.

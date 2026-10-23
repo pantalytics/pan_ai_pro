@@ -5,7 +5,8 @@
 `conversation` is Pydantic AI's message history as JSON
 (`ModelMessagesTypeAdapter`), carried across runs and slices, plus the tool
 calls waiting for the person's approval. A chat thread shows in a
-`discuss.channel` of type `ai`; a scheduled, triggered or continuous thread
+`discuss.channel` of type `ai`, or in a thread of a team channel where the
+agent was mentioned; a scheduled, triggered or continuous thread
 has no channel: its answer stays on the run and, when the action asks, lands
 as a note or an activity on the record.
 """
@@ -167,7 +168,9 @@ class Thread(models.Model):
         ).unlink()
 
     def _unlink_with_channels(self):
-        self.channel_id.sudo().unlink()
+        # An AI chat goes with its thread; a thread in a team channel is the
+        # people's, and stays.
+        self.channel_id.filtered(lambda c: c.channel_type == "ai").sudo().unlink()
         self.unlink()
 
     # ---- continuous threads: the ticks ------------------------------------
