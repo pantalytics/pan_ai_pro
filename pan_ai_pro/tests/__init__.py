@@ -4,6 +4,7 @@ from . import (
     test_access,
     test_agent_build,
     test_channel,
+    test_channel_mention,
     test_compat,
     test_fields,
     test_license,

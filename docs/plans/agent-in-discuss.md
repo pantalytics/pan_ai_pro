@@ -1,7 +1,8 @@
 # Plan: @agent in any Discuss channel
 
-Status: proposal, 2026-10-23. Nothing built. Section 6 is what a spike must
-measure before section 3 is a design.
+Status: built in 2.10.0, 2026-10-23. The spike (section 6) changed one
+decision before a line was written: the agent speaks in a channel as its
+dedicated user, not as its chat identity.
 
 ## 0. The idea, and where it comes from
 
@@ -10,15 +11,14 @@ starts for that thread, Claude works with the channel's access and posts
 the answer back in the thread. A reply in the thread picks it up again.
 ([how it works](https://www.claude.com/docs/claude-tag/concepts/how-it-works))
 
-The same move in Odoo: an AI Pro agent is a member you can mention in any
+The same move in Odoo: an AI Pro agent is a colleague you can mention in a
 Discuss channel. `@Sales assistant which quotes for Acme are still open?`
 gets an answer in a thread under the message, from Odoo's own data, visible
 to everybody in the channel.
 
-Most of it exists. Every agent already has a partner (`agent.partner_id`),
-the run loop, streaming over the bus, approval cards and limits are built
-for the `ai` channel. What is new is a trigger outside the `ai` channel and
-the question whose rights a shared answer carries.
+Most of it existed: the run loop, streaming over the bus, approval cards and
+limits were built for the `ai` channel. What is new is a trigger outside the
+`ai` channel and the question whose rights a shared answer carries.
 
 ## 1. What success looks like
 
@@ -35,70 +35,77 @@ or joins a channel by itself.
 ## 2. The flow
 
 ```
-person posts in #sales: "@Sales assistant open quotes for Acme?"
-  │  message_post, partner_ids holds agent.partner_id
-  ├─ the agent is allowed in channels, the person may use it, internal user
-  ├─ the message gets a sub-channel (Odoo's thread under a message), once
+admin: agent > Access > runs as a dedicated user (Ava), Answers in channels
+someone invites Ava to #sales, like any colleague
+person posts in #sales: "@Ava open quotes for Acme?"
+  │  message_post, partner_ids (named mentions) holds Ava's partner
+  ├─ the agent is allowed in channels, the asker is an internal user
+  ├─ the message gets Odoo's thread (sub-channel), made as the asker
   ├─ one pan_ai.thread on that sub-channel, kind chat
-  ├─ placeholder from the agent in the sub-channel, "Thinking"
-  └─ Run.start(thread, prompt, kind="chat", message=placeholder)
-       same slices, same bus events, same limits as the chat window
+  ├─ placeholder from Ava in the thread, "Thinking"
+  └─ Run.start(thread, prompt, kind="chat", caller=asker)
+       runs as Ava; same slices, bus events and limits as the chat window
 ```
 
-The prompt is every message in the sub-channel since the agent last
-answered, one line per message, `Name: text`. Only a mention starts a run;
-people can talk in the thread without the agent butting in.
+The prompt is every message in the thread since the agent last answered, one
+line per message, `Name: text`, under one line that says where it was
+mentioned. Only a mention starts a run; people can talk in the thread
+without the agent butting in.
 
 ## 3. The decisions
 
 | # | Decision | Why |
 |---|---|---|
-| 1 | **An agent in a shared channel runs as its dedicated user** (`run_as = user`), never as the person who asks. A new checkbox on the agent, "Can be mentioned in channels", is only allowed with a dedicated user. | The answer is read by the whole channel. If it ran as the asker, a manager's question would show their records to the interns in the channel. A dedicated user is a reach an admin chose on purpose, the same for every reader. This is Claude Tag's "the channel's access". |
-| 2 | One sub-channel is one `pan_ai.thread`. | Slack's thread is Odoo's sub-channel (Odoo 18+). Memory stays where the people can see it. |
-| 3 | The run starts only on a mention, also inside the thread. | Humans talk in threads; an agent answering every reply is noise. |
-| 4 | Approval: only the person who started the run sees Allow and Skip. The rest of the channel sees "Waiting for Anna to approve". | One person is accountable for a write. |
-| 5 | Runs count against the asker's hourly limit (`runs_per_user_per_hour`). | Same rule as the chat window, no new knob. |
-| 6 | Channel members who may not use the agent see the answer, but their mention does nothing (a short reply: "You may not use this agent."). | Reading a message in a channel you are in is Discuss's rule, using an agent is AI Pro's. |
+| 1 | **An agent in a shared channel runs as its dedicated user**, never as the person who asks. "Answers in channels" needs `run_as = user` (a check constraint). | The answer is read by the whole channel. If it ran as the asker, a manager's question would show their records to the interns in the channel. A dedicated user is a reach an admin chose on purpose, the same for every reader. Claude Tag's "the channel's access". |
+| 2 | **In a channel the agent is its dedicated user**: people mention that user, the answer comes from that user's partner, and inviting the user to a channel is how the agent joins it. One user answers for at most one agent. | Measured in section 6: Odoo drops a mention of a partner without a user in any channel limited to a group, which is every channel by default. A real user is mentionable, invitable and filtered by Odoo's own rules with no screen of ours. |
+| 3 | One thread (sub-channel) is one `pan_ai.thread`, with one agent. A second agent mentioned in it says "X answers in this thread. Ask me in a new one." | Slack's thread is Odoo's sub-channel. Memory stays where the people can see it; two agents in one thread would need two Stop buttons and two approval owners. |
+| 4 | The run starts only on a mention by name, also inside the thread. `@everyone` does not count. | Humans talk in threads, and an announcement is not a question. |
+| 5 | Stop, Allow and Skip are the asker's (`run.caller_id`). The rest of the channel sees the card and "Waiting for Sam to decide". | One person is accountable for a write. |
+| 6 | Runs count against the asker's hourly limit. Someone who may not use the agent gets "You may not use the agent X" in its bubble. | Same rules as the chat window, no new knob. |
+| 7 | Retention deletes an old thread's memory, never the people's sub-channel. | The channel's thread is theirs; the next mention starts fresh. |
 
 Dropped, on purpose:
 
-- **The chatter on a record** (`@agent summarise this lead` in a lead's
-  chatter). Valuable, but the record context, followers and notification
-  rules make it its own design. Next plan, not this one.
-- **Agents running as the asker in channels.** Decision 1. The direct chat
-  window keeps doing that.
-- **Portal and public users** in a channel. Never trigger a run.
+- **The chatter on a record** (`@agent summarise this lead`). The record
+  context, followers and notifications make it its own design.
+- **Agents running as the asker in channels.** Decision 1.
+- **Two agents in one thread.** Decision 3.
+- **Portal and public users** in a channel never start a run.
 
-## 4. What changes in the code
+## 4. Where it lives
 
-| Where | Change |
+| Where | What |
 |---|---|
-| `models/agent.py` | `in_channels` boolean, a constraint that it needs `run_as = user` |
-| `models/discuss_channel.py` | `message_post`: on `channel`, `group` and sub-channels, when `partner_ids` holds the partner of an agent with `in_channels`, start the run in the sub-channel; the ownership checks move from "the thread's user" to "the run's user" |
-| `models/thread.py` | a thread may have several people; `user_id` stays the first asker, each run keeps its own user |
-| `static/src/chat/*` | the run-event and approval patches also on sub-channels that carry a `pan_ai.thread`, not only on `channel_type == "ai"` |
-| `tests/` | a restricted member reads only what the agent's user may read; a mention by a non-user is refused; a reply without a mention starts nothing |
-
-Estimate: a few days, inside the 500-line budget per file
-(`discuss_channel.py` is at 193).
+| `models/agent.py` | `in_channels`, its two checks, `_mentioned(partners)` |
+| `models/discuss_channel.py` | `_pan_ai_on_mention`, the thread under the message, the prompt; Stop, decide and state checked against the asker, state readable by the channel |
+| `models/thread.py` | retention unlinks `ai` channels only |
+| `runtime/stream.py` | every bus batch names the asker |
+| `static/src/chat/` | the approval card, Stop and the reload state on threads under a message |
+| `tests/test_channel_mention.py` | the flow, the prompt, `@everyone`, refusal, approval by the asker, one agent per thread, retention, the checks |
 
 ## 5. Why in AI Pro and not in MCP Pro
 
-AI Pro already runs inside Odoo, with the partner, the runs and the bus.
-An outside bot through MCP Pro (`agents/` in odoo-mcp-pro-admin) would need
-its own Discuss bot user, a webhook out of Odoo and its own streaming, for
-the same result.
+AI Pro already runs inside Odoo, with the runs and the bus. An outside bot
+through MCP Pro (`agents/` in odoo-mcp-pro-admin) would need its own Discuss
+bot user, a webhook out of Odoo and its own streaming, for the same result.
 
-## 6. Spike before building
+## 6. The spike, 2026-10-23
 
-Measure on Odoo 19 and 20, write down the date and the instance:
+Checked against the source of Odoo 19 and 20 (the `odoo:19` and `odoo:20`
+Docker images) and a running Odoo 19 with the CI's stubs, in Chromium:
 
-- the sub-channel API: creating a sub-channel from a message
-  (`_create_sub_channel(from_message_id=...)` or what 19/20 call it), and
-  that a member of the parent sees it without being added;
-- that `pan_ai.run_event` on a sub-channel's bus reaches every member's
-  open window, not only the asker's;
-- that the mention autocomplete in the composer offers the agent's partner
-  in a channel the agent is not a member of, or whether the agent must be
-  added as a member first (then: adding it is the opt-in, and decision 6
-  holds).
+- `discuss.channel._create_sub_channel(from_message_id=...)` exists on both,
+  with the same shape; it adds the asker and the message's author, and the
+  parent shows "X started a thread".
+- `_get_allowed_message_partner_ids` keeps only partners whose users are in
+  the channel's `group_public_id`, which defaults to Internal User. The
+  agent's own chat partner has no user and is archived: dropped. Hence
+  decision 2.
+- Mention suggestions in a channel list members of the channel and its
+  parent, active partners only.
+- `@everyone` arrives as `special_mentions`, expanded inside `message_post`;
+  the composer's `partner_ids` are the named mentions only.
+- In the browser: the mention streams into the thread for the asker; a
+  second member opening the thread reads the answer, sees "Waiting for
+  Administrator to decide" on an approval and no buttons; the asker allows
+  and both see the final answer. No JavaScript errors.

@@ -139,6 +139,11 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   any user. No `sudo` in a tool, no user with everything. An `AccessError`
   inside a tool is returned to the model as the tool's error, never caught
   into a wider path.
+- In a team channel the answer is read by everybody in it, so an agent
+  answers there only as its dedicated user ("Answers in channels" needs
+  `run_as` user): people mention that user, the agent speaks as that user
+  in a thread under the message, and the person who asked is the one who
+  stops it and decides on its calls (plans/agent-in-discuss.md).
 - Who may chat: the groups on the `Agent`, from the sparkle and Ctrl+K; a
   Member (`pan_ai_pro.group_user`) never sees the AI Pro app. Who may
   configure agents, toolsets, tools and AI fields, and read the runs: the

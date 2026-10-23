@@ -104,6 +104,11 @@ class Agent(models.Model):
         string="Who may use it",
         help="The groups that may chat with it or trigger it. Empty: every Member.",
     )
+    in_channels = fields.Boolean(
+        string="Answers in channels",
+        help="Mention the dedicated user in a Discuss channel and the agent answers in a "
+        "thread under the message, for everybody in the channel to read.",
+    )
 
     status = fields.Selection(
         [("ready", "Ready"), ("no_tools", "No tools")],
@@ -123,6 +128,32 @@ class Agent(models.Model):
         "CHECK(run_as <> 'user' OR user_id IS NOT NULL)",
         "A dedicated user is required when the agent runs as one.",
     )
+    # Everybody in a channel reads the answer, so its reach is one an
+    # administrator chose, never whoever happened to ask.
+    _check_in_channels = models.Constraint(
+        "CHECK(in_channels IS NOT TRUE OR run_as = 'user')",
+        "Only an agent with a dedicated user can answer in channels.",
+    )
+
+    @api.constrains("in_channels", "user_id", "active")
+    def _check_one_per_user(self):
+        """A mention names a user, so one user is one agent in channels."""
+        for agent in self.filtered("in_channels"):
+            if self.search_count(
+                [
+                    ("in_channels", "=", True),
+                    ("user_id", "=", agent.user_id.id),
+                    ("id", "!=", agent.id),
+                ]
+            ):
+                raise ValidationError(
+                    _("Another agent already answers when %s is mentioned.", agent.user_id.name)
+                )
+
+    @api.onchange("run_as")
+    def _onchange_run_as(self):
+        if self.run_as != "user":
+            self.in_channels = False
 
     @api.constrains("output_type")
     def _check_output_type(self):
@@ -216,6 +247,13 @@ class Agent(models.Model):
         if not user.has_group("pan_ai_pro.group_user"):
             return False
         return not self.group_ids or bool(self.group_ids & user.all_group_ids)
+
+    @api.model
+    def _mentioned(self, partners):
+        """The agent that answers a mention of one of these partners, or none."""
+        return self.sudo().search(
+            [("in_channels", "=", True), ("user_id.partner_id", "in", partners.ids)], limit=1
+        )
 
     def run_user(self, caller):
         """The Odoo user a run carries. The caller, or the dedicated one."""
