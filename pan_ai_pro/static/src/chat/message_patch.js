@@ -4,6 +4,7 @@
 import { Message } from "@mail/core/common/message";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
+import { user } from "@web/core/user";
 import { useLive } from "@pan_ai_pro/chat/compat";
 
 patch(Message.prototype, {
@@ -14,6 +15,11 @@ patch(Message.prototype, {
     },
     get panAiStream() {
         return this.panAiStreams[this.message.id];
+    },
+    /** Allow and Skip are the asker's; the rest of a channel sees who it waits for. */
+    get panAiMayDecide() {
+        const s = this.panAiStream;
+        return !s?.askerUid || s.askerUid === user.userId;
     },
     get panAiChannelId() {
         return this.message.thread?.id;

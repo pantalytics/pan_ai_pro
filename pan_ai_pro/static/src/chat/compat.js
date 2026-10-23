@@ -40,6 +40,14 @@ export function channelType(thread) {
 }
 
 /**
+ * A thread's parent channel, when it is a thread under a message in a team
+ * channel: on 20 it sits on the channel, on 19 on the thread.
+ */
+export function parentChannel(thread) {
+    return thread?.channel?.parent_channel_id ?? thread?.parent_channel_id;
+}
+
+/**
  * An action's icon: 20 names a Material symbol ("add"), 19 a Font Awesome
  * class ("fa fa-fw fa-plus"). A Material name on 19 renders nothing.
  */

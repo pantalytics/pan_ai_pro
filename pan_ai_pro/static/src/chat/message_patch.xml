@@ -19,7 +19,8 @@
                         <div class="pan-ai-approval-card border border-warning rounded p-2 mb-1">
                             <div class="small">The agent wants to run <b t-out="call.name"/></div>
                             <pre class="pan-ai-approval-args small text-muted mb-1" t-out="call.args"/>
-                            <div t-if="!this.panAiIsDecided(call)" class="d-flex gap-1">
+                            <div t-if="!this.panAiMayDecide" class="small text-muted">Waiting for <t t-out="this.panAiStream.askerName"/> to decide</div>
+                            <div t-elif="!this.panAiIsDecided(call)" class="d-flex gap-1">
                                 <button class="btn btn-primary btn-sm pan-ai-approve" t-on-click="() => this.panAiApprove(call, true)" t-att-aria-label="'Allow ' + call.name">Allow</button>
                                 <button class="btn btn-secondary btn-sm pan-ai-skip" t-on-click="() => this.panAiApprove(call, false)" t-att-aria-label="'Skip ' + call.name">Skip</button>
                             </div>

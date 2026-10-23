@@ -207,6 +207,7 @@
                     <field name="group_ids" widget="many2many_tags" placeholder="Every Member"/>
                     <field name="run_as" widget="radio"/>
                     <field name="user_id" invisible="run_as != 'user'" required="run_as == 'user'"/>
+                    <field name="in_channels" invisible="run_as != 'user'"/>
                 </group>
                 <footer>
                     <button special="save" string="Save" class="btn-primary"/>

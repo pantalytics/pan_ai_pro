@@ -46,6 +46,9 @@ class Streamer:
         self.token = token
         self.channel = run.thread_id.channel_id.sudo() if run.thread_id.channel_id else None
         self.message_id = run.message_id.id if run.message_id else None
+        # Who may stop the run and decide on its calls; in a team channel
+        # the others see the answer and who it waits for.
+        self.asker = run.caller_id or run.thread_id.user_id
         self.batch = []
         self.last_flush = time.monotonic()
         # The answer so far, from the last persisted boundary (a slice end):
@@ -75,6 +78,8 @@ class Streamer:
                     "channel_id": self.channel.id,
                     "message_id": self.message_id,
                     "run_id": self.run.id,
+                    "asker_uid": self.asker.id or False,
+                    "asker_name": self.asker.name or "",
                     "events": list(self.batch),
                     "sent_at": time.time(),
                     "final": final,

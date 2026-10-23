@@ -17,6 +17,8 @@ export const runEventsService = {
         const streams = liveState({});
         // channel id -> run id while a run is live on that channel
         const live = liveState({});
+        // channel id -> the user who asked, the one who may Stop it
+        const liveAsker = liveState({});
         const metrics = { first_delta_latency_ms: null, batches: 0, max_batch_latency_ms: 0 };
         window.panAi = { streams, live, metrics };
 
@@ -25,6 +27,8 @@ export const runEventsService = {
                 streams[messageId] ||
                 (streams[messageId] = {
                     runId,
+                    askerUid: null,
+                    askerName: "",
                     text: "",
                     tools: [],
                     pending: [],
@@ -35,22 +39,27 @@ export const runEventsService = {
             );
         }
 
-        bus_service.subscribe("pan_ai.run_event", ({ message_id, run_id, channel_id, events, sent_at, final }) => {
+        bus_service.subscribe("pan_ai.run_event", (payload) => {
+            const { message_id, run_id, channel_id, events, sent_at, final } = payload;
             const latency = Date.now() - sent_at * 1000;
             if (final && !streams[message_id]) {
                 // A run that ended while this page was loading: its body is
                 // in the store already, nothing to rebuild and then tear down.
                 if (channel_id && live[channel_id] === run_id) {
                     delete live[channel_id];
+                    delete liveAsker[channel_id];
                 }
                 return;
             }
             if (channel_id && !final) {
                 live[channel_id] = run_id;
+                liveAsker[channel_id] = payload.asker_uid;
             }
             metrics.batches += 1;
             metrics.max_batch_latency_ms = Math.max(metrics.max_batch_latency_ms, latency);
             const s = streamFor(message_id, run_id);
+            s.askerUid = payload.asker_uid;
+            s.askerName = payload.asker_name;
             for (const ev of events) {
                 if (ev.type === "delta") {
                     if (metrics.first_delta_latency_ms === null) {
@@ -81,6 +90,7 @@ export const runEventsService = {
                 for (const channelId of Object.keys(live)) {
                     if (live[channelId] === run_id) {
                         delete live[channelId];
+                        delete liveAsker[channelId];
                     }
                 }
                 // The final body arrives through the store; give it a tick.
@@ -149,13 +159,16 @@ export const runEventsService = {
                 s.text = state.text || "";
                 s.status = state.run_status;
                 s.pending = state.pending || [];
+                s.askerUid = state.asker_uid;
+                s.askerName = state.asker_name;
             }
             if (!live[channelId]) {
                 markLive(channelId, state.run_id);
+                liveAsker[channelId] = state.asker_uid;
             }
         }
 
-        return { streams, live, metrics, decide, stop, markLive, streamFor, hydrate };
+        return { streams, live, liveAsker, metrics, decide, stop, markLive, streamFor, hydrate };
     },
 };
 registry.category("services").add("pan_ai_pro.run_events", runEventsService);
