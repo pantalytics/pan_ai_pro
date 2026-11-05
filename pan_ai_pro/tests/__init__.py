@@ -3,6 +3,7 @@
 from . import (
     test_access,
     test_agent_build,
+    test_approval,
     test_channel,
     test_channel_mention,
     test_character,

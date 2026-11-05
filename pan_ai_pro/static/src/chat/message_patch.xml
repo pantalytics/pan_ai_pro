@@ -15,13 +15,20 @@
                 <div t-if="this.panAiStream.text" class="pan-ai-text" t-out="this.panAiStream.text"/>
                 <div t-elif="!this.panAiStream.tools.length and this.panAiStream.status === 'running'" class="pan-ai-thinking text-muted small" role="status">Thinking</div>
                 <div t-if="this.panAiStream.pending.length" class="pan-ai-approval mt-2" role="group" aria-label="Approval needed">
+                    <div t-if="this.panAiStream.pending.length > 1 and this.panAiMayDecide and !this.panAiAllDecided" class="d-flex gap-1 mb-1">
+                        <button class="btn btn-primary btn-sm pan-ai-approve-all" t-on-click="() => this.panAiApproveAll(true)">Allow all</button>
+                        <button class="btn btn-secondary btn-sm pan-ai-skip-all" t-on-click="() => this.panAiApproveAll(false)">Skip all</button>
+                    </div>
                     <t t-foreach="this.panAiStream.pending" t-as="call" t-key="call.id">
                         <div class="pan-ai-approval-card border border-warning rounded p-2 mb-1">
-                            <div class="small">The agent wants to run <b t-out="call.name"/></div>
-                            <pre class="pan-ai-approval-args small text-muted mb-1" t-out="call.args"/>
+                            <div t-if="call.effect" class="small pan-ai-approval-effect" t-out="call.effect"/>
+                            <t t-else="">
+                                <div class="small">The agent wants to run <b t-out="call.name"/></div>
+                                <pre class="pan-ai-approval-args small text-muted mb-1" t-out="call.args"/>
+                            </t>
                             <div t-if="!this.panAiMayDecide" class="small text-muted">Waiting for <t t-out="this.panAiStream.askerName"/> to decide</div>
-                            <div t-elif="!this.panAiIsDecided(call)" class="d-flex gap-1">
-                                <button class="btn btn-primary btn-sm pan-ai-approve" t-on-click="() => this.panAiApprove(call, true)" t-att-aria-label="'Allow ' + call.name">Allow</button>
+                            <div t-elif="!this.panAiIsDecided(call)" class="d-flex gap-1 mt-1">
+                                <button class="btn btn-sm pan-ai-approve" t-att-class="this.panAiStream.pending.length > 1 ? 'btn-secondary' : 'btn-primary'" t-on-click="() => this.panAiApprove(call, true)" t-att-aria-label="'Allow ' + call.name">Allow</button>
                                 <button class="btn btn-secondary btn-sm pan-ai-skip" t-on-click="() => this.panAiApprove(call, false)" t-att-aria-label="'Skip ' + call.name">Skip</button>
                             </div>
                             <div t-else="" class="small text-muted">Decided</div>
