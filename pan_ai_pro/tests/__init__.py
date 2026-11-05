@@ -5,6 +5,7 @@ from . import (
     test_agent_build,
     test_channel,
     test_channel_mention,
+    test_character,
     test_compat,
     test_direct_message,
     test_fields,
