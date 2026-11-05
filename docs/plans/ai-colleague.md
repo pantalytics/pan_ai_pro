@@ -147,10 +147,51 @@ numbers need step 3.
 | 1 | Slice 1, direct messages (PR #57) | merged; it lands on 19.0 and 20.0, and `odoo.pantalytics.com` deploys it | CI green, the browser check passes |
 | 2 | Dogfood on `odoo.pantalytics.com` for two weeks: one agent with a dedicated user, the team messages and mentions it for real work | two weeks of runs | **15 or more colleague runs Done a week, redo rate under 10%.** Below that, find out why before building more |
 | 3 | Measure customers: the heartbeat sends colleague runs per week (Done, Stopped, Failed) and the number of colleague agents. The server's request model in `odoo-mcp-pro-admin` takes the new counts first, the module sends them second | the numbers show per database on the platform | numbers arrive from at least our own database |
-| 4 | Slice 2, an activity is a to-do (section 3) | built, tested, shipped | on our own Odoo: **10 or more activities a week for the agent, 80% marked done by it, median 15 minutes from assigned to done** |
+| 4 | Approval rules A1, A2, A8 (section 8), then slice 2, an activity is a to-do (section 3), with A3, A5, A6 | built, tested, shipped | on our own Odoo: **10 or more activities a week for the agent, 80% marked done by it, median 15 minutes from assigned to done** |
 | 5 | Slice 3, the agent in a team: a short recipe in the docs and the brand site's AI Pro page | published | **25% of connected databases have a colleague agent with a Done run in the week, 8 weeks after step 4 ships** |
 | 6 | Outside agents (Claude Code, Codex) as members, [#56](https://github.com/pantalytics/pan_ai_pro/issues/56) | only when step 5's number is met | none set |
 
 Not on the path: approving a background run outside Discuss
 ([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)). Slice 2
 does not need it, because its work runs in a direct chat.
+
+## 8. Approval: Odoo has no undo
+
+A write in Odoo cannot be taken back with one key. A confirmed order, a
+posted invoice, an email an automation sent on a stage change: once done,
+a person fixes it by hand, if at all. So the agent asks **before**, and what
+it asks has to be something a person can judge in five seconds.
+
+What exists today: every built-in write (`create_record`, `write_record`),
+every server action and every MCP tool asks by default; the card says "The
+agent wants to run write_record" with the arguments as JSON; Allow and Skip
+are the asker's; a background run that asks can only be stopped (#58).
+
+### The rules
+
+| # | Rule | Why |
+|---|---|---|
+| A1 | **The card shows the effect, not the call.** "Change lead *Acme*: Expected revenue 0 → 25,000; Stage New → Qualified." "Create contact *Acme BV*, email info@acme.nl." Field labels and current values are read as the agent's user when the call is proposed. A server action shows its name and the records; an MCP tool its own description and arguments (we cannot know its effect). | Nobody approves JSON well. Without undo, the person has to see what changes. |
+| A2 | **What you approved is what happens.** The proposal keeps the record's `write_date`. If the record changed before Allow, the call does not run: the agent is told it changed, reads it again and proposes again. | An Allow given on stale values is a write nobody saw. |
+| A3 | **An approval expires after 24 hours.** The run stops, the agent says so in the chat, an activity stays open. | Allowing a three-day-old change to a quote is a guess. |
+| A4 | **Only the person who gave the work decides**: who asked, mentioned, messaged or assigned the activity. Not the rest of the channel, not an admin on their behalf. | One person is accountable for a write. Already so in channels. |
+| A5 | **An approval always waits in a chat of the person who decides.** A run with a dedicated user asks in that person's direct chat with the agent; one that runs as the person asks in their own AI chat with it. Background runs (automation rules, schedules, watches) follow the same rule, which closes #58. | The card and Stop live in Discuss; Discuss pings the person on their phone. |
+| A6 | **Several calls, one decision.** The card lists every pending change with Allow all and Skip all, and each line can still be skipped alone. | A to-do of five updates should not be five round trips. |
+| A7 | **After, the trail is in the record.** The write is the agent's user's, so Odoo's own tracking shows old → new in the chatter, and the agent's note names who allowed it, with a link to the run. | Without undo, the next best thing is knowing exactly what changed, by whom, on whose word. |
+| A8 | **Each Allow and Skip is logged on the run.** | The skip rate is the quality metric for proposals (section 6): a high one means the agent proposes the wrong change. |
+
+### Dropped, on purpose
+
+- **An undo button.** AI Pro could keep the old values and write them back,
+  but not the email the stage change sent, nor the order an automation
+  confirmed. An undo that works only sometimes is worse than none.
+- **Delete.** The built-in tools cannot delete and will not. A server action
+  an admin added can; it asks like any other.
+- **Auto-allow by amount or by model.** An admin can already switch off the
+  question per tool. A rule engine on top is a case nobody asked for.
+
+### Order of work
+
+A1, A2 and A8 first (step 4): they improve every approval that exists
+today. A3, A5 and A6 come with slice 2, which needs approvals that wait
+while nobody watches.
