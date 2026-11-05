@@ -105,9 +105,10 @@ class Agent(models.Model):
         help="The groups that may chat with it or trigger it. Empty: every Member.",
     )
     in_channels = fields.Boolean(
-        string="Answers in channels",
+        string="Answers in Discuss",
         help="Mention the dedicated user in a Discuss channel and the agent answers in a "
-        "thread under the message, for everybody in the channel to read.",
+        "thread under the message, for everybody in the channel to read. Send that user "
+        "a direct message and it answers there.",
     )
 
     status = fields.Selection(
@@ -250,7 +251,8 @@ class Agent(models.Model):
 
     @api.model
     def _mentioned(self, partners):
-        """The agent that answers a mention of one of these partners, or none."""
+        """The agent that answers a mention of, or a direct message to, one of
+        these partners, or none."""
         return self.sudo().search(
             [("in_channels", "=", True), ("user_id.partner_id", "in", partners.ids)], limit=1
         )

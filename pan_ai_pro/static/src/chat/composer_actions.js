@@ -4,15 +4,15 @@
 import { registerComposerAction } from "@mail/core/common/composer_actions";
 import { _t } from "@web/core/l10n/translation";
 import { user } from "@web/core/user";
-import { actionIcon, channelType, parentChannel } from "@pan_ai_pro/chat/compat";
+import { actionIcon, agentMayAnswer } from "@pan_ai_pro/chat/compat";
 
-// Stop: while a run is live, for the person who asked: on an AI channel, or
-// in a thread of a team channel. The run stops at its next event; the
+// Stop: while a run is live, for the person who asked: on an AI channel, in
+// a thread of a team channel, or in a direct chat with an agent. The run stops at its next event; the
 // message keeps what was streamed and says "Stopped."
 registerComposerAction("pan-ai-stop", {
     condition: ({ composer, store }) => {
         const thread = composer.thread;
-        if (!thread || (channelType(thread) !== "ai" && !parentChannel(thread))) {
+        if (!thread || !agentMayAnswer(thread)) {
             return false;
         }
         const { live, liveAsker } = store.env.services["pan_ai_pro.run_events"];

@@ -114,6 +114,8 @@ class DiscussChannel(models.Model):
                 self._pan_ai_on_user_message(message)
             elif self.channel_type in ("channel", "group") and partner_ids:
                 self._pan_ai_on_mention(message, partner_ids)
+            elif self.channel_type == "chat":
+                self._pan_ai_on_direct()
         return message
 
     def _pan_ai_on_user_message(self, message):
@@ -168,6 +170,32 @@ class DiscussChannel(models.Model):
             )
         channel._pan_ai_answer(thread, channel._pan_ai_mention_prompt(thread, agent))
 
+    def _pan_ai_on_direct(self):
+        """A direct message to an agent's dedicated user: it answers right
+        here, like a colleague, without a mention. The chat is the two of
+        them, so every message is meant for it (docs/plans/ai-colleague.md)."""
+        if self.env.user.share:
+            return
+        others = self.sudo().channel_member_ids.partner_id - self.env.user.partner_id
+        agent = self.env["pan_ai.agent"]._mentioned(others)
+        if not agent or agent.user_id == self.env.user:
+            return
+        thread = self._pan_ai_thread()
+        if not thread:
+            thread = (
+                self.env["pan_ai.thread"]
+                .sudo()
+                .create(
+                    {
+                        "name": self.env.user.name,
+                        "agent_id": agent.id,
+                        "channel_id": self.id,
+                        "user_id": self.env.uid,
+                    }
+                )
+            )
+        self._pan_ai_answer(thread, self._pan_ai_mention_prompt(thread, agent))
+
     def _pan_ai_sub_channel(self, message):
         """The thread under `message`: Odoo's own, made as the person who
         asked, so the parent shows "Sam started a thread" like any other."""
@@ -198,11 +226,18 @@ class DiscussChannel(models.Model):
             text = html2plaintext(m.body or "", include_references=False).strip()
             if text:
                 lines.append(f"{m.author_id.name or _('Someone')}: {text}")
-        head = _(
-            "You were mentioned in the Discuss channel %(channel)s. "
-            "What was said since your last answer, oldest first:",
-            channel=(self.parent_channel_id or self).display_name,
-        )
+        if self.channel_type == "chat":
+            head = _(
+                "%(person)s sent you a direct message in Discuss. "
+                "What they said since your last answer, oldest first:",
+                person=self.env.user.name,
+            )
+        else:
+            head = _(
+                "You were mentioned in the Discuss channel %(channel)s. "
+                "What was said since your last answer, oldest first:",
+                channel=(self.parent_channel_id or self).display_name,
+            )
         # Over the cap, the newest lines stay: the question is the last one.
         return head + "\n" + "\n".join(lines)[-PROMPT_MAX:]
 
@@ -240,8 +275,9 @@ class DiscussChannel(models.Model):
     # ---- the window's buttons ----------------------------------------
 
     def _pan_ai_may_see(self, thread):
-        """An AI chat is its owner's; a thread in a team channel is everybody's
-        who may read the channel, as its messages are."""
+        """An AI chat is its owner's; a thread in a team channel, or a direct
+        chat with the agent's user, is everybody's who may read it, as its
+        messages are."""
         # sudo: a person outside the chat may not read the channel's type either
         if self.sudo().channel_type == "ai":
             return thread.user_id == self.env.user

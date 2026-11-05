@@ -6,6 +6,7 @@ from . import (
     test_channel,
     test_channel_mention,
     test_compat,
+    test_direct_message,
     test_fields,
     test_license,
     test_mcp_toolset,
