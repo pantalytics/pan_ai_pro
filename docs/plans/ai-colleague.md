@@ -122,9 +122,29 @@ no screen for it.
 
 ## 5. What it costs
 
-On Odoo Enterprise every internal user is a paid user, so an AI colleague
-takes a seat. On Community it is free. Ava must be internal: a portal user
-cannot be mentioned or invited (plans/agent-in-discuss.md, section 6).
+**An AI colleague is one Odoo user.** On Community that is free. On
+Enterprise it is a paid user, and that is the price of a colleague; the
+"Give it its own user" confirmation says so. Start with one colleague for
+the whole company: everybody can message it, mention it and give it work.
+
+Without its own user an agent still works where no seat is needed: the AI
+chat (the sparkle, Ctrl+K), automation rules, scheduled actions, watches
+and AI fields, with the rights of the person who asks or the action's user.
+What needs the user: being mentioned in a team channel, a direct message,
+an activity, and rights of its own in a shared answer.
+
+Not done, on purpose: an archived user, like OdooBot, to avoid the seat.
+Odoo counts active users only (`mail/models/update.py`), but it also treats
+an archived user as gone everywhere a colleague needs to be: the invite
+search and mention suggestions require `user_ids.active`, mentions in a
+channel go through `partner.user_ids` (active only), and archiving a user
+archives its partner (`base/models/res_users.py`). Making it work means
+overriding five of Odoo's own rules on 19 and 20, to pay for one user less.
+A seat is cheaper than that, and a customer's licence is theirs to keep
+clean.
+
+Ava must be internal: a portal user cannot be mentioned or invited
+(plans/agent-in-discuss.md, section 6).
 
 ## 6. Success, and how it is measured
 
