@@ -121,3 +121,36 @@ no screen for it.
 On Odoo Enterprise every internal user is a paid user, so an AI colleague
 takes a seat. On Community it is free. Ava must be internal: a portal user
 cannot be mentioned or invited (plans/agent-in-discuss.md, section 6).
+
+## 6. Success, and how it is measured
+
+**Success: people give the agent work the way they give a colleague work,
+and it finishes that work without anybody redoing it.**
+
+| Metric | What it counts | Where it comes from |
+|---|---|---|
+| Work done (the one number) | Colleague runs that end Done (a mention, a direct message, later an activity), plus activities the agent marked done, per database per week | `pan_ai.run` (`status = ok`) joined to its thread's channel: a thread under a message, a direct chat; `mail.activity` done by the agent's user |
+| Redo rate (guardrail) | Colleague runs the person stopped or that failed, as a share of all colleague runs | `pan_ai.run.status` in `cancelled`, `failed` |
+| Adoption | Connected databases with at least one agent that answers in Discuss and at least one colleague run that week | the daily heartbeat (step 3) |
+
+A Stop is the person saying "not like that", so it counts as a redo. Approve
+or Skip is not stored per call today; it is not a metric until it is.
+
+Today the numbers exist only inside each database. On our own Odoo they are
+one `record_aggregate` on `pan_ai.run` through Odoo MCP Pro. Customers'
+numbers need step 3.
+
+## 7. The steps, each with a gate
+
+| # | Step | Done when | Gate to the next step |
+|---|---|---|---|
+| 1 | Slice 1, direct messages (PR #57) | merged; it lands on 19.0 and 20.0, and `odoo.pantalytics.com` deploys it | CI green, the browser check passes |
+| 2 | Dogfood on `odoo.pantalytics.com` for two weeks: one agent with a dedicated user, the team messages and mentions it for real work | two weeks of runs | **15 or more colleague runs Done a week, redo rate under 10%.** Below that, find out why before building more |
+| 3 | Measure customers: the heartbeat sends colleague runs per week (Done, Stopped, Failed) and the number of colleague agents. The server's request model in `odoo-mcp-pro-admin` takes the new counts first, the module sends them second | the numbers show per database on the platform | numbers arrive from at least our own database |
+| 4 | Slice 2, an activity is a to-do (section 3) | built, tested, shipped | on our own Odoo: **10 or more activities a week for the agent, 80% marked done by it, median 15 minutes from assigned to done** |
+| 5 | Slice 3, the agent in a team: a short recipe in the docs and the brand site's AI Pro page | published | **25% of connected databases have a colleague agent with a Done run in the week, 8 weeks after step 4 ships** |
+| 6 | Outside agents (Claude Code, Codex) as members, [#56](https://github.com/pantalytics/pan_ai_pro/issues/56) | only when step 5's number is met | none set |
+
+Not on the path: approving a background run outside Discuss
+([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)). Slice 2
+does not need it, because its work runs in a direct chat.
