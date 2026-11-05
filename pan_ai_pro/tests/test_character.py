@@ -3,9 +3,16 @@
 """An agent is a character: a face and a name, and as a colleague its user
 carries both (docs/plans/ai-colleague.md, section 9)."""
 
+import base64
+
 from odoo.exceptions import UserError
 
 from .common import AiProCase
+
+
+def raw(value):
+    """An image's bytes: Odoo 20 holds a BinaryValue, Odoo 19 base64."""
+    return value.content if hasattr(value, "content") else base64.b64decode(value)
 
 
 class TestCharacter(AiProCase):
@@ -15,13 +22,13 @@ class TestCharacter(AiProCase):
     def test_a_new_agent_has_a_face(self):
         agent = self.new_agent()
         self.assertTrue(agent.image_1920, "a character until somebody uploads a photo")
-        self.assertEqual(agent.partner_id.image_1920, agent.image_1920)
+        self.assertEqual(raw(agent.partner_id.image_1920), raw(agent.image_1920))
 
     def test_an_uploaded_photo_replaces_the_character(self):
         agent = self.new_agent()
         other = self.new_agent("Bo")
         agent.image_1920 = other.image_1920
-        self.assertEqual(agent.partner_id.image_1920, other.image_1920)
+        self.assertEqual(raw(agent.partner_id.image_1920), raw(other.image_1920))
 
     def test_a_colleague_is_its_user_with_the_agents_name_and_face(self):
         agent = self.new_agent()
@@ -31,7 +38,7 @@ class TestCharacter(AiProCase):
         self.assertEqual(action["res_id"], user.id)
         self.assertEqual((agent.run_as, agent.in_channels), ("user", True))
         self.assertEqual(user.name, "Ava")
-        self.assertEqual(user.partner_id.image_1920, agent.image_1920)
+        self.assertEqual(raw(user.partner_id.image_1920), raw(agent.image_1920))
         self.assertFalse(user.share)
         self.assertEqual(user.group_ids & self.env.ref("base.group_system"), self.env["res.groups"])
         agent.name = "Ava Sales"
@@ -50,4 +57,4 @@ class TestCharacter(AiProCase):
         )
         agent.write({"run_as": "user", "user_id": user.id, "in_channels": True})
         self.assertEqual(user.name, "Ava")
-        self.assertEqual(user.partner_id.image_1920, agent.image_1920)
+        self.assertEqual(raw(user.partner_id.image_1920), raw(agent.image_1920))

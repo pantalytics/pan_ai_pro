@@ -37,7 +37,7 @@ CHARACTERS = ("fox", "owl", "heron", "otter", "hare", "badger")
 def character_image(index):
     name = CHARACTERS[index % len(CHARACTERS)]
     with file_open(f"pan_ai_pro/static/img/characters/{name}.jpg", "rb") as f:
-        return base64.b64encode(f.read())
+        return base64.b64encode(f.read()).decode()
 
 
 class Agent(models.Model):
