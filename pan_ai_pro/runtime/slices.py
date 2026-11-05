@@ -454,10 +454,11 @@ def _summary(content):
 
 
 def _after(run, thread):
-    """A finished run that is not a chat: post the answer, make the activity,
-    arm the next tick."""
+    """A finished run: post the answer, make the activity or mark the one
+    it worked on done, arm the next tick."""
     if run.status != "ok":
         return
+    run.env["mail.activity"]._pan_ai_finish(run)
     error = _on_record(run, thread, run.text, thread.post_answer, thread.activity)
     if error:
         # The answer is on the run; the record refused it. Say so there.

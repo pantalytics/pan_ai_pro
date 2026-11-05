@@ -126,10 +126,9 @@ class Agent(models.Model):
         help="The groups that may chat with it or trigger it. Empty: every Member.",
     )
     in_channels = fields.Boolean(
-        string="Answers in Discuss",
-        help="Mention the dedicated user in a Discuss channel and the agent answers in a "
-        "thread under the message, for everybody in the channel to read. Send that user "
-        "a direct message and it answers there.",
+        string="Works as a colleague",
+        help="The dedicated user answers when mentioned in a Discuss channel or sent a "
+        "direct message, and works on the activities assigned to it.",
     )
 
     status = fields.Selection(

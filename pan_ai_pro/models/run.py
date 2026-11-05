@@ -37,6 +37,8 @@ STATUSES = [
     ("failed", "Failed"),
 ]
 LIVE = ("running", "interrupted")
+# Rule A3 (docs/plans/ai-colleague.md, section 8).
+APPROVAL_HOURS = 24
 # A failure's kind. The heartbeat counts these; the free-text `error` (which
 # can quote a record) never leaves this Odoo.
 ERROR_CODES = [
@@ -368,17 +370,25 @@ class Run(models.Model):
 
     # ---- the person's buttons ----------------------------------------
 
-    def action_stop(self):
+    def action_stop(self, reason=None):
         from ..runtime import stream
 
         for run in self:
             if run.status in LIVE:
                 run.sudo().write({"cancel_requested": True})
                 if run.status == "interrupted":
-                    run.thread_id.sudo()._close_open_calls(_("Stopped by the user."))
+                    run.thread_id.sudo()._close_open_calls(reason or _("Stopped by the user."))
                     run._finish("cancelled")
                     stream.finish_outside(run, "cancelled")
         return True
+
+    @api.model
+    def _cron_expire_approvals(self):
+        """Rule A3: an approval nobody decided on in a day stops the run.
+        Allowing a change proposed days ago is a guess."""
+        cutoff = fields.Datetime.now() - timedelta(hours=APPROVAL_HOURS)
+        waiting = self.sudo().search([("status", "=", "interrupted"), ("write_date", "<", cutoff)])
+        waiting.action_stop(_("Stopped: nobody decided within %s hours.", APPROVAL_HOURS))
 
     def action_decide(self, approvals):
         """The person approved or skipped the pending tool calls. Only the

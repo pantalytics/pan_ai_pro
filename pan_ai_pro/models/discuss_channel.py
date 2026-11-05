@@ -180,21 +180,26 @@ class DiscussChannel(models.Model):
         agent = self.env["pan_ai.agent"]._mentioned(others)
         if not agent or agent.user_id == self.env.user:
             return
-        thread = self._pan_ai_thread()
-        if not thread:
-            thread = (
-                self.env["pan_ai.thread"]
-                .sudo()
-                .create(
-                    {
-                        "name": self.env.user.name,
-                        "agent_id": agent.id,
-                        "channel_id": self.id,
-                        "user_id": self.env.uid,
-                    }
-                )
-            )
+        thread = self._pan_ai_direct_thread(agent)
         self._pan_ai_answer(thread, self._pan_ai_mention_prompt(thread, agent))
+
+    def _pan_ai_direct_thread(self, agent):
+        """The one conversation of this direct chat with the agent."""
+        return self._pan_ai_thread() or self.env["pan_ai.thread"].sudo().create(
+            {
+                "name": self.env.user.name,
+                "agent_id": agent.id,
+                "channel_id": self.id,
+                "user_id": self.env.uid,
+            }
+        )
+
+    @api.model
+    def _pan_ai_direct(self, agent, person):
+        """The direct chat between `person` and the agent's user, and its
+        conversation: where an activity for the agent is worked on."""
+        chat = self.with_user(person)._get_or_create_chat([agent.user_id.partner_id.id])
+        return chat, chat._pan_ai_direct_thread(agent)
 
     def _pan_ai_sub_channel(self, message):
         """The thread under `message`: Odoo's own, made as the person who

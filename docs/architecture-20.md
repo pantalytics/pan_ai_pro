@@ -140,12 +140,13 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   inside a tool is returned to the model as the tool's error, never caught
   into a wider path.
 - In a team channel the answer is read by everybody in it, so an agent
-  answers there only as its dedicated user ("Answers in Discuss" needs
+  answers there only as its dedicated user ("Works as a colleague" needs
   `run_as` user): people mention that user, the agent speaks as that user
   in a thread under the message, and the person who asked is the one who
   stops it and decides on its calls (plans/agent-in-discuss.md). A direct
-  message to that user is answered in the chat itself
-  (plans/ai-colleague.md).
+  message to that user is answered in the chat itself, and an activity
+  assigned to it is worked on in the assigner's direct chat with it and
+  marked done (plans/ai-colleague.md).
 - Who may chat: the groups on the `Agent`, from the sparkle and Ctrl+K; a
   Member (`pan_ai_pro.group_user`) never sees the AI Pro app. Who may
   configure agents, toolsets, tools and AI fields, and read the runs: the

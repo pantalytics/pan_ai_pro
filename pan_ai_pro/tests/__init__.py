@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Elastic-2.0
 from . import (
     test_access,
+    test_activity,
     test_agent_build,
     test_approval,
     test_channel,

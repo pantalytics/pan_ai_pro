@@ -29,6 +29,13 @@ Each agent has its own instructions, model, tools, limits and web search.
 It runs as the person who asks, or as a dedicated Odoo user you set up, so
 Odoo's groups and record rules decide what it may see and touch.
 
+Colleagues
+----------
+Every agent has a face and a name. Give it its own user and it works as a
+colleague in Discuss: mention it, message it, or assign it an activity and
+it does the work and marks it done. Changes wait for your Allow, shown as
+what changes.
+
 Tools
 -----
 Built-in tools search, read, total, create, update and open records. Any

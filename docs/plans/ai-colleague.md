@@ -1,7 +1,9 @@
 # Plan: the agent as a colleague
 
-Status: slice 1 (direct messages) built in 2.11.0, 2026-11-05. Slice 2
-(activities) is designed here, not built. Slice 3 (teams) needs no code.
+Status: built in 2.11.0, 2026-11-05: slice 1 (direct messages), slice 2
+(activities), the approval rules A1, A2, A3, A6 and A8, and the character
+(section 9). Slice 3 (teams) needs no code. Not built: A5 for automation
+runs ([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)).
 
 ## 0. The idea, and where it comes from
 
@@ -22,7 +24,7 @@ Most of it exists. What Buzz has, and where it lives in Odoo:
 | An agent is a member with its own identity | The agent's dedicated user (`run_as = user`) | built (2.10.0) |
 | Mention an agent in a channel | `@Ava` in a Discuss channel, answer in a thread | built (2.10.0) |
 | Message an agent directly | A direct chat with Ava, answered there | **slice 1, built** |
-| Give an agent work | An activity assigned to Ava | **slice 2, designed** |
+| Give an agent work | An activity assigned to Ava | **slice 2, built** |
 | An agent in a team or project | Ava as a member of a sales team, helpdesk team, project | **slice 3, no code** |
 | Workflows on a message, schedule or webhook | Automation rules and scheduled actions with "Run AI agent", continuous threads | built |
 | Approve before a write | Allow and Skip on the approval card | built |
@@ -49,11 +51,11 @@ invited to, or decides on its own writes.
 ## 2. Slice 1: a direct message (built)
 
 ```
-admin: agent > Access > runs as a dedicated user (Ava), Answers in Discuss
+admin: agent > Access > Give it its own user (Ava), Works as a colleague
 person opens a direct chat with Ava, like with any colleague
 person: "which quotes for Acme are still open?"
   │  message_post on the chat
-  ├─ the other member is the dedicated user of an agent that answers in Discuss
+  ├─ the other member is the dedicated user of an agent that works as a colleague
   ├─ one pan_ai.thread on the chat, kind chat
   ├─ placeholder from Ava, "Thinking"
   └─ Run.start(thread, prompt, kind="chat", caller=person), runs as Ava
@@ -67,11 +69,11 @@ limit counts, retention deletes the memory and keeps the chat.
 | Where | What |
 |---|---|
 | `models/discuss_channel.py` | `_pan_ai_on_direct`, the prompt's head for a chat |
-| `models/agent.py` | the switch is called "Answers in Discuss" |
+| `models/agent.py` | the switch is called "Works as a colleague" |
 | `static/src/chat/compat.js` | `agentMayAnswer`: the AI chat, a thread under a message, a direct chat |
 | `tests/test_direct_message.py` | the flow, a chat between people, the switch off, refusal, approval by the asker |
 
-## 3. Slice 2: an activity is a to-do for Ava (designed)
+## 3. Slice 2: an activity is a to-do for Ava (built)
 
 Activities are how every Odoo app gives a person work: CRM, Helpdesk,
 Project, Accounting, all of them. A to-do for Ava is an activity with
@@ -82,11 +84,12 @@ Sam schedules an activity on lead "Acme", assigned to Ava:
   "Call back: ask for their budget and log it on the lead"
   │  mail.activity create (or user_id changed to Ava)
   ├─ Ava's agent works as a colleague; Sam is an internal user
+  ├─ queued; the cron starts it after Sam's save, never inside it
   ├─ the work runs in the direct chat Sam and Ava share (slice 1):
-  │    Ava: "Working on: Call back on Acme (Lead)" ... streams, approval card
-  ├─ the thread carries the record (res_model, res_id) as its context
-  └─ done: Ava's answer as a note in the lead's chatter,
-           the activity marked done with that answer as its feedback
+  │    Ava: "To-do from Sam: Call back, on Acme" ... streams, approval card
+  ├─ the prompt names the activity and the record (model, id)
+  └─ done: the activity marked done by Ava, her answer as its feedback,
+           which Odoo posts in the lead's chatter
 ```
 
 | # | Decision | Why |
@@ -99,9 +102,10 @@ Sam schedules an activity on lead "Acme", assigned to Ava:
 | 6 | **The same switch**, relabelled "Works as a colleague": mention, direct message and activities. | One idea, one switch. A second switch for activities is a case nobody asked for. |
 
 Where it lives: `models/mail_activity.py` (create and write hooks, the
-pick-up cron), `models/discuss_channel.py` (open the chat and start the run
-with the record as context), `runtime/slices.py` (`_after` marks the
-activity done), `tests/test_activity.py`.
+queue, the prompt, marking done), `models/discuss_channel.py`
+(`_pan_ai_direct`: the chat and its conversation), `runtime/slices.py`
+(`_after` calls `_pan_ai_finish`), `data/ir_cron.xml` (the queue and the
+24-hour expiry), `tests/test_activity.py`.
 
 Dropped: a record assigned to Ava (its `user_id`) without an activity does
 nothing. The fields differ per app and carry no question. An automation
@@ -195,3 +199,27 @@ are the asker's; a background run that asks can only be stopped (#58).
 A1, A2 and A8 first (step 4): they improve every approval that exists
 today. A3, A5 and A6 come with slice 2, which needs approvals that wait
 while nobody watches.
+
+## 9. The character
+
+People warm to a colleague with a face and a name. Every agent gets one.
+
+- **A face from the start.** A new agent gets a portrait in the brand's
+  character style (brand.pantalytics.com, design philosophy: animals in
+  Japanese ink, navy lines, one purple bloom, cream paper, no robots):
+  fox, owl, heron, otter, hare, badger, picked by the agent's id
+  (`static/img/characters/`, made with Flux on the brand's character
+  preset). An uploaded photo replaces it. Existing agents get one on
+  upgrade.
+- **The name is the character's.** "Ava", with "Sales assistant" as the
+  line under it. An agent that works as a colleague gives its dedicated user
+  its name and photo, so people see the character they message, mention and
+  give work to. The agent is the source: renaming it renames the user.
+- **One click to a colleague.** "Give it its own user" on the Access dialog
+  creates that user from the agent: a plain internal user (rights set on the
+  user, like anybody's), notifications in Odoo, and the agent works as a
+  colleague from then on. The confirmation says it is a paid user on
+  Enterprise.
+
+Dropped: a picker for the six portraits (upload replaces the default, and
+that is enough), a personality field (the instructions are the personality).
