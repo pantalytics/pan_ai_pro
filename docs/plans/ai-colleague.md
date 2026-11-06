@@ -6,6 +6,28 @@ approval rules A1, A2, A3, A6 and A8, and the character (section 9). Channels:
 decided, not built (section 4, agent-identity.md). Not built: A5 for automation
 runs ([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)).
 
+## The value proposition
+
+**AI colleagues inside your Odoo, with no extra Odoo licence.** You give an
+agent work the way you give a colleague work: a to-do on a record, a
+question in a chat, a mention in a team channel. It does the work in Odoo,
+with the rights of the person it works for, shows every change before it
+happens (Odoo has no undo), and leaves its work in the chatter. Five agents
+cost no extra Odoo users.
+
+- **For whom:** companies on Odoo 19 or 20, Community or Enterprise, that
+  want routine ERP work done without hiring and without a second tool.
+- **Against the alternatives:** Buzz and other agent workspaces live
+  outside the ERP and know nothing of its rights. Platforms that give an
+  agent its own account charge for it: Microsoft Agent 365 is per user,
+  and an agent account needs a licence (agent-identity.md). Here the agent
+  borrows nothing and costs no seat: it works for a person, inside the
+  rights Odoo already has.
+- **For Pantalytics:** AI Pro revenue (the module runs only connected to
+  Pantalytics), a reason to call us for the setup, and data for the long
+  bet. Every to-do people hand an agent shows what in their ERP can run
+  itself.
+
 ## 0. The idea, and where it comes from
 
 Buzz (Block, [github.com/block/buzz](https://github.com/block/buzz), Apache
@@ -137,36 +159,30 @@ the licence.
 
 ## 6. Success, and how it is measured
 
-**Success: people give the agent work the way they give a colleague work,
-and it finishes that work without anybody redoing it.**
+**Success: people hand agents real work, the agents finish it without
+anybody redoing it, and it costs no extra Odoo user.**
 
-| Metric | What it counts | Where it comes from |
-|---|---|---|
-| Work done (the one number) | Colleague runs that end Done (a mention, a direct message, later an activity), plus activities the agent marked done, per database per week | `pan_ai.run` (`status = ok`) joined to its thread's channel: a thread under a message, a direct chat; `mail.activity` done by the agent's user |
-| Redo rate (guardrail) | Colleague runs the person stopped or that failed, as a share of all colleague runs | `pan_ai.run.status` in `cancelled`, `failed` |
-| Adoption | Connected databases with at least one agent that answers in Discuss and at least one colleague run that week | the daily heartbeat (step 3) |
+| Metric | Target | What it counts | Where it comes from |
+|---|---|---|---|
+| Work done (the one number) | rises week on week | Agent runs that end Done and started from work a person gave: a to-do ("Done by agent"), a chat, a mention. Per database per week | `pan_ai.run` with `status = ok`, its thread's channel, and `mail.activity.pan_ai_run_id` |
+| Redo rate (guardrail) | under 10% | Those runs that a person stopped or that failed, as a share of all of them. A Stop is the person saying "not like that" | `pan_ai.run.status` in `cancelled`, `failed` |
+| Skip rate (guardrail) | under 20% | Proposed changes that a person skipped or allowed too late, as a share of all decisions: the quality of what the agent proposes | `pan_ai.run.skipped_calls` / (`allowed_calls` + `skipped_calls`) |
+| Adoption | 25% of connected databases, 8 weeks after launch | Databases with at least one to-do done by an agent that week | the daily heartbeat (step 3) |
+| Seats | 0 | Odoo users created for agents | agents with `run_as = user` |
 
-A Stop is the person saying "not like that", so it counts as a redo. Approve
-or Skip is not stored per call today; it is not a metric until it is.
-
-Today the numbers exist only inside each database. On our own Odoo they are
-one `record_aggregate` on `pan_ai.run` through Odoo MCP Pro. Customers'
-numbers need step 3.
+On our own Odoo every number is one `record_aggregate` on `pan_ai.run` or
+`mail.activity` through Odoo MCP Pro. Customers' numbers need step 3.
 
 ## 7. The steps, each with a gate
 
 | # | Step | Done when | Gate to the next step |
 |---|---|---|---|
-| 1 | Slice 1, direct messages (PR #57) | merged; it lands on 19.0 and 20.0, and `odoo.pantalytics.com` deploys it | CI green, the browser check passes |
-| 2 | Dogfood on `odoo.pantalytics.com` for two weeks: one agent with a dedicated user, the team messages and mentions it for real work | two weeks of runs | **15 or more colleague runs Done a week, redo rate under 10%.** Below that, find out why before building more |
-| 3 | Measure customers: the heartbeat sends colleague runs per week (Done, Stopped, Failed) and the number of colleague agents. The server's request model in `odoo-mcp-pro-admin` takes the new counts first, the module sends them second | the numbers show per database on the platform | numbers arrive from at least our own database |
-| 4 | Approval rules A1, A2, A8 (section 8), then slice 2, an activity is a to-do (section 3), with A3, A5, A6 | built, tested, shipped | on our own Odoo: **10 or more activities a week for the agent, 80% marked done by it, median 15 minutes from assigned to done** |
-| 5 | Slice 3, the agent in a team: a short recipe in the docs and the brand site's AI Pro page | published | **25% of connected databases have a colleague agent with a Done run in the week, 8 weeks after step 4 ships** |
+| 1 | Ship PR #57: characters, "Done by agent", approval A1, A2, A3, A6, A8 | merged; it lands on 19.0 and 20.0, and `odoo.pantalytics.com` deploys it | CI green |
+| 2 | Dogfood on `odoo.pantalytics.com` for two weeks: five agents with a face and a role, the team hands them real to-dos and questions | two weeks of runs | **15 or more runs Done a week, redo rate under 10%, skip rate under 20%.** Below that, find out why before building more |
+| 3 | Measure customers: the heartbeat sends work done, redo and skip counts per week. The server's request model in `odoo-mcp-pro-admin` takes the new counts first, the module sends them second | the numbers show per database on the platform | numbers arrive from at least our own database |
+| 4 | Team channels with the intersection of the members' read rights, a sponsor per agent, the envelope (agent-identity.md, section 4) | built, tested, shipped | on our own Odoo, mentions in channels Done with a redo rate under 10% |
+| 5 | Launch: a short recipe in the docs, the AI Pro page on the brand site ("AI colleagues, no extra licence") | published | **25% of connected databases with a to-do done by an agent in the week, 8 weeks after launch** |
 | 6 | Outside agents (Claude Code, Codex) as members, [#56](https://github.com/pantalytics/pan_ai_pro/issues/56) | only when step 5's number is met | none set |
-
-Not on the path: approving a background run outside Discuss
-([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)). Slice 2
-does not need it, because its work runs in a direct chat.
 
 ## 8. Approval: Odoo has no undo
 
