@@ -137,13 +137,16 @@ keeps that user's reach in channels.
 
 Next to that:
 
-- **Sponsor.** Every agent gets a responsible person [2]. That person hears
-  about failures and approves for runs with nobody behind them. This also
-  closes #58.
-- **Envelope instead of a click per write** [6]. Per agent and per tool
-  group, the administrator can allow named changes without asking, for
-  example "update phone and email on contacts". Approval cards stay for
-  everything else.
+- **Sponsor** (built in 2.13.0). Every agent gets a responsible person [2],
+  by default whoever made it. A run with nobody behind it (an automation, a
+  schedule, a watch) asks the sponsor in their AI chat with the agent; the
+  card and Stop are theirs. Without a sponsor it waits in the Activity list.
+  This closes #58.
+- **Envelope instead of a click per write** [6]. Per tool, the
+  administrator already decides whether it asks (a tool's "Asks approval").
+  Making that finer, per field ("update phone and email on contacts"), is
+  dropped until the skip rate shows that people approve the same change
+  over and over.
 - **Actor and subject in the trail** [7]. The run log already records the
   agent, the person and every call. A write made for a person gets "via
   Ava" in the chatter.
