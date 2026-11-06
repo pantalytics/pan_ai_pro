@@ -64,6 +64,15 @@ class Agent(models.Model):
         max_height=1920,
     )
     image_128 = fields.Image(compute="_compute_image")
+    channel_ids = fields.Many2many(
+        "discuss.channel",
+        string="Channels",
+        compute="_compute_channel_ids",
+        inverse="_inverse_channel_ids",
+        domain=[("channel_type", "in", ("channel", "group")), ("parent_channel_id", "=", False)],
+        help="Mention the agent there and it answers in a thread, with what every reader of "
+        "the channel may read, for the person who asked.",
+    )
 
     # Model
     model_id = fields.Many2one(
@@ -182,6 +191,34 @@ class Agent(models.Model):
         for agent in self:
             agent.sudo().partner_id.image_1920 = agent.image_1920
         self._sync_colleague()
+
+    def _compute_channel_ids(self):
+        Member = self.env["discuss.channel.member"].sudo()
+        for agent in self:
+            members = Member.search([("partner_id", "=", agent.sudo().partner_id.id)])
+            agent.channel_ids = members.channel_id.filtered(
+                lambda c: c.channel_type in ("channel", "group") and not c.parent_channel_id
+            )
+
+    def _inverse_channel_ids(self):
+        Member = self.env["discuss.channel.member"].sudo()
+        for agent in self:
+            partner = agent.sudo().partner_id
+            current = Member.search([("partner_id", "=", partner.id)]).channel_id
+            for channel in (agent.channel_ids - current).sudo():
+                channel._add_members(partners=partner, post_joined_message=False)
+            Member.search(
+                [
+                    ("partner_id", "=", partner.id),
+                    (
+                        "channel_id",
+                        "in",
+                        (current - agent.channel_ids)
+                        .filtered(lambda c: c.channel_type in ("channel", "group"))
+                        .ids,
+                    ),
+                ]
+            ).unlink()
 
     def _sync_colleague(self):
         """An agent that answers in Discuss is its dedicated user there: the
@@ -304,9 +341,17 @@ class Agent(models.Model):
     @api.model
     def _mentioned(self, partners):
         """The agent that answers a mention of, or a direct message to, one of
-        these partners, or none."""
+        these partners: its character (partner), or the dedicated user of one
+        that works as a colleague. None when there is none."""
         return self.sudo().search(
-            [("in_channels", "=", True), ("user_id.partner_id", "in", partners.ids)], limit=1
+            [
+                "|",
+                ("partner_id", "in", partners.ids),
+                "&",
+                ("in_channels", "=", True),
+                ("user_id.partner_id", "in", partners.ids),
+            ],
+            limit=1,
         )
 
     def run_user(self, caller):

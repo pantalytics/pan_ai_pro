@@ -50,7 +50,8 @@ class DiscussChannel(models.Model):
                     ("user_id", "=", self.env.uid),
                     ("agent_id", "=", agent.id),
                     ("kind", "=", "chat"),
-                    ("channel_id", "!=", False),
+                    # Their own AI chat, not a thread in a team channel.
+                    ("channel_id.channel_type", "=", "ai"),
                 ],
                 limit=1,
             )
@@ -101,6 +102,18 @@ class DiscussChannel(models.Model):
             for a in self.env["pan_ai.agent"].search([]).filtered(lambda a: a.may_use())
         ]
 
+    def _get_allowed_message_partner_ids(self, partner_ids):
+        """Odoo keeps a mention in a channel limited to a group only for
+        partners whose users are in it; an agent has no user, so an agent
+        added to the channel is kept too (docs/plans/agent-identity.md)."""
+        allowed = super()._get_allowed_message_partner_ids(partner_ids)
+        root = (self.parent_channel_id or self).sudo()
+        agents = (
+            self.env["pan_ai.agent"].sudo().search([("partner_id", "in", list(partner_ids or []))])
+        )
+        members = agents.partner_id & root.channel_member_ids.partner_id
+        return list(dict.fromkeys(list(allowed) + members.ids))
+
     def _pan_ai_thread(self):
         self.ensure_one()
         return self.sudo().pan_ai_thread_ids[:1]
@@ -142,6 +155,11 @@ class DiscussChannel(models.Model):
         agent = self.env["pan_ai.agent"]._mentioned(named)
         if not agent or agent.user_id == self.env.user or self.env.user.share:
             return
+        root = (self.parent_channel_id or self).sudo()
+        if not (agent.in_channels and agent.user_id) and agent.partner_id not in (
+            root.channel_member_ids.partner_id
+        ):
+            return  # an agent answers only where it was added
         channel = self if self.parent_channel_id else self._pan_ai_sub_channel(message)
         thread = channel._pan_ai_thread()
         if thread and thread.agent_id != agent:
@@ -263,9 +281,10 @@ class DiscussChannel(models.Model):
         run._run_now("inline")
 
     def _pan_ai_agent_message(self, agent, body):
-        # In a team channel the agent speaks as its dedicated user, the one
-        # people mention; in its own chat as its chat identity.
-        author = agent.partner_id if self.channel_type == "ai" else agent.user_id.partner_id
+        # An agent that works as a colleague speaks as its dedicated user, the
+        # one people mention; any other agent as its character (its partner).
+        colleague = agent.in_channels and agent.user_id and self.channel_type != "ai"
+        author = agent.user_id.partner_id if colleague else agent.partner_id
         return (
             self.sudo()
             .with_context(pan_ai_agent_post=True)

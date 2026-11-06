@@ -123,10 +123,14 @@ def toolset_for(toolset_record, env):
     return build_toolset(toolset_record, env)
 
 
-def build_agent(agent_record, env, *, output=None, prefix=None, with_tools=True, name=None):
+def build_agent(
+    agent_record, env, *, output=None, prefix=None, with_tools=True, name=None, shared=False
+):
     """The `Agent`. `env` is the run user's env, used for the key and the
     toolsets. An AI field passes its own `output` schema, a `prefix` to the
-    instructions and `with_tools` off unless the field says so."""
+    instructions and `with_tools` off unless the field says so. `shared`: a
+    team channel read by others, where a connected (MCP) server is left out
+    because its results cannot be narrowed to what every reader may read."""
     capabilities = []
     if agent_record.web_search:
         capabilities.append(
@@ -139,7 +143,9 @@ def build_agent(agent_record, env, *, output=None, prefix=None, with_tools=True,
         model_for(agent_record, env),
         instructions=[prefix, *instructions] if prefix else instructions,
         toolsets=[
-            toolset_for(toolset, env) for toolset in agent_record.toolset_ids if toolset.active
+            toolset_for(toolset, env)
+            for toolset in agent_record.toolset_ids
+            if toolset.active and not (shared and toolset.kind == "mcp")
         ]
         if with_tools
         else [],

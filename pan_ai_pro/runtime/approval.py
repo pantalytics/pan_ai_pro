@@ -17,7 +17,9 @@ import logging
 
 from pydantic_ai import DeferredToolResults, ToolDenied
 
-from odoo.exceptions import AccessError, MissingError
+from odoo.exceptions import AccessError, MissingError, UserError
+
+from . import audience
 
 _logger = logging.getLogger(__name__)
 
@@ -32,12 +34,16 @@ def describe(run, pending):
     describe keeps its arguments."""
     env = run.env(user=run.user_id)
     tools = run.thread_id.agent_id.toolset_ids.tool_ids
+    try:
+        shared = bool(audience.readers(run.thread_id, run.user_id))
+    except UserError:
+        shared = True
     for call in pending:
         row = tools.filtered(lambda t, name=call["name"]: t.name == name)[:1]
         if row.source != "builtin" or row.builtin not in ("create_record", "write_record"):
             continue
         try:
-            call.update(_effect(env, row.builtin, json.loads(call["args"] or "{}")))
+            call.update(_effect(env, row.builtin, json.loads(call["args"] or "{}"), shared))
         except (AccessError, MissingError, KeyError, TypeError, ValueError) as error:
             _logger.info("[AI Pro] run %s: no effect for %s: %s", run.id, call["name"], error)
     return pending
@@ -71,7 +77,9 @@ def stale(env, call):
     return not record or str(record.write_date) != call["stamp"]
 
 
-def _effect(env, builtin, args):
+def _effect(env, builtin, args, shared=False):
+    """In a shared channel the old values stay out: the readers did not
+    necessarily see them."""
     Model = env[args["model"]]
     values = args.get("values") or {}
     names = [name for name in values if name in Model._fields][:MAX_FIELDS]
@@ -83,7 +91,9 @@ def _effect(env, builtin, args):
         raise MissingError(f"{args['model']} {args['id']}")
     record.check_access("read")
     changes = [
-        f"{_label(Model, n)}: {_show(Model, n, record[n])} {ARROW} {_show(Model, n, values[n])}"
+        f"{_label(Model, n)}: {_show(Model, n, values[n])}"
+        if shared
+        else f"{_label(Model, n)}: {_show(Model, n, record[n])} {ARROW} {_show(Model, n, values[n])}"
         for n in names
     ]
     return {

@@ -7,6 +7,7 @@ from . import (
     test_approval,
     test_channel,
     test_channel_mention,
+    test_channel_shared,
     test_character,
     test_compat,
     test_direct_message,
