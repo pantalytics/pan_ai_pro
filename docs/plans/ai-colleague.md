@@ -196,6 +196,18 @@ On our own Odoo every number is one `record_aggregate` on `pan_ai.run` or
 | 5 | Launch: a short recipe in the docs, the AI Pro page on the brand site ("AI colleagues, no extra licence") | published | **25% of connected databases with a to-do done by an agent in the week, 8 weeks after launch** |
 | 6 | Outside agents (Claude Code, Codex) as members, [#56](https://github.com/pantalytics/pan_ai_pro/issues/56) | only when step 5's number is met | none set |
 
+## Measurements
+
+| Date | Where | Work done (7 days) | Redo | Skip | Seats | Note |
+|---|---|---|---|---|---|---|
+| 2026-11-06 | odoo.pantalytics.com | 0 | - | - | 0 | Baseline. 2.11.0 and 2.12.0 live; five agents made (Sanne sales, Fenna finance, Pim projects, Mila marketing, Otto support), each with a portrait, running as the person who asks. Not yet in a channel. |
+
+Verified in a real browser against Odoo 19 (2026-11-06): the agent's
+portrait on its form; the agent in a channel's mention suggestions and its
+answer in a thread under its own face; "Done by agent" in Odoo's Schedule
+Activity dialog, picked up by the cron, done, marked done, its note on the
+record.
+
 ## 8. Approval: Odoo has no undo
 
 A write in Odoo cannot be taken back with one key. A confirmed order, a
