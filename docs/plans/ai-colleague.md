@@ -201,6 +201,8 @@ On our own Odoo every number is one `record_aggregate` on `pan_ai.run` or
 | Date | Where | Work done (7 days) | Redo | Skip | Seats | Note |
 |---|---|---|---|---|---|---|
 | 2026-11-06 | odoo.pantalytics.com | 0 | - | - | 0 | Baseline. 2.11.0 and 2.12.0 live; five agents made (Sanne sales, Fenna finance, Pim projects, Mila marketing, Otto support), each with a portrait, running as the person who asks. Not yet in a channel. |
+| 2026-11-06 15:50 UTC | odoo.pantalytics.com | 0 | - | - | 0 | 2.13.0 live: the five agents have a sponsor (Rutger), "Done by agent" is on the activity and in Odoo's Schedule Activity dialog, the heartbeat sends the counts. |
+| 2026-11-06 16:00 UTC | odoo.pantalytics.com | 0 | - | - | 0 | Dogfood starts: the five agents are members of #general (Rutger's go). The two weeks run to 2026-11-20. |
 
 Verified in a real browser against Odoo 19 (2026-11-06): the agent's
 portrait on its form; the agent in a channel's mention suggestions and its
