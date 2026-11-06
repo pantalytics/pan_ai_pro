@@ -16,7 +16,7 @@ import time
 from datetime import timedelta
 
 import psycopg2.extensions
-from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults, RunUsage
+from pydantic_ai import Agent, DeferredToolRequests, RunUsage
 from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
@@ -39,6 +39,7 @@ from odoo.exceptions import AccessError, UserError
 from odoo.tools import config
 
 from ..tools import commit
+from . import approval
 from .agent import build_agent, usage_limits
 from .deps import OdooDeps
 from .stream import LostClaim, Streamer, render_markdown
@@ -171,12 +172,7 @@ def run_slice(run, token, where):
     raw = thread.messages()
     history = ModelMessagesTypeAdapter.validate_python(raw) or None
     prompt = run.prompt or None
-    deferred = None
-    if run.deferred_results:
-        decided = json.loads(run.deferred_results)
-        deferred = DeferredToolResults(
-            approvals={cid: bool(ok) for cid, ok in decided.get("approvals", {}).items()}
-        )
+    deferred = approval.deferred(run)
     if history is None and prompt is None:
         _fail(run, stream, _("Nothing to run."))
         return
@@ -284,7 +280,7 @@ def run_slice(run, token, where):
     thread.write(
         {
             "conversation": json.dumps(to_jsonable_python(messages)),
-            "pending_tool_calls": json.dumps(pending or []),
+            "pending_tool_calls": json.dumps(approval.describe(run, pending or [])),
             "usage_requests": thread.usage_requests + spent_requests,
             "usage_input_tokens": thread.usage_input_tokens + spent_in,
             "usage_output_tokens": thread.usage_output_tokens + spent_out,
@@ -458,10 +454,11 @@ def _summary(content):
 
 
 def _after(run, thread):
-    """A finished run that is not a chat: post the answer, make the activity,
-    arm the next tick."""
+    """A finished run: post the answer, make the activity or mark the one
+    it worked on done, arm the next tick."""
     if run.status != "ok":
         return
+    run.env["mail.activity"]._pan_ai_finish(run)
     error = _on_record(run, thread, run.text, thread.post_answer, thread.activity)
     if error:
         # The answer is on the run; the record refused it. Say so there.

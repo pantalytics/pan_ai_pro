@@ -48,6 +48,15 @@ export function parentChannel(thread) {
 }
 
 /**
+ * A thread an agent may answer in: its own AI chat, a thread under a message
+ * in a team channel, or a direct chat (with an agent's dedicated user).
+ */
+export function agentMayAnswer(thread) {
+    const type = channelType(thread);
+    return type === "ai" || type === "chat" || Boolean(parentChannel(thread));
+}
+
+/**
  * An action's icon: 20 names a Material symbol ("add"), 19 a Font Awesome
  * class ("fa fa-fw fa-plus"). A Material name on 19 renders nothing.
  */

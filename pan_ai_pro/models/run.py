@@ -37,6 +37,8 @@ STATUSES = [
     ("failed", "Failed"),
 ]
 LIVE = ("running", "interrupted")
+# Rule A3 (docs/plans/ai-colleague.md, section 8).
+APPROVAL_HOURS = 24
 # A failure's kind. The heartbeat counts these; the free-text `error` (which
 # can quote a record) never leaves this Odoo.
 ERROR_CODES = [
@@ -124,6 +126,8 @@ class Run(models.Model):
         help="Why a run failed, as one word: the only thing about a failure the heartbeat reports.",
     )
     cancel_requested = fields.Boolean()
+    allowed_calls = fields.Integer(help="Tool calls the person allowed.")
+    skipped_calls = fields.Integer(help="Tool calls the person skipped, or allowed too late.")
     tool_log = fields.Text(
         default="[]",
         help="JSON: the last 200 tool calls with their outcome, arguments clipped, for the Runs view.",
@@ -366,17 +370,25 @@ class Run(models.Model):
 
     # ---- the person's buttons ----------------------------------------
 
-    def action_stop(self):
+    def action_stop(self, reason=None):
         from ..runtime import stream
 
         for run in self:
             if run.status in LIVE:
                 run.sudo().write({"cancel_requested": True})
                 if run.status == "interrupted":
-                    run.thread_id.sudo()._close_open_calls(_("Stopped by the user."))
+                    run.thread_id.sudo()._close_open_calls(reason or _("Stopped by the user."))
                     run._finish("cancelled")
                     stream.finish_outside(run, "cancelled")
         return True
+
+    @api.model
+    def _cron_expire_approvals(self):
+        """Rule A3: an approval nobody decided on in a day stops the run.
+        Allowing a change proposed days ago is a guess."""
+        cutoff = fields.Datetime.now() - timedelta(hours=APPROVAL_HOURS)
+        waiting = self.sudo().search([("status", "=", "interrupted"), ("write_date", "<", cutoff)])
+        waiting.action_stop(_("Stopped: nobody decided within %s hours.", APPROVAL_HOURS))
 
     def action_decide(self, approvals):
         """The person approved or skipped the pending tool calls. Only the
@@ -390,6 +402,7 @@ class Run(models.Model):
         decided = {cid: bool(ok) for cid, ok in (approvals or {}).items() if cid in pending}
         if decided.keys() != pending:
             raise UserError(_("Decide on every pending call."))
+        decided = self._check_decisions(decided)
         self.sudo().write(
             {
                 "deferred_results": json.dumps({"approvals": decided}),
@@ -401,6 +414,27 @@ class Run(models.Model):
         commit(self.env)
         self._run_now("inline")
         return True
+
+    def _check_decisions(self, decided):
+        """Rule A2: an Allow on a record that changed since the proposal
+        becomes "stale" and does not run. Rule A8: every decision is
+        counted and logged on the run."""
+        from ..runtime.approval import stale
+
+        for call in self.thread_id.pending():
+            cid = call["id"]
+            if decided[cid] and stale(self.env, call):
+                decided[cid] = "stale"
+            word = {True: "allowed", False: "skipped"}.get(decided[cid], "stale")
+            self.log_tool({"tool": call["name"], "args": call.get("effect", ""), "decision": word})
+        allowed = sum(1 for ok in decided.values() if ok is True)
+        self.sudo().write(
+            {
+                "allowed_calls": self.allowed_calls + allowed,
+                "skipped_calls": self.skipped_calls + len(decided) - allowed,
+            }
+        )
+        return decided
 
     def _finish(self, status, error=None, code=None):
         self.ensure_one()
