@@ -20,6 +20,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.fields import Domain
 from odoo.tools import html2plaintext
 
+from . import audience
 from .deps import OdooDeps
 
 _logger = logging.getLogger(__name__)
@@ -27,6 +28,10 @@ _logger = logging.getLogger(__name__)
 MAX_LIMIT = 200
 MAX_FIELDS = 80
 RESULT_CHARS = 60000
+SHARED_REFUSAL = (
+    "Not available in a shared channel: its result cannot be narrowed to what every reader "
+    "may read. Ask me in your own chat."
+)
 
 # ---- schemas --------------------------------------------------------------
 
@@ -164,27 +169,40 @@ def describe_model(ctx, tool_row, model):
             except Exception:  # noqa: BLE001 - a selection we cannot list is still a selection
                 pass
         out.append(row)
+    shown = set(audience.field_names(ctx.deps, Model, [r["name"] for r in out]))
+    out = [r for r in out if r["name"] in shown]
     return {"model": model, "description": Model._description, "fields": out[: MAX_FIELDS * 2]}
 
 
 def search_records(ctx, tool_row, model, domain, fields_, limit=20, order=""):
     Model = _model(ctx, model, tool_row)
     limit = max(1, min(int(limit or 20), MAX_LIMIT))
-    rows = Model.search_read(
-        _domain(domain), _fields_of(Model, fields_), limit=limit, order=order or None
-    )
-    return _clip({"count": len(rows), "records": rows})
+    names = audience.field_names(ctx.deps, Model, _fields_of(Model, fields_))
+    if not ctx.deps.audience:
+        rows = Model.search_read(_domain(domain), names, limit=limit, order=order or None)
+        return _clip({"count": len(rows), "records": rows})
+    # A shared channel: search wider, keep what every reader may read.
+    found = Model.search(_domain(domain), limit=limit * 3, order=order or None)
+    rows = audience.records(ctx.deps, found)[:limit].read(names or ["display_name"])
+    return _clip({"count": len(rows), "records": audience.scrub(ctx.deps, Model, rows)})
 
 
 def read_records(ctx, tool_row, model, ids, fields_):
     Model = _model(ctx, model, tool_row)
-    records = Model.browse([int(i) for i in ids][:MAX_LIMIT]).exists()
-    return _clip({"records": records.read(_fields_of(Model, fields_))})
+    records = audience.records(ctx.deps, Model.browse([int(i) for i in ids][:MAX_LIMIT]).exists())
+    names = audience.field_names(ctx.deps, Model, _fields_of(Model, fields_)) or ["display_name"]
+    return _clip({"records": audience.scrub(ctx.deps, Model, records.read(names))})
 
 
 def read_group(ctx, tool_row, model, domain, groupby, aggregates):
     Model = _model(ctx, model, tool_row)
-    groups = Model._read_group(_domain(domain), groupby[:3], aggregates[:5] or ["__count"])
+    domain = _domain(domain)
+    if ctx.deps.audience:
+        plain = {spec.split(":")[0] for spec in groupby[:3] + aggregates[:5]} - {"__count"}
+        if set(audience.field_names(ctx.deps, Model, list(plain & set(Model._fields)))) != plain:
+            raise UserError("Not every reader of this channel may see those fields.")
+        domain = Domain(audience.group_domain(ctx.deps, Model, domain))
+    groups = Model._read_group(domain, groupby[:3], aggregates[:5] or ["__count"])
     out = []
     for row in groups:
         keys = row[: len(groupby[:3])]
@@ -298,6 +316,8 @@ def _function(tool_row, env):
         try:
             # A savepoint: a tool that fails at the database (a foreign key,
             # a missing value) leaves the transaction usable for the answer.
+            if not builtin and ctx.deps.audience:
+                raise UserError(SHARED_REFUSAL)
             with ctx.deps.env.cr.savepoint():
                 if builtin:
                     result = builtin(ctx, row, **args)

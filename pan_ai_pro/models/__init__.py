@@ -16,6 +16,7 @@ from . import (
     mail_activity,
     res_config_settings,
     res_groups,
+    res_partner,
     run,
     thread,
     tool,
