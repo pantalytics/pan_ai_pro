@@ -5,8 +5,6 @@ carries both (docs/plans/ai-colleague.md, section 9)."""
 
 import base64
 
-from odoo.exceptions import UserError
-
 from .common import AiProCase
 
 
@@ -30,22 +28,6 @@ class TestCharacter(AiProCase):
         agent.image_1920 = other.image_1920
         self.assertEqual(raw(agent.partner_id.image_1920), raw(other.image_1920))
 
-    def test_a_colleague_is_its_user_with_the_agents_name_and_face(self):
-        agent = self.new_agent()
-        action = agent.action_make_colleague()
-        user = agent.user_id
-        self.assertEqual(action["res_model"], "res.users")
-        self.assertEqual(action["res_id"], user.id)
-        self.assertEqual((agent.run_as, agent.in_channels), ("user", True))
-        self.assertEqual(user.name, "Ava")
-        self.assertEqual(raw(user.partner_id.image_1920), raw(agent.image_1920))
-        self.assertFalse(user.share)
-        self.assertEqual(user.group_ids & self.env.ref("base.group_system"), self.env["res.groups"])
-        agent.name = "Ava Sales"
-        self.assertEqual(user.name, "Ava Sales", "the agent is the character's source")
-        with self.assertRaises(UserError):
-            agent.action_make_colleague()
-
     def test_picking_a_user_gives_it_the_character(self):
         agent = self.new_agent()
         user = self.env["res.users"].create(
@@ -57,4 +39,6 @@ class TestCharacter(AiProCase):
         )
         agent.write({"run_as": "user", "user_id": user.id, "in_channels": True})
         self.assertEqual(user.name, "Ava")
+        agent.name = "Ava Sales"
+        self.assertEqual(user.name, "Ava Sales", "the agent is the character's source")
         self.assertEqual(raw(user.partner_id.image_1920), raw(agent.image_1920))

@@ -1,8 +1,9 @@
 # Plan: the agent as a colleague
 
-Status: built in 2.11.0, 2026-11-05: slice 1 (direct messages), slice 2
-(activities), the approval rules A1, A2, A3, A6 and A8, and the character
-(section 9). Slice 3 (teams) needs no code. Not built: A5 for automation
+Status: built in 2.11.0, 2026-11-06: slice 1 (direct messages to a
+dedicated user), slice 2 (an agent does a to-do, no user per agent), the
+approval rules A1, A2, A3, A6 and A8, and the character (section 9). Open:
+whose rights an agent without a user has in a team channel (section 4). Not built: A5 for automation
 runs ([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)).
 
 ## 0. The idea, and where it comes from
@@ -24,8 +25,8 @@ Most of it exists. What Buzz has, and where it lives in Odoo:
 | An agent is a member with its own identity | The agent's dedicated user (`run_as = user`) | built (2.10.0) |
 | Mention an agent in a channel | `@Ava` in a Discuss channel, answer in a thread | built (2.10.0) |
 | Message an agent directly | A direct chat with Ava, answered there | **slice 1, built** |
-| Give an agent work | An activity assigned to Ava | **slice 2, built** |
-| An agent in a team or project | Ava as a member of a sales team, helpdesk team, project | **slice 3, no code** |
+| Give an agent work | "Done by agent" on an activity | **slice 2, built** |
+| An agent in a team channel | `@Ava` in a team channel, without a user | **slice 3, open** |
 | Workflows on a message, schedule or webhook | Automation rules and scheduled actions with "Run AI agent", continuous threads | built |
 | Approve before a write | Allow and Skip on the approval card | built |
 | One signed log of everything | The chatter, and every run with its tool calls and cost | built |
@@ -39,11 +40,9 @@ workflows (Odoo's automation rules are the workflow engine).
 
 1. A person opens a direct chat with Ava and gets an answer there, the way a
    colleague answers. No mention needed.
-2. A person assigns Ava an activity on a lead, a ticket or a task. Ava does
-   it, posts what she did in the record's chatter and marks the activity
-   done.
-3. Ava sits in a sales team or helpdesk team like any member, and the team's
-   own assignment gives her work through the same activities.
+2. A person hands Ava an activity on a lead, a ticket or a task. Ava does
+   it, posts what she did on the record and marks the activity done.
+3. Five agents cost no extra Odoo user.
 
 Not: an agent that picks up work nobody gave it, reads channels it was not
 invited to, or decides on its own writes.
@@ -73,78 +72,67 @@ limit counts, retention deletes the memory and keeps the chat.
 | `static/src/chat/compat.js` | `agentMayAnswer`: the AI chat, a thread under a message, a direct chat |
 | `tests/test_direct_message.py` | the flow, a chat between people, the switch off, refusal, approval by the asker |
 
-## 3. Slice 2: an activity is a to-do for Ava (built)
+## 3. Slice 2: an agent does a to-do (built)
 
 Activities are how every Odoo app gives a person work: CRM, Helpdesk,
-Project, Accounting, all of them. A to-do for Ava is an activity with
-`user_id` = Ava.
+Project, Accounting, all of them. The activity dialog gets one field,
+**Done by agent**: pick Ava and she does the to-do for the person it is
+assigned to.
 
 ```
-Sam schedules an activity on lead "Acme", assigned to Ava:
+Sam schedules an activity on lead "Acme", assigned to himself, Done by agent: Ava
   "Call back: ask for their budget and log it on the lead"
-  │  mail.activity create (or user_id changed to Ava)
-  ├─ Ava's agent works as a colleague; Sam is an internal user
+  │  mail.activity create (or the agent or the person changed)
   ├─ queued; the cron starts it after Sam's save, never inside it
-  ├─ the work runs in the direct chat Sam and Ava share (slice 1):
-  │    Ava: "To-do from Sam: Call back, on Acme" ... streams, approval card
+  ├─ the work runs in Sam's AI chat with Ava:
+  │    Ava: "To-do: Call back, on Acme" ... streams, approval card
   ├─ the prompt names the activity and the record (model, id)
-  └─ done: the activity marked done by Ava, her answer as its feedback,
-           which Odoo posts in the lead's chatter
+  └─ done: Ava's answer as a note on the lead, from Ava,
+           and the activity marked done ("Done by Ava")
 ```
 
 | # | Decision | Why |
 |---|---|---|
-| 1 | **The work runs in the direct chat between the assigner and Ava.** | A run that writes needs an approval card and a Stop button, and they live in Discuss. The chatter has neither. The assigner sees Ava work, the way a manager sees a colleague's message. |
-| 2 | **The assigner is the caller**: their hourly limit, their Allow and Skip. The run is Ava's reach. | One person is accountable for a write, as in a channel. |
-| 3 | **One at a time per chat.** A second activity for Ava from Sam waits until the first is done; the open activity is the queue. A cron picks the oldest open one whose chat has no live run. | A colleague does one thing at a time, and the activity list already is Ava's inbox. No new queue model. |
-| 4 | **Done means the activity is marked done** (`action_feedback` with the answer). A failure or a Stop leaves it open, with the reason in the chat. | The person sees the to-do close, or stay open, like any colleague's. |
-| 5 | **An activity made by OdooBot does not start work.** Ava posts on the record that a person must assign it. | Nobody could approve its writes. |
-| 6 | **The same switch**, relabelled "Works as a colleague": mention, direct message and activities. | One idea, one switch. A second switch for activities is a case nobody asked for. |
+| 1 | **The to-do stays the person's; the agent does it for them.** No Odoo user per agent. | Five agents cost no seat. The person stays accountable, as for work they hand to an intern. |
+| 2 | **The person it is assigned to is the caller**: their rights, their hourly limit, their Allow and Skip. | Whoever owns the to-do owns what changes. A to-do an automation or OdooBot made waits for its person's Allow, so background work has a decider too. |
+| 3 | **The work runs in that person's AI chat with the agent**, one at a time per chat. The open activities are the queue; a cron picks the oldest whose chat has no live run. | The approval card and Stop live in Discuss. A colleague does one thing at a time, and the activity list already is the inbox. |
+| 4 | **Done means a note from the agent on the record and the activity marked done.** A failure or a Stop leaves it open, with the reason in the chat. | The person sees the to-do close, or stay open, like any colleague's. |
+| 5 | **A person who may not use the agent gets nothing done**: the agent is taken off the activity. | The agent's "Who may use it" holds here too. |
 
-Where it lives: `models/mail_activity.py` (create and write hooks, the
-queue, the prompt, marking done), `models/discuss_channel.py`
-(`_pan_ai_direct`: the chat and its conversation), `runtime/slices.py`
-(`_after` calls `_pan_ai_finish`), `data/ir_cron.xml` (the queue and the
-24-hour expiry), `tests/test_activity.py`.
+Where it lives: `models/mail_activity.py` (the field, the queue, the
+prompt, marking done), `views/mail_activity_views.xml` (the field in the
+schedule dialog), `runtime/slices.py` (`_after` calls `_pan_ai_finish`),
+`data/ir_cron.xml` (the queue and the 24-hour expiry),
+`tests/test_activity.py`.
 
-Dropped: a record assigned to Ava (its `user_id`) without an activity does
-nothing. The fields differ per app and carry no question. An automation
-rule "when assigned to Ava, schedule an activity" is Odoo's own and needs
-no code from us.
+Dropped: a record assigned to an agent (its `user_id`): that needs a user,
+so a seat. An automation rule that schedules an activity with "Done by
+agent" set is Odoo's own and needs no code from us.
 
-## 4. Slice 3: Ava in a team (no code)
+## 4. Slice 3: agents in team channels (open question)
 
-Ava is an internal user, so every team takes her as a member: a sales team,
-a helpdesk team, a project's followers. Odoo's own assignment rules then
-give her leads and tickets, and with slice 2's automation rule each of them
-becomes an activity she works on. The docs get a short recipe; AI Pro gets
-no screen for it.
+In a team channel the answer is read by everybody, so whose rights the
+agent uses there is the one open question. Today (2.10.0) it is a dedicated
+user per agent, which is a seat on Enterprise. The partner of an agent can
+be a channel member and shows in the mention suggestions without a user;
+Odoo only drops its mention at post time in a channel limited to a group
+(`_get_allowed_message_partner_ids`), which AI Pro can allow for agents.
 
 ## 5. What it costs
 
-**An AI colleague is one Odoo user.** On Community that is free. On
-Enterprise it is a paid user, and that is the price of a colleague; the
-"Give it its own user" confirmation says so. Start with one colleague for
-the whole company: everybody can message it, mention it and give it work.
+**No Odoo user per agent.** An agent is a character (a partner with a name
+and a face), not a user, so five agents cost nothing extra on Enterprise.
+It works with the rights of the person it works for: in their AI chat, and
+on the to-dos they hand it. A dedicated user stays possible for an agent
+that needs rights of its own; that one is a seat on Enterprise.
 
-Without its own user an agent still works where no seat is needed: the AI
-chat (the sparkle, Ctrl+K), automation rules, scheduled actions, watches
-and AI fields, with the rights of the person who asks or the action's user.
-What needs the user: being mentioned in a team channel, a direct message,
-an activity, and rights of its own in a shared answer.
-
-Not done, on purpose: an archived user, like OdooBot, to avoid the seat.
-Odoo counts active users only (`mail/models/update.py`), but it also treats
-an archived user as gone everywhere a colleague needs to be: the invite
-search and mention suggestions require `user_ids.active`, mentions in a
-channel go through `partner.user_ids` (active only), and archiving a user
-archives its partner (`base/models/res_users.py`). Making it work means
-overriding five of Odoo's own rules on 19 and 20, to pay for one user less.
-A seat is cheaper than that, and a customer's licence is theirs to keep
-clean.
-
-Ava must be internal: a portal user cannot be mentioned or invited
-(plans/agent-in-discuss.md, section 6).
+Not done, on purpose: an archived user, like OdooBot, as the agent. Odoo
+counts active users only (`mail/models/update.py`), but it treats an
+archived user as gone everywhere a colleague needs to be: the invite search
+and mention suggestions require `user_ids.active`, mentions in a channel go
+through `partner.user_ids` (active only), and archiving a user archives its
+partner (`base/models/res_users.py`). Working around that is working around
+the licence.
 
 ## 6. Success, and how it is measured
 
@@ -232,14 +220,9 @@ People warm to a colleague with a face and a name. Every agent gets one.
   preset). An uploaded photo replaces it. Existing agents get one on
   upgrade.
 - **The name is the character's.** "Ava", with "Sales assistant" as the
-  line under it. An agent that works as a colleague gives its dedicated user
-  its name and photo, so people see the character they message, mention and
-  give work to. The agent is the source: renaming it renames the user.
-- **One click to a colleague.** "Give it its own user" on the Access dialog
-  creates that user from the agent: a plain internal user (rights set on the
-  user, like anybody's), notifications in Odoo, and the agent works as a
-  colleague from then on. The confirmation says it is a paid user on
-  Enterprise.
+  line under it, on the agent's partner: what people see in their AI chat,
+  on a to-do and on the note it leaves. An agent with a dedicated user gives
+  that user its name and photo too; the agent is the source.
 
 Dropped: a picker for the six portraits (upload replaces the default, and
 that is enough), a personality field (the instructions are the personality).

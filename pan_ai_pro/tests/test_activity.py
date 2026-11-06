@@ -1,35 +1,34 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
-"""An activity assigned to the agent's user is its to-do, worked on in the
-assigner's direct chat with it (docs/plans/ai-colleague.md, section 3)."""
+"""Pick an agent on an activity and it does the to-do for the person it is
+assigned to, in their AI chat with it; no Odoo user per agent
+(docs/plans/ai-colleague.md, section 3)."""
 
 from .common import AiProCase
+
+WRITE_PHONE = "write_record"
 
 
 class TestActivity(AiProCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        internal = cls.env.ref("base.group_user")
-        contacts = cls.env.ref("base.group_partner_manager")
-        cls.ava = cls.env["res.users"].create(
-            {"name": "Ava", "login": "ava_agent", "group_ids": [(6, 0, [internal.id, contacts.id])]}
-        )
-        cls.user.group_ids = [(4, contacts.id)]
-        cls.agent.write({"run_as": "user", "user_id": cls.ava.id, "in_channels": True})
+        cls.user.group_ids = [(4, cls.env.ref("base.group_partner_manager").id)]
         cls.acme = cls.env["res.partner"].create({"name": "Acme", "phone": "111"})
 
-    def assign(self, summary="Call back", user=None):
+    def todo(self, summary="Call back", creator=None, **values):
         return (
             self.env["mail.activity"]
-            .with_user(user or self.user)
+            .with_user(creator or self.user)
             .create(
                 {
                     "res_model_id": self.env["ir.model"]._get_id("res.partner"),
                     "res_id": self.acme.id,
-                    "user_id": self.ava.id,
+                    "user_id": self.user.id,
                     "summary": summary,
                     "activity_type_id": self.env.ref("mail.mail_activity_data_todo").id,
+                    "pan_ai_agent_id": self.agent.id,
+                    **values,
                 }
             )
         )
@@ -37,34 +36,42 @@ class TestActivity(AiProCase):
     def pick_up(self):
         self.env["mail.activity"]._cron_pan_ai_activities()
 
-    def notes_by_ava(self):
-        return self.acme.message_ids.filtered(lambda m: m.author_id == self.ava.partner_id)
+    def notes_by_agent(self):
+        return self.acme.message_ids.filtered(lambda m: m.author_id == self.agent.partner_id)
 
     def is_open(self, activity):
         return bool(activity.exists() and activity.active)
 
-    def test_a_todo_is_worked_on_in_the_chat_and_marked_done(self):
+    def write_phone(self):
+        return [
+            (WRITE_PHONE, {"model": "res.partner", "id": self.acme.id, "values": {"phone": "222"}})
+        ]
+
+    def test_the_agent_does_the_todo_in_the_persons_chat_and_marks_it_done(self):
         self.fake(["Called Acme, they want a quote."])
-        activity = self.assign()
-        self.assertEqual(activity.pan_ai_assigned_by, self.user)
+        activity = self.todo()
         self.pick_up()
         run = activity.pan_ai_run_id
-        self.assertEqual((run.caller_id, run.user_id), (self.user, self.ava))
+        self.assertEqual((run.caller_id, run.user_id), (self.user, self.user), "their rights")
         chat = run.thread_id.channel_id
-        self.assertEqual(chat.channel_type, "chat")
-        self.assertIn(
-            "To-do from Sam: Call back, on Acme", chat.sudo().message_ids.mapped("body")[-1]
-        )
+        self.assertEqual(chat.channel_type, "ai", "the person's own chat with the agent")
+        self.assertIn("To-do: Call back, on Acme", " ".join(chat.sudo().message_ids.mapped("body")))
         self.assertIn('Record: Contact "Acme"', run.prompt)
         run._run_now("cron")
         self.assertEqual(run.status, "ok")
         self.assertFalse(self.is_open(activity), "done means the activity is marked done")
-        self.assertIn("they want a quote", " ".join(self.notes_by_ava().mapped("body")))
+        self.assertIn("they want a quote", " ".join(self.notes_by_agent().mapped("body")))
+
+    def test_no_agent_no_work(self):
+        self.fake(["never"])
+        activity = self.todo(pan_ai_agent_id=False)
+        self.pick_up()
+        self.assertFalse(activity.pan_ai_run_id)
 
     def test_one_todo_at_a_time_per_chat(self):
         self.fake(["first done"])
-        first = self.assign("First")
-        second = self.assign("Second")
+        first = self.todo("First")
+        second = self.todo("Second")
         self.pick_up()
         self.assertTrue(first.pan_ai_run_id)
         self.assertFalse(second.pan_ai_run_id, "the second waits for the first")
@@ -73,26 +80,12 @@ class TestActivity(AiProCase):
         self.pick_up()
         self.assertTrue(second.pan_ai_run_id)
 
-    def test_odoobot_cannot_give_the_agent_work(self):
-        activity = self.assign(user=self.env.ref("base.user_root"))
-        self.assertFalse(activity.pan_ai_assigned_by)
-        self.assertIn("A person has to give me this to-do", self.notes_by_ava().body)
-
-    def test_a_change_waits_for_the_assigner_and_is_named_in_the_feedback(self):
-        self.fake(
-            [
-                [
-                    (
-                        "write_record",
-                        {"model": "res.partner", "id": self.acme.id, "values": {"phone": "222"}},
-                    )
-                ],
-                "Phone updated.",
-            ]
-        )
-        activity = self.assign("Fix the phone")
+    def test_a_todo_an_automation_made_waits_for_its_person(self):
+        self.fake([self.write_phone(), "Phone updated."])
+        activity = self.todo("Fix the phone", creator=self.env.ref("base.user_root"))
         self.pick_up()
         run = activity.pan_ai_run_id
+        self.assertEqual(run.caller_id, self.user, "the person the to-do is assigned to decides")
         run._run_now("cron")
         self.assertEqual(run.status, "interrupted")
         self.assertTrue(self.is_open(activity))
@@ -102,21 +95,11 @@ class TestActivity(AiProCase):
         chat.pan_ai_decide(run.id, {call["id"]: True})
         self.assertEqual(self.acme.phone, "222")
         self.assertFalse(self.is_open(activity))
-        self.assertIn("Changes allowed by Sam", " ".join(self.notes_by_ava().mapped("body")))
+        self.assertIn("Changes allowed by Sam", " ".join(self.notes_by_agent().mapped("body")))
 
     def test_an_approval_nobody_decides_on_stops_after_a_day(self):
-        self.fake(
-            [
-                [
-                    (
-                        "write_record",
-                        {"model": "res.partner", "id": self.acme.id, "values": {"phone": "222"}},
-                    )
-                ],
-                "never",
-            ]
-        )
-        activity = self.assign("Fix the phone")
+        self.fake([self.write_phone(), "never"])
+        activity = self.todo("Fix the phone")
         self.pick_up()
         run = activity.pan_ai_run_id
         run._run_now("cron")
@@ -129,3 +112,10 @@ class TestActivity(AiProCase):
         self.assertEqual(run.status, "cancelled")
         self.assertEqual(self.acme.phone, "111")
         self.assertTrue(self.is_open(activity), "a to-do that was not done stays open")
+
+    def test_a_person_who_may_not_use_the_agent_gets_nothing_done(self):
+        self.agent.group_ids = [(6, 0, [self.env.ref("base.group_system").id])]
+        activity = self.todo()
+        self.pick_up()
+        self.assertFalse(activity.pan_ai_run_id)
+        self.assertFalse(activity.pan_ai_agent_id)

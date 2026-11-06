@@ -18,7 +18,7 @@ import base64
 import json
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import ValidationError
 from odoo.tools import file_open
 
 from ..defaults import TIME_LIMIT
@@ -317,36 +317,6 @@ class Agent(models.Model):
                 raise ValidationError(_("The agent's dedicated user is archived."))
             return self.user_id
         return caller
-
-    def action_make_colleague(self):
-        """A dedicated user for this agent, made from its name and photo: it
-        answers in Discuss from now on. The user starts as a plain internal
-        user; what it may see and change is set on the user, like anybody's."""
-        self.ensure_one()
-        if self.user_id:
-            raise UserError(_("%s already has a user.", self.name))
-        user = (
-            self.env["res.users"]
-            .sudo()
-            .with_context(no_reset_password=True)
-            .create(
-                {
-                    "name": self.name,
-                    "login": f"ai-agent-{self.id}",
-                    "group_ids": [(6, 0, [self.env.ref("base.group_user").id])],
-                    "notification_type": "inbox",
-                    "image_1920": self.sudo().partner_id.image_1920,
-                }
-            )
-        )
-        self.write({"run_as": "user", "user_id": user.id, "in_channels": True})
-        return {
-            "type": "ir.actions.act_window",
-            "res_model": "res.users",
-            "res_id": user.id,
-            "view_mode": "form",
-            "target": "current",
-        }
 
     def _dialog(self, view, title):
         """One step's dialog: this record, the step's fields, Save and Discard."""

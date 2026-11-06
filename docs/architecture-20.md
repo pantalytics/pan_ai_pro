@@ -144,9 +144,9 @@ Odoo session ──► request.env.user ──► OdooDeps.env ──► every O
   `run_as` user): people mention that user, the agent speaks as that user
   in a thread under the message, and the person who asked is the one who
   stops it and decides on its calls (plans/agent-in-discuss.md). A direct
-  message to that user is answered in the chat itself, and an activity
-  assigned to it is worked on in the assigner's direct chat with it and
-  marked done (plans/ai-colleague.md).
+  message to that user is answered in the chat itself, An activity with
+  "Done by agent" set is done by that agent for the person it is assigned
+  to, with their rights, in their AI chat with it (plans/ai-colleague.md).
 - Who may chat: the groups on the `Agent`, from the sparkle and Ctrl+K; a
   Member (`pan_ai_pro.group_user`) never sees the AI Pro app. Who may
   configure agents, toolsets, tools and AI fields, and read the runs: the

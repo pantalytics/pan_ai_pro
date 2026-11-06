@@ -31,10 +31,9 @@ Odoo's groups and record rules decide what it may see and touch.
 
 Colleagues
 ----------
-Every agent has a face and a name. Give it its own user and it works as a
-colleague in Discuss: mention it, message it, or assign it an activity and
-it does the work and marks it done. Changes wait for your Allow, shown as
-what changes.
+Every agent has a face and a name. Pick it under "Done by agent" on an
+activity and it does the to-do for you and marks it done, without an Odoo
+user of its own. Changes wait for your Allow, shown as what changes.
 
 Tools
 -----
@@ -82,6 +81,7 @@ Requires a connection to Pantalytics
         "views/model_views.xml",
         "views/toolset_views.xml",
         "views/agent_views.xml",
+        "views/mail_activity_views.xml",
         "views/tool_views.xml",
         "views/thread_views.xml",
         "views/run_views.xml",
