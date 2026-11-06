@@ -192,9 +192,21 @@ On our own Odoo every number is one `record_aggregate` on `pan_ai.run` or
 | 1 | Ship PR #57: characters, "Done by agent", approval A1, A2, A3, A6, A8 | merged; it lands on 19.0 and 20.0, and `odoo.pantalytics.com` deploys it | CI green |
 | 2 | Dogfood on `odoo.pantalytics.com` for two weeks: five agents with a face and a role, the team hands them real to-dos and questions | two weeks of runs | **15 or more runs Done a week, redo rate under 10%, skip rate under 20%.** Below that, find out why before building more |
 | 3 | Measure customers: the heartbeat sends work done, redo and skip counts per week. The server's request model in `odoo-mcp-pro-admin` takes the new counts first, the module sends them second | the numbers show per database on the platform | numbers arrive from at least our own database |
-| 4 | Team channels with the intersection of the members' read rights, a sponsor per agent, the envelope (agent-identity.md, section 4) | built, tested, shipped | on our own Odoo, mentions in channels Done with a redo rate under 10% |
+| 4 | Team channels with the intersection of the members' read rights (2.12.0), a sponsor per agent (2.13.0); the per-field envelope is dropped until the skip rate asks for it (agent-identity.md, section 4) | built, tested, shipped | on our own Odoo, mentions in channels Done with a redo rate under 10% |
 | 5 | Launch: a short recipe in the docs, the AI Pro page on the brand site ("AI colleagues, no extra licence") | published | **25% of connected databases with a to-do done by an agent in the week, 8 weeks after launch** |
 | 6 | Outside agents (Claude Code, Codex) as members, [#56](https://github.com/pantalytics/pan_ai_pro/issues/56) | only when step 5's number is met | none set |
+
+## Measurements
+
+| Date | Where | Work done (7 days) | Redo | Skip | Seats | Note |
+|---|---|---|---|---|---|---|
+| 2026-11-06 | odoo.pantalytics.com | 0 | - | - | 0 | Baseline. 2.11.0 and 2.12.0 live; five agents made (Sanne sales, Fenna finance, Pim projects, Mila marketing, Otto support), each with a portrait, running as the person who asks. Not yet in a channel. |
+
+Verified in a real browser against Odoo 19 (2026-11-06): the agent's
+portrait on its form; the agent in a channel's mention suggestions and its
+answer in a thread under its own face; "Done by agent" in Odoo's Schedule
+Activity dialog, picked up by the cron, done, marked done, its note on the
+record.
 
 ## 8. Approval: Odoo has no undo
 

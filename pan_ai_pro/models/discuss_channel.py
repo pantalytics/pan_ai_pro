@@ -298,35 +298,48 @@ class DiscussChannel(models.Model):
 
     # ---- the window's buttons ----------------------------------------
 
-    def _pan_ai_may_see(self, thread):
+    def _pan_ai_may_see(self):
         """An AI chat is its owner's; a thread in a team channel, or a direct
         chat with the agent's user, is everybody's who may read it, as its
         messages are."""
         # sudo: a person outside the chat may not read the channel's type either
         if self.sudo().channel_type == "ai":
-            return thread.user_id == self.env.user
+            return self._pan_ai_thread().user_id == self.env.user
         return self.has_access("read")
 
-    @staticmethod
-    def _pan_ai_asker(run):
-        """Who may stop a run and decide on its calls: the person who asked."""
-        return run.caller_id or run.thread_id.user_id
+    def _pan_ai_live_run(self):
+        """The run this chat shows: the live one whose message is here. A
+        run of this chat's own conversation, or a background run that asks
+        the agent's sponsor here (docs/plans/agent-identity.md)."""
+        return (
+            self.env["pan_ai.run"]
+            .sudo()
+            .search(
+                [
+                    ("message_id.model", "=", "discuss.channel"),
+                    ("message_id.res_id", "=", self.id),
+                    ("status", "in", ("running", "interrupted")),
+                ],
+                order="id desc",
+                limit=1,
+            )
+        )
 
     def pan_ai_stop(self):
         self.ensure_one()
-        run = self._pan_ai_thread().live_run_id
-        if run and self._pan_ai_asker(run) == self.env.user:
+        run = self._pan_ai_live_run()
+        if run and run._pan_ai_decider() == self.env.user:
             run.action_stop()
         return True
 
     def pan_ai_decide(self, run_id, approvals):
         """The approval card: {tool_call_id: true|false} for the pending calls."""
         self.ensure_one()
-        thread = self._pan_ai_thread()
-        run = self.env["pan_ai.run"].sudo().browse(run_id)
-        if not thread or run.thread_id != thread:
+        run = self.env["pan_ai.run"].sudo().browse(run_id).exists()
+        message = run.message_id
+        if not run or message.model != "discuss.channel" or message.res_id != self.id:
             raise AccessError(_("This run is not on this chat."))
-        if self._pan_ai_asker(run) != self.env.user:
+        if run._pan_ai_decider() != self.env.user:
             raise AccessError(_("Only the person who asked can decide."))
         run.action_decide(approvals)
         return True
@@ -335,12 +348,11 @@ class DiscussChannel(models.Model):
         """What the window needs on open: the live run and its pending calls,
         for whoever may read the chat (an AI chat: its owner only)."""
         self.ensure_one()
-        thread = self._pan_ai_thread()
-        if thread and not self._pan_ai_may_see(thread):
-            # Not theirs: the window gets nothing to show, and no error dialog.
-            thread = None
-        run = thread and thread.live_run_id
-        asker = run and self._pan_ai_asker(run)
+        # Not theirs: the window gets nothing to show, and no error dialog.
+        mine = self._pan_ai_may_see()
+        run = self._pan_ai_live_run() if mine else None
+        thread = (run.thread_id if run else self._pan_ai_thread()) if mine else None
+        asker = run and run._pan_ai_decider()
         return {
             "thread_id": thread.id if thread else False,
             "agent_id": thread.agent_id.id if thread else False,
@@ -349,7 +361,7 @@ class DiscussChannel(models.Model):
             "run_status": run.status if run else "",
             "text": run.text if run else "",
             "message_id": run.message_id.id if run and run.message_id else False,
-            "pending": thread.pending() if thread else [],
+            "pending": thread.pending() if run else [],
             "asker_uid": asker.id if asker else False,
             "asker_name": asker.name if asker else "",
         }

@@ -19,5 +19,6 @@ from . import (
     test_onboarding,
     test_run_stream,
     test_runs,
+    test_sponsor,
     test_uninstall,
 )

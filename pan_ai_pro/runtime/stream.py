@@ -44,11 +44,11 @@ class Streamer:
         self.run = run
         self.env = run.env
         self.token = token
-        self.channel = run.thread_id.channel_id.sudo() if run.thread_id.channel_id else None
+        self.channel = _channel_of(run)
         self.message_id = run.message_id.id if run.message_id else None
         # Who may stop the run and decide on its calls; in a team channel
         # the others see the answer and who it waits for.
-        self.asker = run.caller_id or run.thread_id.user_id
+        self.asker = run._pan_ai_decider()
         self.batch = []
         self.last_flush = time.monotonic()
         # The answer so far, from the last persisted boundary (a slice end):
@@ -103,6 +103,10 @@ class Streamer:
         elif status == "failed":
             text += f"\n\n*{error}*"
         self.text = text
+        if status == "interrupted" and not self.channel:
+            # Nobody watches a background run: its sponsor is asked.
+            self.channel, message = self.run._pan_ai_ask_sponsor()
+            self.message_id = message.id if message else None
         if self.channel and self.message_id:
             message = self.env["mail.message"].sudo().browse(self.message_id)
             body = (
@@ -117,6 +121,17 @@ class Streamer:
             {"type": "run_finished", "status": status, "error": error, "pending": pending or []}
         )
         self.flush(final=True)
+
+
+def _channel_of(run):
+    """Where the run shows: its thread's chat, or the chat its message was
+    posted in (a background run that asked its sponsor)."""
+    if run.thread_id.channel_id:
+        return run.thread_id.channel_id.sudo()
+    message = run.message_id
+    if message and message.model == "discuss.channel":
+        return run.env["discuss.channel"].sudo().browse(message.res_id)
+    return None
 
 
 def finish_outside(run, status, error=None):

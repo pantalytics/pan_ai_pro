@@ -64,6 +64,14 @@ class Agent(models.Model):
         max_height=1920,
     )
     image_128 = fields.Image(compute="_compute_image")
+    sponsor_id = fields.Many2one(
+        "res.users",
+        string="Sponsor",
+        default=lambda self: self.env.user,
+        domain="[('share', '=', False)]",
+        help="The person accountable for the agent. Runs with nobody behind them (an "
+        "automation, a schedule, a watch) ask this person to allow their changes.",
+    )
     channel_ids = fields.Many2many(
         "discuss.channel",
         string="Channels",
