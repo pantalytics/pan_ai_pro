@@ -2,8 +2,8 @@
 
 Status: built in 2.11.0, 2026-11-06: slice 1 (direct messages to a
 dedicated user), slice 2 (an agent does a to-do, no user per agent), the
-approval rules A1, A2, A3, A6 and A8, and the character (section 9). Open:
-whose rights an agent without a user has in a team channel (section 4). Not built: A5 for automation
+approval rules A1, A2, A3, A6 and A8, and the character (section 9). Channels:
+decided, not built (section 4, agent-identity.md). Not built: A5 for automation
 runs ([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)).
 
 ## 0. The idea, and where it comes from
@@ -109,14 +109,15 @@ Dropped: a record assigned to an agent (its `user_id`): that needs a user,
 so a seat. An automation rule that schedules an activity with "Done by
 agent" set is Odoo's own and needs no code from us.
 
-## 4. Slice 3: agents in team channels (open question)
+## 4. Slice 3: agents in team channels (decided, not built)
 
-In a team channel the answer is read by everybody, so whose rights the
-agent uses there is the one open question. Today (2.10.0) it is a dedicated
-user per agent, which is a seat on Enterprise. The partner of an agent can
-be a channel member and shows in the mention suggestions without a user;
-Odoo only drops its mention at post time in a channel limited to a group
-(`_get_allowed_message_partner_ids`), which AI Pro can allow for agents.
+Decided in [agent-identity.md](agent-identity.md) after reading thirteen
+sources: in a shared channel an agent without a user answers with what
+every member of the channel may read (the intersection of their read
+rights), and writes stay the asker's, with their Allow. Tools we cannot
+filter (server actions, MCP) are off there. No seat. The asker's rights
+alone were dropped: that is the OpenID Foundation's "CFO in a channel"
+disclosure.
 
 ## 5. What it costs
 
