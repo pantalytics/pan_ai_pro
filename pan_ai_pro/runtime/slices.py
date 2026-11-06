@@ -39,7 +39,7 @@ from odoo.exceptions import AccessError, UserError
 from odoo.tools import config
 
 from ..tools import commit
-from . import approval
+from . import approval, audience
 from .agent import build_agent, usage_limits
 from .deps import OdooDeps
 from .stream import LostClaim, Streamer, render_markdown
@@ -156,7 +156,8 @@ def run_slice(run, token, where):
         token=token,
     )
     try:
-        agent = build_agent(thread.agent_id.with_env(run_env), run_env)
+        deps.audience = audience.readers(thread, run.user_id)
+        agent = build_agent(thread.agent_id.with_env(run_env), run_env, shared=bool(deps.audience))
     except UserError as error:
         _fail(run, stream, str(error), code="build")
         return

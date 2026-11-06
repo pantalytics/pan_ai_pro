@@ -3,7 +3,7 @@
 Status: built in 2.11.0, 2026-11-06: slice 1 (direct messages to a
 dedicated user), slice 2 (an agent does a to-do, no user per agent), the
 approval rules A1, A2, A3, A6 and A8, and the character (section 9). Channels:
-decided, not built (section 4, agent-identity.md). Not built: A5 for automation
+built in 2.12.0 (section 4). Not built: A5 for automation
 runs ([#58](https://github.com/pantalytics/pan_ai_pro/issues/58)).
 
 ## The value proposition
@@ -131,7 +131,7 @@ Dropped: a record assigned to an agent (its `user_id`): that needs a user,
 so a seat. An automation rule that schedules an activity with "Done by
 agent" set is Odoo's own and needs no code from us.
 
-## 4. Slice 3: agents in team channels (decided, not built)
+## 4. Slice 3: agents in team channels (built in 2.12.0)
 
 Decided in [agent-identity.md](agent-identity.md) after reading thirteen
 sources: in a shared channel an agent without a user answers with what
@@ -140,6 +140,18 @@ rights), and writes stay the asker's, with their Allow. Tools we cannot
 filter (server actions, MCP) are off there. No seat. The asker's rights
 alone were dropped: that is the OpenID Foundation's "CFO in a channel"
 disclosure.
+
+How it works: the agent's Access dialog lists its **Channels**. Adding one
+makes the agent's partner a member, so it shows in that channel's mention
+suggestions (`models/res_partner.py`) and Odoo keeps its mention
+(`_get_allowed_message_partner_ids`). A mention starts a run for the asker,
+in a thread under the message, answered by the agent's character. The run's
+readers are the channel's members and, in a public channel, its group
+(`runtime/audience.py`, at most 300). `search_records`, `read_records`,
+`read_group` and `describe_model` keep only records, fields and many2one
+names that every reader may read. Server actions and MCP tools are refused
+there. An approval card shows the new values only. Tests:
+`tests/test_channel_shared.py`.
 
 ## 5. What it costs
 

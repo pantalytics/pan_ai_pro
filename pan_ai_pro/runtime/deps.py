@@ -23,3 +23,7 @@ class OdooDeps:
     # Things a tool asks the window to do (open a record); the streamer
     # drains them after each tool call.
     ui_actions: list = field(default_factory=list)
+    # The other users who read the answer, in a team channel or a group
+    # chat: what a tool reads is narrowed to what all of them may read
+    # (runtime/audience.py). None in a private chat.
+    audience: Any = None
