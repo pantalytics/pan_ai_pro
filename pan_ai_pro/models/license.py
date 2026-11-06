@@ -333,6 +333,28 @@ class License(models.Model):
             "agents": self.env["pan_ai.agent"].sudo().search_count([]),
             "runs_24h": Run.search_count([("started_at", ">=", since)]),
             "errors": [{"code": code or "other", "count": count} for code, count in errors],
+            **self._colleague_counts(Run, since),
+        }
+
+    def _colleague_counts(self, Run, since):
+        """The success numbers of docs/plans/ai-colleague.md, section 6, over
+        the day: runs a person started (chat kind: a chat, a mention, a
+        to-do) that ended Done, that were stopped or failed, the proposed
+        changes allowed and skipped, the to-dos done, and the agents that
+        hold an Odoo user of their own."""
+        person = [("started_at", ">=", since), ("kind", "=", "chat")]
+        calls = Run._read_group(person, [], ["allowed_calls:sum", "skipped_calls:sum"])[0]
+        return {
+            "work_done_24h": Run.search_count(person + [("status", "=", "ok")]),
+            "redo_24h": Run.search_count(person + [("status", "in", ("cancelled", "failed"))]),
+            "calls_allowed_24h": calls[0] or 0,
+            "calls_skipped_24h": calls[1] or 0,
+            "todos_done_24h": Run.search_count(
+                person + [("todo", "=", True), ("status", "=", "ok")]
+            ),
+            "agents_with_user": self.env["pan_ai.agent"]
+            .sudo()
+            .search_count([("run_as", "=", "user")]),
         }
 
     def _heartbeat(self):

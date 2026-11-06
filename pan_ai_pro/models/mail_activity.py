@@ -116,6 +116,7 @@ class MailActivity(models.Model):
             self.pan_ai_agent_id = False
             return
         self.pan_ai_run_id = run.id
+        run.sudo().todo = True
         commit(self.env)
         run._wake_worker()
 

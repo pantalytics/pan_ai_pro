@@ -127,6 +127,7 @@ class Run(models.Model):
     )
     cancel_requested = fields.Boolean()
     allowed_calls = fields.Integer(help="Tool calls the person allowed.")
+    todo = fields.Boolean(help="Started from an activity with Done by agent.")
     skipped_calls = fields.Integer(help="Tool calls the person skipped, or allowed too late.")
     tool_log = fields.Text(
         default="[]",
