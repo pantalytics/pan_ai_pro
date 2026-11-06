@@ -13,7 +13,7 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
   your chat with it, and marks it done. No Odoo user per agent. Changes
   wait for your Allow, shown as what changes, since Odoo has no undo. Add
   it to a Discuss channel and mention it: it answers in a thread with what
-  everybody in the channel may read.
+  everybody in the channel may read. The recipe: [docs/colleagues.md](docs/colleagues.md).
 - **Agents.** Each agent has its own instructions, model, tools, limits and
   web search. It runs as the person who asks, or as a dedicated Odoo user
   you set up. That user's groups and record rules are the agent's reach.

@@ -128,9 +128,32 @@ class TestLicense(TransactionCase):
                 "agents",
                 "runs_24h",
                 "errors",
+                "work_done_24h",
+                "redo_24h",
+                "calls_allowed_24h",
+                "calls_skipped_24h",
+                "todos_done_24h",
+                "agents_with_user",
             },
         )
         json.dumps(report)
+
+    def test_the_report_counts_the_colleague_work(self):
+        agent = self.env.ref("pan_ai_pro.agent_assistant")
+        Thread, Run = self.env["pan_ai.thread"].sudo(), self.env["pan_ai.run"].sudo()
+        for status, todo in (("ok", True), ("ok", False), ("cancelled", False)):
+            thread = Thread.create({"name": "t", "agent_id": agent.id, "user_id": self.env.uid})
+            run = Run.create(
+                {"thread_id": thread.id, "user_id": self.env.uid, "prompt": "x", "todo": todo}
+            )
+            run.write({"allowed_calls": 2, "skipped_calls": 1})
+            run._finish(status)
+        report = self._report_of(self.link)
+        self.assertEqual(report["work_done_24h"], 2)
+        self.assertEqual(report["redo_24h"], 1)
+        self.assertEqual(report["todos_done_24h"], 1)
+        self.assertEqual((report["calls_allowed_24h"], report["calls_skipped_24h"]), (6, 3))
+        self.assertEqual(report["agents_with_user"], 0)
 
     def test_each_state_refuses_with_its_own_reason(self):
         self.link.write({"status": "pending"})

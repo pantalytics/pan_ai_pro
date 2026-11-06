@@ -70,6 +70,9 @@ class MailActivity(models.Model):
             person, agent = activity.user_id, activity.pan_ai_agent_id
             if (person.id, agent.id) in seen:
                 continue
+            if not activity.res_model:
+                activity.pan_ai_agent_id = False  # a to-do needs a record to work on
+                continue
             seen.add((person.id, agent.id))
             if not person or person.share:
                 activity.pan_ai_agent_id = False
@@ -116,6 +119,7 @@ class MailActivity(models.Model):
             self.pan_ai_agent_id = False
             return
         self.pan_ai_run_id = run.id
+        run.sudo().todo = True
         commit(self.env)
         run._wake_worker()
 
@@ -165,3 +169,24 @@ class MailActivity(models.Model):
             feedback=_("Done by %s.", agent.name)
         )
         self.env.ref("pan_ai_pro.cron_activities").sudo()._trigger()
+
+
+class MailActivitySchedule(models.TransientModel):
+    """Odoo's own "Schedule Activity" dialog (the chatter's Activity button)
+    is this wizard, not the activity's form: it gets the same field and
+    hands it to the activities it makes."""
+
+    _inherit = "mail.activity.schedule"
+
+    pan_ai_agent_id = fields.Many2one(
+        "pan_ai.agent",
+        string="Done by agent",
+        help="The agent does this to-do for the person it is assigned to, with their "
+        "rights and their approval.",
+    )
+
+    def _action_schedule_activities(self):
+        activities = super()._action_schedule_activities()
+        if self.pan_ai_agent_id and activities:
+            activities.filtered("res_model").write({"pan_ai_agent_id": self.pan_ai_agent_id.id})
+        return activities

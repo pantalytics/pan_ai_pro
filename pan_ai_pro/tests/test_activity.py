@@ -119,3 +119,24 @@ class TestActivity(AiProCase):
         self.pick_up()
         self.assertFalse(activity.pan_ai_run_id)
         self.assertFalse(activity.pan_ai_agent_id)
+
+    def test_odoos_schedule_dialog_hands_the_agent_to_the_todo(self):
+        self.fake(["Counted."])
+        wizard = (
+            self.env["mail.activity.schedule"]
+            .with_user(self.user)
+            .with_context(active_model="res.partner", active_ids=self.acme.ids)
+            .create(
+                {
+                    "activity_type_id": self.env.ref("mail.mail_activity_data_todo").id,
+                    "summary": "Count our contacts",
+                    "activity_user_id": self.user.id,
+                    "pan_ai_agent_id": self.agent.id,
+                }
+            )
+        )
+        wizard.action_schedule_activities()
+        activity = self.env["mail.activity"].search([("summary", "=", "Count our contacts")])
+        self.assertEqual(activity.pan_ai_agent_id, self.agent)
+        self.pick_up()
+        self.assertTrue(activity.pan_ai_run_id)

@@ -18,9 +18,10 @@ import threading
 from datetime import timedelta
 
 import psycopg2
+from markupsafe import escape as html_escape
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.tools.sql import table_exists
 
 from ..compat import params
@@ -127,6 +128,7 @@ class Run(models.Model):
     )
     cancel_requested = fields.Boolean()
     allowed_calls = fields.Integer(help="Tool calls the person allowed.")
+    todo = fields.Boolean(help="Started from an activity with Done by agent.")
     skipped_calls = fields.Integer(help="Tool calls the person skipped, or allowed too late.")
     tool_log = fields.Text(
         default="[]",
@@ -381,6 +383,35 @@ class Run(models.Model):
                     run._finish("cancelled")
                     stream.finish_outside(run, "cancelled")
         return True
+
+    def _pan_ai_decider(self):
+        """Who stops this run and decides on its calls. A run a person
+        started: that person. A run with nobody behind it (an automation, a
+        schedule, a watch): the agent's sponsor, when it has one."""
+        self.ensure_one()
+        if self.thread_id.kind != "chat" and self.thread_id.agent_id.sponsor_id:
+            return self.thread_id.agent_id.sponsor_id
+        return self.caller_id or self.thread_id.user_id
+
+    def _pan_ai_ask_sponsor(self):
+        """A background run waits for an approval: its question goes to the
+        sponsor's AI chat with the agent, where the card and Stop live
+        (#58). The chat and the message, or (None, None) when there is no
+        sponsor who may use the agent."""
+        self.ensure_one()
+        agent, thread = self.thread_id.agent_id, self.thread_id
+        sponsor = agent.sponsor_id
+        if thread.kind == "chat" or not sponsor:
+            return None, None
+        try:
+            chat = self.env["discuss.channel"].with_user(sponsor).pan_ai_chat(agent.id)
+        except AccessError:
+            return None, None
+        record = thread.record()
+        what = f"{thread.name} ({record.display_name})" if record is not None else thread.name
+        message = chat._pan_ai_agent_message(agent, html_escape(_("Waiting for your OK: %s", what)))
+        self.sudo().write({"message_id": message.id})
+        return chat.sudo(), message
 
     @api.model
     def _cron_expire_approvals(self):
