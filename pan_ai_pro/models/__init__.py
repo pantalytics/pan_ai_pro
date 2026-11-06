@@ -13,6 +13,7 @@ from . import (
     ir_module_module,
     ir_ui_menu,
     license,
+    mail_activity,
     res_config_settings,
     res_groups,
     run,

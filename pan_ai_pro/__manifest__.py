@@ -29,6 +29,12 @@ Each agent has its own instructions, model, tools, limits and web search.
 It runs as the person who asks, or as a dedicated Odoo user you set up, so
 Odoo's groups and record rules decide what it may see and touch.
 
+Colleagues
+----------
+Every agent has a face and a name. Pick it under "Done by agent" on an
+activity and it does the to-do for you and marks it done, without an Odoo
+user of its own. Changes wait for your Allow, shown as what changes.
+
 Tools
 -----
 Built-in tools search, read, total, create, update and open records. Any
@@ -59,7 +65,7 @@ Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "2.10.0",
+    "version": "2.11.0",
     "license": "Other proprietary",
     "external_dependencies": {
         "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]
@@ -75,6 +81,7 @@ Requires a connection to Pantalytics
         "views/model_views.xml",
         "views/toolset_views.xml",
         "views/agent_views.xml",
+        "views/mail_activity_views.xml",
         "views/tool_views.xml",
         "views/thread_views.xml",
         "views/run_views.xml",

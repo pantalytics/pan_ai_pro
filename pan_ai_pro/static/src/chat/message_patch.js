@@ -32,6 +32,17 @@ patch(Message.prototype, {
             this.panAi.decide(this.panAiChannelId, this.message.id, s.runId, s.decided);
         }
     },
+    /** Rule A6: several calls, one decision; a line decided alone keeps its choice. */
+    panAiApproveAll(ok) {
+        for (const call of this.panAiStream.pending) {
+            if (!this.panAiIsDecided(call)) {
+                this.panAiApprove(call, ok);
+            }
+        }
+    },
+    get panAiAllDecided() {
+        return this.panAiStream.pending.every((call) => this.panAiIsDecided(call));
+    },
     panAiIsDecided(call) {
         const s = this.panAiStream;
         return s?.decided && call.id in s.decided;

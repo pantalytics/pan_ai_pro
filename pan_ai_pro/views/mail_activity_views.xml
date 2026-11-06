@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
+<!-- SPDX-License-Identifier: Elastic-2.0 -->
+<odoo>
+    <!-- Schedule an activity, and pick an agent to do it for the person it is
+         assigned to (docs/plans/ai-colleague.md, section 3). -->
+    <record id="mail_activity_view_form_popup" model="ir.ui.view">
+        <field name="name">mail.activity.form.popup.pan_ai</field>
+        <field name="model">mail.activity</field>
+        <field name="inherit_id" ref="mail.mail_activity_view_form_popup"/>
+        <field name="arch" type="xml">
+            <field name="user_id" position="after">
+                <field name="pan_ai_agent_id" options="{'no_create': True, 'no_open': True}" placeholder="Nobody: you do it"
+                       groups="pan_ai_pro.group_user"/>
+            </field>
+        </field>
+    </record>
+</odoo>
