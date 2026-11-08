@@ -25,8 +25,10 @@ marks the activity done.
 
 ## 3. Put it in a channel
 
-Under Access, add the agent to a **Channel**. In that channel, type `@Sanne`
-and your question. She answers in a thread under your message.
+In the channel, click **Invite a User** and type her name, the way you add a
+colleague (Odoo 19; on Odoo 20 use the agent's Access, **Channels**). She
+joins as a contact, not as a user, so she takes no seat. Type `@Sanne` and
+your question. She answers in a thread under your message.
 
 In a channel she only shows what *everybody* in it may see, even when you
 may see more. Ask in your own chat when you need your full view.

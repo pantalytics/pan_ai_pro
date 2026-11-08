@@ -4,6 +4,8 @@
 administrator, mentioned like a colleague, and it answers with what every
 reader of the channel may read (docs/plans/agent-identity.md, section 3)."""
 
+from odoo.release import version_info
+
 from .common import AiProCase
 
 UUID_QUERY = [
@@ -89,6 +91,24 @@ class TestChannelShared(AiProCase):
         )
         # The channel's own suggestions run through the same domain.
         Partner.get_mention_suggestions_from_channel(self.sales.id, search)
+
+    def test_it_is_invited_from_the_channel_and_takes_no_seat(self):
+        self.agent.channel_ids = [(3, self.sales.id)]
+        Users = self.env["res.users"].with_context(active_test=False)
+        users = Users.search_count([("share", "=", False)])
+        Partner = self.env["res.partner"].with_user(self.user)
+        found = Partner.search_for_channel_invite(self.agent.name[:4], self.sales.id)
+        if version_info[0] >= 20:
+            self.assertNotIn(self.agent.partner_id.id, found["partner_ids"], "20 would drop it")
+            return
+        self.assertIn(self.agent.partner_id.id, found["partner_ids"], "found in Invite")
+        self.sales.with_user(self.user).add_members(partner_ids=found["partner_ids"][:1])
+        self.assertIn(self.sales, self.agent.channel_ids)
+        self.assertFalse(self.agent.partner_id.with_context(active_test=False).user_ids)
+        self.assertEqual(Users.search_count([("share", "=", False)]), users, "no seat")
+        self.assertEqual(self.agent.partner_id.im_status, "online", "always there")
+        again = Partner.search_for_channel_invite(self.agent.name[:4], self.sales.id)
+        self.assertNotIn(self.agent.partner_id.id, again["partner_ids"], "already a member")
 
     def test_a_change_in_a_channel_hides_the_old_value(self):
         acme = self.env["res.partner"].create({"name": "Acme", "phone": "111"})
