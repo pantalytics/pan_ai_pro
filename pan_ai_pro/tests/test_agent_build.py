@@ -70,6 +70,26 @@ class TestAgentBuild(AiProCase):
         agent_runtime.TEST_MODEL = None  # the real model object; built, never called
         self.assertEqual(model_for(self.agent, self.env).model_name, gpt.model_name)
 
+    def test_an_eurouter_model_answers_from_eurouter_with_its_own_key(self):
+        from odoo.exceptions import UserError
+
+        from ..runtime.agent import model_settings
+
+        self.agent.model_id = self.env.ref("pan_ai_pro.model_eu_mistral_large")
+        agent_runtime.TEST_MODEL = None  # the real model object; built, never called
+        with self.assertRaises(UserError) as caught:
+            model_for(self.agent, self.env)
+        self.assertIn("EUrouter key", str(caught.exception))
+        params(self.env).set_str("pan_ai.eurouter_key", "eu-test")
+        model = model_for(self.agent, self.env)
+        self.assertEqual(model.model_name, "mistral/mistral-large-4")
+        self.assertIn("eurouter.ai", str(model.client.base_url))
+        self.assertNotIn("openrouter_usage", model_settings(self.agent))
+        self.agent.web_search = True
+        with self.assertRaises(UserError) as caught:
+            build_agent(self.agent, self.env)
+        self.assertIn("no web search", str(caught.exception))
+
     def test_a_new_agent_starts_on_the_first_model(self):
         agent = self.env["pan_ai.agent"].create({"name": "New"})
         self.assertEqual(agent.model_id, self.env["pan_ai.model"].first())

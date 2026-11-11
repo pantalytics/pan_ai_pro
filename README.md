@@ -1,7 +1,7 @@
 # AI Pro for Odoo
 
-AI agents in Odoo, with you in control. Bring your own OpenRouter key
-and pick any model. Give agents your own tools: server actions and any MCP
+AI agents in Odoo, with you in control. Bring your own OpenRouter key,
+or an EUrouter key for models hosted in the EU only, and pick any model. Give agents your own tools: server actions and any MCP
 server. Decide what each agent may touch, approve every change, and see
 what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
 
@@ -45,7 +45,8 @@ what every run cost. Community and Enterprise, Odoo 19 and 20, one module.
    (`python3 -m venv --system-site-packages`), the way `.github/workflows/ci.yml` does.
 2. Install AI Pro from Apps. On Enterprise, installing or upgrading AI Pro
    also installs `pan_ai_pro_enterprise`, on a database upgraded from 1.x too.
-3. Settings > AI Pro: Connect to Pantalytics and paste an OpenRouter key.
+3. Settings > AI Pro: Connect to Pantalytics and paste an OpenRouter or
+   EUrouter key (or both).
    Each agent picks its model from AI Pro > Configuration > Models.
 4. Press the sparkle top right and ask something.
 

@@ -3,7 +3,7 @@
 """One flag in the session: may this person open the chat.
 
 The sparkle top right and Ctrl+K "Ask AI" show only on an Odoo that is
-connected to Pantalytics and has an OpenRouter key, so nobody meets a chat
+connected to Pantalytics and has a model key (OpenRouter or EUrouter), so nobody meets a chat
 window that can only answer "not set up". `session_info` is fetched once per
 page load anyway, so the sparkle knows before the first paint. Stale by one
 page load, on purpose: connecting and saving the key both reload the page.
@@ -18,7 +18,7 @@ from psycopg2 import errors
 
 from odoo import models
 
-from ..compat import params
+from ..hosts import keyed
 
 _logger = logging.getLogger(__name__)
 
@@ -43,6 +43,4 @@ class IrHttp(models.AbstractModel):
 
     def _pan_ai_chat_ready(self):
         link = self.env["pan_ai.license"].current()
-        return bool(
-            link and link.is_entitled() and params(self.env).get_str("pan_ai.openrouter_key", "")
-        )
+        return bool(link and link.is_entitled() and keyed(self.env))

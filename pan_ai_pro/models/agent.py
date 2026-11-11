@@ -22,6 +22,7 @@ from odoo.exceptions import ValidationError
 from odoo.tools import file_open
 
 from ..defaults import TIME_LIMIT
+from ..hosts import keyed
 
 DEFAULT_INSTRUCTIONS = """You are an assistant inside this company's Odoo.
 Answer briefly and in the user's language. Use the tools to look at real data before you answer; never invent a record, a number or a name.
@@ -387,12 +388,13 @@ class Agent(models.Model):
 
     def action_edit_model(self):
         """Odoo's own record picker over the Models list, opened on the
-        Recommended filter (static/src/agent/pick_model.js)."""
+        Recommended filter (static/src/agent/pick_model.js), showing only the
+        hosts with a key: a model that cannot answer is no choice."""
         self.ensure_one()
         return {
             "type": "ir.actions.client",
             "tag": "pan_ai_pro.pick_model",
-            "params": {"agent_id": self.id},
+            "params": {"agent_id": self.id, "hosts": keyed(self.env)},
         }
 
     def action_edit_instructions(self):
