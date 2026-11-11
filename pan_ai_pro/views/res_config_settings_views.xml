@@ -101,20 +101,24 @@
                               invisible="pan_ai_has_key"/>
                         <div class="o_pan_ai_step_body">
                             <div class="o_pan_ai_step_head">
-                                <span class="o_pan_ai_step_name">2. OpenRouter key</span>
+                                <span class="o_pan_ai_step_name">2. Model key</span>
                                 <span class="o_pan_ai_step_value" invisible="pan_ai_has_key">No key</span>
-                                <span class="o_pan_ai_step_value" invisible="not pan_ai_has_key">
-                                    Ends in <field name="pan_ai_key_last4" nolabel="1" readonly="1" class="d-inline"/>
+                                <span class="o_pan_ai_step_value" invisible="not pan_ai_key_last4">
+                                    OpenRouter, ends in <field name="pan_ai_key_last4" nolabel="1" readonly="1" class="d-inline"/>
+                                </span>
+                                <span class="o_pan_ai_step_value" invisible="not pan_ai_eu_key_last4">
+                                    EUrouter, ends in <field name="pan_ai_eu_key_last4" nolabel="1" readonly="1" class="d-inline"/>
                                 </span>
                             </div>
                             <div class="o_pan_ai_step_msg" invisible="pan_ai_has_key">
                                 Create one at
-                                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>
-                                and add it with the arrow.
+                                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>,
+                                or at <a href="https://www.eurouter.ai/dashboard" target="_blank" rel="noopener">eurouter.ai</a>
+                                for models hosted in the EU, and add it with the arrow.
                             </div>
                         </div>
                         <button name="action_pan_ai_openrouter" type="object"
-                                icon="oi-chevron-right" title="OpenRouter key"
+                                icon="oi-chevron-right" title="Model keys"
                                 class="oe_link o_pan_ai_step_edit"/>
                     </div>
 
@@ -194,29 +198,42 @@
         </field>
     </record>
 
-    <!-- Step 2's dialog: the same settings record, one field. Save runs
+    <!-- Step 2's dialog: the same settings record, a field per host. Save runs
          the page's own execute, so the key goes where it always went. -->
     <record id="res_config_settings_view_openrouter" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.pan_ai_pro.openrouter</field>
         <field name="model">res.config.settings</field>
         <field name="priority">100</field>
         <field name="arch" type="xml">
-            <form string="OpenRouter key">
+            <form string="Model keys">
                 <field name="pan_ai_has_key" invisible="1"/>
-                <div class="text-muted mb-2" invisible="not pan_ai_has_key">
-                    The saved key ends in <field name="pan_ai_key_last4" readonly="1" class="d-inline"/>.
-                    Paste a new one only to replace it.
+                <div class="text-muted mb-2">
+                    One key per host; agents use the key of their model's host.
+                    Paste a key only to add or replace it.
                 </div>
                 <group>
-                    <field name="pan_ai_new_key" string="Key" password="True"
+                    <field name="pan_ai_new_key" string="OpenRouter" password="True"
                            placeholder="Paste a key from openrouter.ai/keys"/>
+                    <div colspan="2" class="text-muted" invisible="not pan_ai_key_last4">
+                        Saved key ends in <field name="pan_ai_key_last4" readonly="1" class="d-inline"/>.
+                    </div>
+                    <field name="pan_ai_new_eu_key" string="EUrouter" password="True"
+                           placeholder="Paste a key from eurouter.ai/dashboard"/>
+                    <div colspan="2" class="text-muted" invisible="not pan_ai_eu_key_last4">
+                        Saved key ends in <field name="pan_ai_eu_key_last4" readonly="1" class="d-inline"/>.
+                    </div>
                 </group>
                 <footer>
                     <button name="execute" type="object" string="Save" class="btn-primary"/>
                     <button special="cancel" string="Discard"/>
-                    <button name="action_pan_ai_remove_key" type="object" string="Remove key"
-                            class="btn-secondary ms-auto" invisible="not pan_ai_has_key"
-                            confirm="Remove the OpenRouter key? Every agent stops at once until a new key is saved."/>
+                    <button name="action_pan_ai_remove_key" type="object" string="Remove OpenRouter key"
+                            class="btn-secondary ms-auto" invisible="not pan_ai_key_last4"
+                            context="{'pan_ai_host': 'openrouter'}"
+                            confirm="Remove the OpenRouter key? Every agent on an OpenRouter model stops at once until a new key is saved."/>
+                    <button name="action_pan_ai_remove_key" type="object" string="Remove EUrouter key"
+                            class="btn-secondary" invisible="not pan_ai_eu_key_last4"
+                            context="{'pan_ai_host': 'eurouter'}"
+                            confirm="Remove the EUrouter key? Every agent on an EUrouter model stops at once until a new key is saved."/>
                 </footer>
             </form>
         </field>

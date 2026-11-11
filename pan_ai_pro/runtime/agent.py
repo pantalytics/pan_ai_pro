@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Elastic-2.0
 """`build_agent(record, env)`: the `pan_ai.agent` row as a Pydantic AI `Agent`.
 
-A dozen lines, as the architecture promised: the model on OpenRouter with
-the key from Settings, the instructions plus one dynamic line about who is
+A dozen lines, as the architecture promised: the model on its host
+(OpenRouter or EUrouter, `hosts.py`) with that host's key from Settings, the instructions plus one dynamic line about who is
 asking and about which record, the toolsets from their rows, web search
 when the row says so, the output type, the model settings and the usage
 limits.
@@ -11,7 +11,6 @@ limits.
 
 import json
 import logging
-import os
 
 from pydantic_ai import Agent, DeferredToolRequests, RunContext, UsageLimits
 from pydantic_ai.capabilities import WebSearch
@@ -24,59 +23,62 @@ from odoo import _, fields
 from odoo.exceptions import UserError
 
 from ..compat import params
+from ..hosts import HOSTS, host_of, stand_in
 from .deps import OdooDeps
 from .mcp_toolset import build_mcp_toolset
 from .odoo_toolset import build_toolset
 
 _logger = logging.getLogger(__name__)
 
-# OpenRouter is the only model host. A constant, never a setting. The one
-# exception is a stand-in for a browser check or CI (scripts/browser/
-# fake_openrouter.py), named by an environment variable on the server, which
-# the log announces on every run so it can never pass unnoticed.
-ENV_BASE_URL = "PAN_AI_PRO_OPENROUTER_BASE_URL"
+# Kept for the stand-in's callers: the OpenRouter host's environment variable.
+ENV_BASE_URL = HOSTS["openrouter"].env
 APP_URL = "https://pantalytics.com"
 APP_TITLE = "AI Pro for Odoo"
 # Tests set a Pydantic AI model here (a FunctionModel); never set in production.
 TEST_MODEL = None
 
 
-def openrouter_key(env):
-    key = params(env).get_str("pan_ai.openrouter_key", "")
+def host_key(env, host):
+    key = params(env).get_str(host.key, "")
     if not key:
-        raise UserError(_("No OpenRouter key. Add one in Settings > AI Pro."))
+        raise UserError(_("No %s key. Add one in Settings > AI Pro.", host.label))
     return key
 
 
 def model_for(agent_record, env):
     if TEST_MODEL is not None:
         return TEST_MODEL
-    name = agent_record.model_id.model_name
-    if not name:
+    row = agent_record.model_id
+    if not row.model_name:
         raise UserError(_("The agent %s has no model. Pick one on the agent.", agent_record.name))
-    base_url = os.environ.get(ENV_BASE_URL, "").strip()
+    host = host_of(row)
+    key = host_key(env, host)
+    base_url = stand_in(host)
     if base_url:
         _logger.warning(
-            "[AI Pro] models answer from %s, not OpenRouter (%s is set)", base_url, ENV_BASE_URL
+            "[AI Pro] models answer from %s, not %s (%s is set)", base_url, host.label, host.env
         )
+    if base_url or row.host == "eurouter":
         from openai import AsyncOpenAI
 
-        provider = OpenRouterProvider(
-            openai_client=AsyncOpenAI(base_url=base_url, api_key=openrouter_key(env))
+        # EUrouter takes OpenRouter's attribution headers under its own title name.
+        headers = {"HTTP-Referer": APP_URL, "X-EUrouter-Title": APP_TITLE}
+        client = AsyncOpenAI(
+            base_url=base_url or host.base_url, api_key=key, default_headers=headers
         )
+        provider = OpenRouterProvider(openai_client=client)
     else:
-        provider = OpenRouterProvider(
-            api_key=openrouter_key(env), app_url=APP_URL, app_title=APP_TITLE
-        )
-    return OpenRouterModel(name, provider=provider)
+        provider = OpenRouterProvider(api_key=key, app_url=APP_URL, app_title=APP_TITLE)
+    return OpenRouterModel(row.model_name, provider=provider)
 
 
 def model_settings(agent_record):
     settings = OpenRouterModelSettings(
-        temperature=agent_record.temperature,
-        max_tokens=agent_record.max_tokens or 4096,
-        openrouter_usage={"include": True},
+        temperature=agent_record.temperature, max_tokens=agent_record.max_tokens or 4096
     )
+    # OpenRouter reports the cost when asked; EUrouter always does.
+    if agent_record.model_id.host != "eurouter":
+        settings["openrouter_usage"] = {"include": True}
     if agent_record.reasoning and agent_record.reasoning != "none":
         settings["openrouter_reasoning"] = {"effort": agent_record.reasoning}
     return settings
@@ -132,6 +134,14 @@ def build_agent(
     team channel read by others, where a connected (MCP) server is left out
     because its results cannot be narrowed to what every reader may read."""
     capabilities = []
+    if agent_record.web_search and with_tools and agent_record.model_id.host == "eurouter":
+        raise UserError(
+            _(
+                "EUrouter has no web search. Turn it off on the agent %s, or pick an"
+                " OpenRouter model.",
+                agent_record.name,
+            )
+        )
     if agent_record.web_search:
         capabilities.append(
             WebSearch(

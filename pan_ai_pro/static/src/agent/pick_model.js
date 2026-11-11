@@ -9,11 +9,13 @@ import { SelectCreateDialog } from "@web/views/view_dialogs/select_create_dialog
  * The agent's Model row: Odoo's own record picker over the Models list, the
  * dialog every many2one opens from "Search More", opened on the Recommended
  * filter so the shortlist is what shows first and the rest is one filter
- * click away. The pick is written to the agent and the form reloads through
+ * click away. Only the hosts with a key are listed (all of them when none
+ * has one yet). The pick is written to the agent and the form reloads through
  * the button's own onClose, the way a dialog action closes.
  */
 async function pickModel(env, action, options = {}) {
     const agentId = action.params.agent_id;
+    const hosts = action.params.hosts || [];
     await new Promise((resolve) => {
         env.services.dialog.add(
             SelectCreateDialog,
@@ -22,6 +24,7 @@ async function pickModel(env, action, options = {}) {
                 title: _t("Model"),
                 multiSelect: false,
                 noCreate: true,
+                domain: hosts.length ? [["host", "in", hosts]] : [],
                 context: {
                     search_default_recommended: 1,
                     list_view_ref: "pan_ai_pro.view_model_pick",

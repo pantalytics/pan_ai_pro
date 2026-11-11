@@ -4,28 +4,29 @@
 
 In Pydantic AI the model is an argument of the `Agent`, never a global.
 So it is a required choice on every agent, from this list, and Settings
-keeps only the key. A row is a name a person recognises and the OpenRouter
-id the runtime passes to `OpenRouterModel`.
+keeps only the keys. A row is a name a person recognises, the host that
+answers it (`hosts.py`) and the id the runtime passes to `OpenRouterModel`.
 
-The list is a shortlist (data/model.xml): four providers, Claude, Gemini,
-GPT and Mistral, each with its families. Where OpenRouter has a
+The list is a shortlist (data/model.xml). On OpenRouter: four providers,
+Claude, Gemini, GPT and Mistral, each with its families. On EUrouter, which
+has no family aliases: Mistral, Claude and GPT, pinned. Where OpenRouter has a
 `~vendor/family-latest` alias the row is that alias, which answers as the
 newest model in its family; Mistral has none, so its rows are pinned ids.
 Nothing here tracks versions; OpenRouter does. An exact id, to pin a
-version, is typed into the list by hand. Once a day the rows OpenRouter no
+version, is typed into the list by hand. Once a day the rows their host no
 longer lists are archived; nothing is added.
 """
 
 import logging
-import os
 
 import requests
 
 from odoo import api, fields, models
 
+from ..hosts import HOST_SELECTION, HOSTS, keyed, stand_in
+
 _logger = logging.getLogger(__name__)
 
-CATALOGUE_URL = "https://openrouter.ai/api/v1"
 TIMEOUT = 15
 
 
@@ -36,11 +37,19 @@ class AiModel(models.Model):
     _rec_names_search = ["name", "model_name"]
 
     name = fields.Char(required=True)
-    model_name = fields.Char(
-        string="OpenRouter id",
+    host = fields.Selection(
+        HOST_SELECTION,
         required=True,
-        help="As openrouter.ai/models lists it. A ~vendor/family-latest id follows the"
-        " family to its newest model; an exact id pins one version.",
+        default="openrouter",
+        help="Who answers this model, with the key saved for it in Settings > AI Pro."
+        " EUrouter routes to EU-hosted providers only.",
+    )
+    model_name = fields.Char(
+        string="Model id",
+        required=True,
+        help="As the host lists it, on openrouter.ai/models or eurouter.ai/models. On"
+        " OpenRouter a ~vendor/family-latest id follows the family to its newest model;"
+        " an exact id pins one version.",
     )
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
@@ -49,7 +58,17 @@ class AiModel(models.Model):
     recommended = fields.Boolean(help="Shown first when an agent picks a model.")
     agent_count = fields.Integer(compute="_compute_agent_count", string="Agents")
 
-    _model_name_unique = models.Constraint("UNIQUE(model_name)", "This model is already listed.")
+    _model_name_unique = models.Constraint(
+        "UNIQUE(host, model_name)", "This model is already listed."
+    )
+
+    @api.depends("name", "host")
+    def _compute_display_name(self):
+        """The host in the name wherever it is not the default, so two
+        "Claude Sonnet" rows never look alike on an agent."""
+        for row in self:
+            label = dict(HOST_SELECTION).get(row.host)
+            row.display_name = f"{row.name} ({label})" if row.host != "openrouter" else row.name
 
     def _compute_agent_count(self):
         counts = dict(
@@ -62,27 +81,34 @@ class AiModel(models.Model):
 
     @api.model
     def first(self):
-        """The model a new agent starts with: the top of the recommended list."""
-        return self.search([("recommended", "=", True)], limit=1) or self.search([], limit=1)
+        """The model a new agent starts with: the top of the recommended list,
+        on a host with a key when there is one."""
+        hosts = [("host", "in", keyed(self.env) or list(HOSTS))]
+        return (
+            self.search([("recommended", "=", True), *hosts], limit=1)
+            or self.search(hosts, limit=1)
+            or self.search([], limit=1)
+        )
 
     @api.model
     def _cron_sync(self):
-        """Archive what OpenRouter no longer lists, so nobody picks a dead id.
+        """Archive what a host no longer lists, so nobody picks a dead id.
 
-        Adds nothing: the list is a shortlist, not the catalogue. The
-        catalogue needs no key. An answer that fails or lists nothing changes
+        Adds nothing: the list is a shortlist, not the catalogue. Neither
+        catalogue needs a key. An answer that fails or lists nothing changes
         nothing: an outage must not empty every agent's picker.
         """
-        from ..runtime.agent import ENV_BASE_URL
-
-        base = os.environ.get(ENV_BASE_URL, "").strip() or CATALOGUE_URL
-        try:
-            response = requests.get(base.rstrip("/") + "/models", timeout=TIMEOUT)
-            response.raise_for_status()
-            listed = {m["id"] for m in response.json()["data"]}
-        except (requests.RequestException, ValueError, KeyError, TypeError) as error:
-            _logger.warning("[AI Pro] OpenRouter's model list unreadable: %s", error)
-            return
-        if not listed:
-            return
-        self.search([]).filtered(lambda r: r.model_name not in listed).active = False
+        for code, host in HOSTS.items():
+            rows = self.search([("host", "=", code)])
+            if not rows:
+                continue
+            base = stand_in(host) or host.base_url
+            try:
+                response = requests.get(base.rstrip("/") + "/models", timeout=TIMEOUT)
+                response.raise_for_status()
+                listed = {m["id"] for m in response.json()["data"]}
+            except (requests.RequestException, ValueError, KeyError, TypeError) as error:
+                _logger.warning("[AI Pro] %s's model list unreadable: %s", host.label, error)
+                continue
+            if listed:
+                rows.filtered(lambda r, listed=listed: r.model_name not in listed).active = False

@@ -38,6 +38,7 @@ from odoo import _, api, fields
 from odoo.exceptions import AccessError, UserError
 from odoo.tools import config
 
+from ..hosts import host_of
 from ..tools import commit
 from . import approval, audience
 from .agent import build_agent, usage_limits
@@ -252,7 +253,7 @@ def run_slice(run, token, where):
         return
     except ModelHTTPError as error:
         _book(run, thread, token, spent.get("usage"), started)
-        _fail(run, stream, _model_error(error.status_code), code="model")
+        _fail(run, stream, _model_error(error.status_code, thread.agent_id.model_id), code="model")
         return
     except Exception:  # noqa: BLE001 - every outcome lands on the run
         _logger.exception("[AI Pro] run %s failed", run.id)
@@ -368,12 +369,13 @@ def _end(node, agent_run, stream):
     return list(agent_run.all_messages()), "ok", None, agent_run.usage
 
 
-def _model_error(status):
+def _model_error(status, model):
     """What the person can do about the model host's refusal."""
+    host = host_of(model)
     if status in (401, 403):
-        return _("OpenRouter refused the key (HTTP %s). Check it in Settings > AI Pro.", status)
+        return _("%s refused the key (HTTP %s). Check it in Settings > AI Pro.", host.label, status)
     if status == 402:
-        return _("The OpenRouter key has no credit left. Top it up at openrouter.ai.")
+        return _("The %s key has no credit left. Top it up at %s.", host.label, host.site)
     return _("The model answered with an error (HTTP %s). Try again in a minute.", status)
 
 

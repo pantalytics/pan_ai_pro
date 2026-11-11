@@ -366,6 +366,7 @@ class TestSliceHelpers(AiProCase):
         run = self._model_refuses(401)
         self.assertEqual((run.status, run.error_code), ("failed", "model"))
         self.assertIn("Settings > AI Pro", run.error)
+        self.assertIn("OpenRouter refused", run.error)
         self.assertNotIn("Try again", run.message_id.body)
 
     def test_a_key_without_credit_says_top_up(self):

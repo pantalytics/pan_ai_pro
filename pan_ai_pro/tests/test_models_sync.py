@@ -1,6 +1,6 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
-"""The model list is a shortlist; the daily sync only retires what OpenRouter dropped."""
+"""The model list is a shortlist per host; the daily sync only retires what a host dropped."""
 
 from unittest.mock import MagicMock, patch
 
@@ -18,7 +18,8 @@ def _answer(*ids):
 @tagged("post_install", "-at_install")
 class TestModelsSeed(TransactionCase):
     def test_shortlist_of_four_providers_sonnet_first(self):
-        rows = self.env["pan_ai.model"].search([])
+        self.assertEqual(self.env["pan_ai.model"].search([])[0].host, "openrouter")
+        rows = self.env["pan_ai.model"].search([("host", "=", "openrouter")])
         self.assertEqual(rows[0].model_name, "~anthropic/claude-sonnet-latest")
         self.assertEqual(self.env["pan_ai.model"].first(), rows[0])
         vendors = {m.lstrip("~").split("/")[0] for m in rows.mapped("model_name")}
@@ -30,6 +31,27 @@ class TestModelsSeed(TransactionCase):
                 self.assertTrue(model_name.startswith("~") and model_name.endswith("-latest"))
         self.assertLess(len(rows), 15)
         self.assertTrue(all(rows.mapped("recommended")))
+
+    def test_eurouter_shortlist_is_pinned_mistral_first(self):
+        rows = self.env["pan_ai.model"].search([("host", "=", "eurouter")])
+        self.assertEqual(rows[0].model_name, "mistral-large-4")
+        self.assertEqual(rows[0].display_name, "Mistral Large (EUrouter)")
+        self.assertTrue(all(rows.mapped("recommended")))
+        self.assertFalse([m for m in rows.mapped("model_name") if m.startswith("~")])
+        # The same id may sit on both hosts; twice on one host it may not.
+        self.env["pan_ai.model"].create({"name": "Twin", "model_name": "mistral-large-4"})
+
+    def test_first_is_on_a_host_with_a_key(self):
+        from ..compat import params
+
+        Model = self.env["pan_ai.model"]
+        params(self.env).set_str("pan_ai.openrouter_key", "")
+        params(self.env).set_str("pan_ai.eurouter_key", "eu-test")
+        self.assertEqual(Model.first(), self.env.ref("pan_ai_pro.model_eu_mistral_large"))
+        action = self.env.ref("pan_ai_pro.agent_assistant").action_edit_model()
+        self.assertEqual(action["params"]["hosts"], ["eurouter"])
+        params(self.env).set_str("pan_ai.eurouter_key", "")
+        self.assertEqual(Model.first().model_name, "~anthropic/claude-sonnet-latest")
 
     def test_first_prefers_a_recommended_row(self):
         Model = self.env["pan_ai.model"]
@@ -71,6 +93,20 @@ class TestModelsSync(TransactionCase):
         self.assertEqual(self.kept.name, "My Sonnet")
         found = self.env["pan_ai.model"].search([("display_name", "ilike", "anthropic/son")])
         self.assertEqual(found, self.kept)
+
+    def test_each_host_is_checked_against_its_own_list(self):
+        eu = self.Model.create({"name": "EU", "host": "eurouter", "model_name": "anthropic/sonnet"})
+        eu_dropped = self.Model.create({"name": "EU old", "host": "eurouter", "model_name": "x"})
+
+        def answer(url, timeout):
+            if "eurouter" in url:
+                return _answer("anthropic/sonnet")
+            raise requests.ConnectionError("OpenRouter down")
+
+        self._sync(side_effect=answer)
+        self.assertTrue(eu.active)
+        self.assertFalse(eu_dropped.active)
+        self.assertTrue(self.dropped.active)  # OpenRouter's outage changes nothing
 
     def test_outage_or_empty_list_changes_nothing(self):
         self._sync(side_effect=requests.ConnectionError("down"))
