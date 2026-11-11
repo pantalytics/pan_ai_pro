@@ -86,7 +86,8 @@
 
     <!-- EUrouter (eurouter.ai): the same families, served by EU-hosted
          providers only. EUrouter has no family aliases, so every row is the
-         newest id of its family, pinned; they move by hand. The ids are
+         newest id of its family, and the daily sync moves it to a newer one
+         when EUrouter lists it (`pan_ai.model._follow_families`). The ids are
          EUrouter's vendor/model slugs (its catalogue's canonical_slug), the
          form the runtime needs. Mistral first:
          a European model on European hardware. -->

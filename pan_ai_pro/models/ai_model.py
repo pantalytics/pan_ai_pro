@@ -8,16 +8,18 @@ keeps only the keys. A row is a name a person recognises, the host that
 answers it (`hosts.py`) and the id the runtime passes to `OpenRouterModel`.
 
 The list is a shortlist (data/model.xml). On OpenRouter: four providers,
-Claude, Gemini, GPT and Mistral, each with its families. On EUrouter, which
-has no family aliases: Mistral, Claude and GPT, pinned. Where OpenRouter has a
+Claude, Gemini, GPT and Mistral, each with its families. Where OpenRouter has a
 `~vendor/family-latest` alias the row is that alias, which answers as the
 newest model in its family; Mistral has none, so its rows are pinned ids.
-Nothing here tracks versions; OpenRouter does. An exact id, to pin a
-version, is typed into the list by hand. Once a day the rows their host no
-longer lists are archived; nothing is added.
+EUrouter has no aliases at all, so the daily sync does their work for its
+shortlist: each seeded EUrouter row moves to the newest id of its family
+(`anthropic/claude-sonnet-5-5` to `-5-6`), and its agents with it. An exact
+id, to pin a version, is typed into the list by hand and never moves. Once a
+day the rows their host no longer lists are archived; nothing is added.
 """
 
 import logging
+import re
 
 import requests
 
@@ -29,6 +31,38 @@ from ..hosts import HOST_SELECTION, HOSTS, keyed, stand_in
 _logger = logging.getLogger(__name__)
 
 TIMEOUT = 15
+VERSION = re.compile(r"\d+(\.\d+)*")
+
+
+def family(slug):
+    """A vendor/model id as its family and its version, read from the name:
+    `anthropic/claude-sonnet-5-5` is `anthropic/claude-sonnet`, (5, 5), and
+    `openai/gpt-6.1-sol` is `openai/gpt-sol`, (6, 1)."""
+    vendor, _sep, name = slug.partition("/")
+    words, version = [], []
+    for word in name.split("-"):
+        if VERSION.fullmatch(word):
+            version += [int(part) for part in word.split(".")]
+        else:
+            words.append(word)
+    return f"{vendor}/{'-'.join(words)}", tuple(version)
+
+
+def newest(slug, catalogue):
+    """The newest id of `slug`'s family in a host's catalogue that can chat
+    with tools, or `slug` itself: never an older one."""
+    name, best = family(slug)
+    found = slug
+    for entry in catalogue:
+        other = entry.get("canonical_slug") or entry.get("id") or ""
+        if "tools" not in (entry.get("supported_parameters") or []):
+            continue
+        if "chat.completions" not in (entry.get("supported_api_endpoints") or []):
+            continue
+        other_name, version = family(other)
+        if other_name == name and version > best:
+            found, best = other, version
+    return found
 
 
 class AiModel(models.Model):
@@ -103,7 +137,8 @@ class AiModel(models.Model):
 
     @api.model
     def _cron_sync(self):
-        """Archive what a host no longer lists, so nobody picks a dead id.
+        """Archive what a host no longer lists, so nobody picks a dead id, and
+        move EUrouter's seeded rows to the newest of their family.
 
         Adds nothing: the list is a shortlist, not the catalogue. Neither
         catalogue needs a key. An answer that fails or lists nothing changes
@@ -123,5 +158,21 @@ class AiModel(models.Model):
             except (requests.RequestException, ValueError, KeyError, TypeError) as error:
                 _logger.warning("[AI Pro] %s's model list unreadable: %s", host.label, error)
                 continue
+            if code == "eurouter":
+                rows._follow_families(data)
             if listed:
                 rows.filtered(lambda r, listed=listed: r.model_name not in listed).active = False
+
+    def _follow_families(self, catalogue):
+        """What OpenRouter's `-latest` aliases do, for rows this module seeded.
+        A row typed by hand has no xml id and stays pinned; a newer id that
+        is already a row of its own is left to that row."""
+        seeded = self.get_external_id()
+        for row in self.filtered(lambda r: seeded.get(r.id, "").startswith("pan_ai_pro.")):
+            target = newest(row.model_name, catalogue)
+            if target == row.model_name or self.with_context(active_test=False).search_count(
+                [("host", "=", row.host), ("model_name", "=", target)], limit=1
+            ):
+                continue
+            _logger.info("[AI Pro] %s moves from %s to %s", row.name, row.model_name, target)
+            row.model_name = target
