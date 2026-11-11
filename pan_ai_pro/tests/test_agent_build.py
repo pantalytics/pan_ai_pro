@@ -82,7 +82,7 @@ class TestAgentBuild(AiProCase):
         self.assertIn("EUrouter key", str(caught.exception))
         params(self.env).set_str("pan_ai.eurouter_key", "eu-test")
         model = model_for(self.agent, self.env)
-        self.assertEqual(model.model_name, "mistral-large-4")
+        self.assertEqual(model.model_name, "mistral/mistral-large-4")
         self.assertIn("eurouter.ai", str(model.client.base_url))
         self.assertNotIn("openrouter_usage", model_settings(self.agent))
         self.agent.web_search = True

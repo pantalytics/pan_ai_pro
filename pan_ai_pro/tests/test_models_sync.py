@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
+from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
 
 
@@ -34,12 +35,14 @@ class TestModelsSeed(TransactionCase):
 
     def test_eurouter_shortlist_is_pinned_mistral_first(self):
         rows = self.env["pan_ai.model"].search([("host", "=", "eurouter")])
-        self.assertEqual(rows[0].model_name, "mistral-large-4")
+        self.assertEqual(rows[0].model_name, "mistral/mistral-large-4")
         self.assertEqual(rows[0].display_name, "Mistral Large (EUrouter)")
         self.assertTrue(all(rows.mapped("recommended")))
         self.assertFalse([m for m in rows.mapped("model_name") if m.startswith("~")])
         # The same id may sit on both hosts; twice on one host it may not.
-        self.env["pan_ai.model"].create({"name": "Twin", "model_name": "mistral-large-4"})
+        self.env["pan_ai.model"].create({"name": "Twin", "model_name": "mistral/mistral-large-4"})
+        with self.assertRaises(ValidationError):
+            self.env["pan_ai.model"].create({"name": "Bare", "model_name": "mistral-large-4"})
 
     def test_first_is_on_a_host_with_a_key(self):
         from ..compat import params
@@ -96,15 +99,23 @@ class TestModelsSync(TransactionCase):
 
     def test_each_host_is_checked_against_its_own_list(self):
         eu = self.Model.create({"name": "EU", "host": "eurouter", "model_name": "anthropic/sonnet"})
-        eu_dropped = self.Model.create({"name": "EU old", "host": "eurouter", "model_name": "x"})
+        eu_dropped = self.Model.create(
+            {"name": "EU old", "host": "eurouter", "model_name": "x/old"}
+        )
+        eu_slug = self.Model.create(
+            {"name": "EU slug", "host": "eurouter", "model_name": "mistral/large"}
+        )
 
         def answer(url, timeout):
             if "eurouter" in url:
-                return _answer("anthropic/sonnet")
+                response = _answer("anthropic/sonnet", "large")
+                response.json.return_value["data"][1]["canonical_slug"] = "mistral/large"
+                return response
             raise requests.ConnectionError("OpenRouter down")
 
         self._sync(side_effect=answer)
         self.assertTrue(eu.active)
+        self.assertTrue(eu_slug.active)
         self.assertFalse(eu_dropped.active)
         self.assertTrue(self.dropped.active)  # OpenRouter's outage changes nothing
 

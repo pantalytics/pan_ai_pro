@@ -21,7 +21,8 @@ import logging
 
 import requests
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 from ..hosts import HOST_SELECTION, HOSTS, keyed, stand_in
 
@@ -47,7 +48,8 @@ class AiModel(models.Model):
     model_name = fields.Char(
         string="Model id",
         required=True,
-        help="As the host lists it, on openrouter.ai/models or eurouter.ai/models. On"
+        help="vendor/model, as the host lists it on openrouter.ai/models or"
+        " eurouter.ai/models. On"
         " OpenRouter a ~vendor/family-latest id follows the family to its newest model;"
         " an exact id pins one version.",
     )
@@ -61,6 +63,15 @@ class AiModel(models.Model):
     _model_name_unique = models.Constraint(
         "UNIQUE(host, model_name)", "This model is already listed."
     )
+
+    @api.constrains("model_name")
+    def _check_model_name(self):
+        """The runtime reads the vendor from the id: a bare id fails every run."""
+        for row in self:
+            if "/" not in row.model_name:
+                raise ValidationError(
+                    _("Write the model id as vendor/model, like mistral/%s.", row.model_name)
+                )
 
     @api.depends("name", "host")
     def _compute_display_name(self):
@@ -106,7 +117,9 @@ class AiModel(models.Model):
             try:
                 response = requests.get(base.rstrip("/") + "/models", timeout=TIMEOUT)
                 response.raise_for_status()
-                listed = {m["id"] for m in response.json()["data"]}
+                data = response.json()["data"]
+                # EUrouter lists a bare id beside the vendor/model slug the rows use.
+                listed = {m["id"] for m in data} | {m.get("canonical_slug") for m in data}
             except (requests.RequestException, ValueError, KeyError, TypeError) as error:
                 _logger.warning("[AI Pro] %s's model list unreadable: %s", host.label, error)
                 continue
