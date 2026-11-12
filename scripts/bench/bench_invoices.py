@@ -46,8 +46,18 @@ FIELDS = (
     "tax",
     "total",
     "iban",
+    "vat_treatment",
 )
-LINE_FIELDS = ("description", "quantity", "unit_price")
+LINE_FIELDS = ("description", "quantity", "unit_price", "tax_rate")
+TREATMENTS = [
+    "standard",
+    "exempt",
+    "reverse_charge_domestic",
+    "intra_eu_goods",
+    "intra_eu_services",
+    "non_eu",
+    "foreign_vat",
+]
 
 # name -> (kind, model). Model ids checked on openrouter.ai/api/v1/models, 2026-11-12.
 ENGINES = {
@@ -60,6 +70,9 @@ ENGINES = {
     "mistral-ocr": ("openrouter-ocr", "mistralai/mistral-medium-3-5"),
     "mistral-docai": ("mistral", "mistral-ocr-latest"),
 }
+
+# Fields an engine does not produce, so they are not held against it.
+NOT_PRODUCED = {"odoo": {"vat_treatment"}}
 
 ODOO_URL = "https://extract.api.odoo.com/api/extract/invoice/2"
 ODOO_VERSION = 123
@@ -89,6 +102,7 @@ LINE_SCHEMA = {
         "description": _s("Line description as printed"),
         "quantity": _n("Quantity"),
         "unit_price": _n("Price per unit before tax"),
+        "tax_rate": _n("VAT rate of this line in percent, 0 when no VAT is charged"),
     },
 }
 SCHEMA = {
@@ -106,6 +120,15 @@ SCHEMA = {
         "tax": _n("Total tax"),
         "total": _n("Total including tax"),
         "iban": _s("The vendor's IBAN"),
+        "vat_treatment": {
+            "type": ["string", "null"],
+            "enum": [*TREATMENTS, None],
+            "description": "standard: VAT of the buyer's country charged; exempt: VAT exempt "
+            "supply; reverse_charge_domestic: same country, VAT shifted to the buyer; "
+            "intra_eu_goods / intra_eu_services: vendor in another EU country, no VAT or "
+            "reverse charge; non_eu: vendor outside the EU, no VAT; foreign_vat: the vendor "
+            "charged its own country's VAT",
+        },
         "lines": {"type": "array", "items": LINE_SCHEMA},
     },
 }
@@ -171,7 +194,14 @@ def run_odoo(path: Path, _model: str, cfg: dict) -> tuple[dict, dict, float]:
         "tax": val("total_tax_amount"),
         "total": val("total"),
         "iban": val("iban"),
-        "lines": [{k: line.get(k) for k in LINE_FIELDS} for line in doc.get("invoice_lines") or []],
+        "vat_treatment": None,  # Odoo reads rates only; treatment comes from the fiscal position
+        "lines": [
+            {
+                **{k: line.get(k) for k in LINE_FIELDS if k != "tax_rate"},
+                "tax_rate": (line.get("taxes") or [None])[0],
+            }
+            for line in doc.get("invoice_lines") or []
+        ],
     }
     doc.pop("full_text_annotation", None)  # keep the cache small
     return pred, doc, 0.0 if token == "integration_token" else cfg["odoo_credit_usd"]
@@ -312,7 +342,7 @@ def date(v) -> str:
 
 
 def same(field: str, truth, pred) -> bool:
-    if field in ("untaxed", "tax", "total", "quantity", "unit_price"):
+    if field in ("untaxed", "tax", "total", "quantity", "unit_price", "tax_rate"):
         t, p = num(truth), num(pred)
         return p is not None and abs(t - p) < 0.005
     if field in ("invoice_date", "due_date"):
@@ -347,7 +377,7 @@ def score(data: Path, out: Path, engines: list[str], usd_eur: float) -> None:
             st["errors"] += "error" in entry
             all_right = True
             for f in FIELDS:
-                if doc.get(f) is None:
+                if doc.get(f) is None or f in NOT_PRODUCED.get(engine, ()):
                     continue
                 ok = same(f, doc[f], pred.get(f))
                 all_right &= ok

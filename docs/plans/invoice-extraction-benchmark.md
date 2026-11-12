@@ -1,6 +1,6 @@
 # Plan: benchmark Odoo bill digitization against LLM extraction
 
-Status: step 1 done 2026-11-12 (harness, Donut set). Step 2 in progress. First customer: Giraffe
+Status: steps 1 and 2 done 2026-11-12 (harness, Donut set, EU VAT set). Step 3 waits on the database and keys. First customer: Giraffe
 Coffee Roasters.
 
 ## Conclusion
@@ -151,9 +151,12 @@ Mistral Document AI needs its own Mistral key: out unless one appears.
 ## Steps
 
 1. Harness plus the Donut set, tested on the free Odoo token. Done.
-2. Generate the EU VAT set; extend the schema with VAT rate and treatment.
+2. Generate the EU VAT set; extend the schema with VAT rate and treatment. Done.
 3. Temporary Odoo database, then level A on 100 Donut bills and level B on
-   the EU VAT set. Numbers for the blog.
+   the EU VAT set. Numbers for the blog. First run the same 3 EU VAT bills
+   on the paid token: on the free token Odoo returned one summary line
+   per bill and the word "Factuur" as vendor, and we must know whether the
+   free token gives the real service.
 4. Export 50 Giraffe bills from Exact, level B. Numbers for Giraffe.
 5. Blog, forum post, Giraffe advice. Delete the temporary database.
 6. AI Pro PDF reading, only if step 3 or 4 says so.
