@@ -1,6 +1,6 @@
 # Plan: benchmark Odoo bill digitization against LLM extraction
 
-Status: research done 2026-11-12. Nothing run yet. First customer: Giraffe
+Status: plan done 2026-11-12. Nothing run yet, step 1 next. First customer: Giraffe
 Coffee Roasters.
 
 ## Conclusion
@@ -40,42 +40,72 @@ answers Giraffe's question.
    - Dropped: SROIE and CORD, those are till receipts, not bills.
    Check each licence before we publish numbers on it.
 2. **Private: 50 real Giraffe vendor bills**, already booked and checked by
-   their accountant. The booking is the ground truth. Mix: green coffee
-   importers (often USD, often foreign), packaging, energy, small Dutch
-   suppliers, at least 10 phone photos or bad scans. Lives in `.data/` of
-   `odoo-customer-giraffecoffee`, gitignored, never in the blog.
+   their accountant. The booking is the ground truth. Giraffe books in
+   Exact Online today: the purchase entries plus their attached PDF come
+   out of the Exact API, so nobody has to type a truth file. Mix: green
+   coffee importers (often USD, often foreign), packaging, energy, small
+   Dutch suppliers, at least 10 phone photos or bad scans. Lives in
+   `.data/` of `odoo-customer-giraffecoffee`, gitignored, never in the blog.
 
 ## Contestants
 
 | Engine | How it runs |
 |---|---|
-| Odoo digitization (IAP) | Upload to a draft bill on staging, wait for extraction, read the fields |
-| Gemini Flash, image in | OpenRouter, native PDF |
+| Odoo digitization | Odoo's Extract API (`extract.api.odoo.com`, invoice route), straight from the script with an IAP account token. Same service Odoo calls, no database needed |
+| Gemini 2.5 Pro and Flash, image in | OpenRouter, native PDF |
 | Claude Sonnet, image in | OpenRouter, native PDF |
-| Mistral OCR then a cheap LLM | OpenRouter `file-parser` plugin, engine `mistral-ocr` |
+| GPT-5, image in | OpenRouter, native PDF |
+| Mistral OCR 4 then Mistral Small | OpenRouter `file-parser` plugin, engine `mistral-ocr` |
+| Mistral Document AI | Mistral's own API, OCR 4 with a JSON schema. The EU-hosted option |
 
-Same JSON schema and prompt for all LLM runs. Temperature 0.
+Same JSON schema and prompt for all LLM runs. Temperature 0. We pass
+Odoo's Extract API the same hints Odoo sends (`user_company_vat`,
+`user_lang`, `perspective`), so it is not handicapped.
 
 ## Fields and scoring
 
-Score per field, not per page. The fields are the ones Odoo fills:
-vendor (matched to the right `res.partner`), bill reference, bill date,
-due date, currency, untaxed amount, tax, total, IBAN, and lines
-(description, quantity, unit price). A field counts when it equals the
-booking after normalising dates, whitespace and decimal separators.
+Score per field, not per page. The fields are the ones Odoo returns:
+supplier VAT number, supplier name, bill reference, bill date, due date,
+currency, untaxed amount, tax, total, IBAN, and lines (description,
+quantity, unit price). A field counts when it equals the truth after
+normalising dates, whitespace and decimal separators.
+
+Vendor: scored on the VAT number, since that is what finds the partner in
+Odoo, with the name as fallback for suppliers without one. Dropped: Odoo's
+own partner lookup inside the database. The raw API and the LLMs both
+return text, so the comparison stays fair.
 
 Report per engine: field accuracy, share of bills with every header field
-right ("post without touching"), cost per bill, seconds per bill.
-
-Vendor matching is where Odoo should win: it searches the partner table,
-an LLM only reads a name. Score the LLMs on the name match against
-`res.partner` so the comparison is fair.
+right ("post without touching"), cost per bill, seconds per bill. Odoo
+returns a confidence per field: also report its accuracy on the fields it
+is sure of, since Odoo leaves the rest empty.
 
 ## The harness
 
 One script, `scripts/bench_invoices.py` in this repo. It reads a folder of
-PDFs plus `truth.csv`, runs each engine, writes `results.csv`. The Odoo
-engine talks to staging over JSON-2. No module change needed for the run.
+PDFs plus `truth.csv`, runs each engine, caches every raw answer to disk
+(a rerun costs nothing), writes `results.csv` and a markdown table.
+Develop against Odoo's free integration token (rate-limited per day),
+then one paid run.
+
+## Budget
+
+We may spend on this. Estimate for one full run, about 900 documents:
+
+| Item | Cost |
+|---|---|
+| Odoo IAP credits, 1 per document | about EUR 100 (EUR 0.05 to 0.15 a credit, by pack size) |
+| Six LLM engines via OpenRouter and Mistral | about EUR 100 |
+| Margin for reruns | EUR 100 |
+| **Total** | **under EUR 300** |
+
+## Steps
+
+1. Harness plus the public sets, tested on the free Odoo token. No spend.
+2. Paid run on the public sets. Numbers for the blog.
+3. Export 50 Giraffe bills from Exact, paid run. Numbers for Giraffe.
+4. Blog, forum post, Giraffe advice.
+5. AI Pro PDF reading, only if step 3 says so.
 
 ## Outputs
 
