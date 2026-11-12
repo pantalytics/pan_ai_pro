@@ -31,6 +31,7 @@ import random
 import re
 import threading
 import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -114,8 +115,7 @@ SCHEMA = {
         "total": _n("Total including tax"),
         "iban": _s("The vendor's IBAN"),
         "vat_treatment": {
-            "type": ["string", "null"],
-            "enum": [*TREATMENTS, None],
+            "anyOf": [{"type": "string", "enum": TREATMENTS}, {"type": "null"}],
             "description": "EN 16931 VAT category of the bill: S standard rate (any rate above "
             "0), Z zero rated, E exempt, AE reverse charge, K intra-community supply, G export "
             "outside the EU, O outside the scope of VAT",
@@ -131,8 +131,11 @@ def post(url: str, body: dict, headers: dict | None = None, timeout: int = 300) 
         data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json", **(headers or {})},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"HTTP {e.code}: {e.read().decode(errors='replace')[:500]}") from None
 
 
 def b64(path: Path) -> str:
@@ -334,15 +337,19 @@ def date(v) -> str:
 
 def same(field: str, truth, pred) -> bool:
     if field in ("untaxed", "tax", "total", "quantity", "unit_price", "tax_rate"):
+        # Absolute values: a credit note prints -218.48 where its XML says 218.48.
         t, p = num(truth), num(pred)
-        return p is not None and abs(t - p) < 0.005
+        return p is not None and abs(abs(t) - abs(p)) < 0.005
     if field in ("invoice_date", "due_date"):
         return date(truth) == date(pred)
     if field in ("vendor_name", "description"):
-        # The truth may carry the address after the name (Donut does): a
-        # prediction counts when it is the start of the truth, or close to it.
+        # The truth may carry the address after the name (Donut) or a GLN before
+        # it (EN 16931 samples), and the page may add the legal form ("SARL"):
+        # a prediction counts when one contains the other, or they are close.
         t, p = text(truth), text(pred)
-        return bool(p) and (t.startswith(p) or difflib.SequenceMatcher(None, t, p).ratio() >= 0.9)
+        if len(p) < 4:
+            return False
+        return p in t or t in p or difflib.SequenceMatcher(None, t, p).ratio() >= 0.9
     if field == "vendor_vat":
         return bool(vat(pred)) and vat(truth) == vat(pred)
     if field == "currency":
