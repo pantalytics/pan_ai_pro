@@ -49,15 +49,8 @@ FIELDS = (
     "vat_treatment",
 )
 LINE_FIELDS = ("description", "quantity", "unit_price", "tax_rate")
-TREATMENTS = [
-    "standard",
-    "exempt",
-    "reverse_charge_domestic",
-    "intra_eu_goods",
-    "intra_eu_services",
-    "non_eu",
-    "foreign_vat",
-]
+# EN 16931 VAT category codes (UNCL5305), the vocabulary of EU e-invoices.
+TREATMENTS = ["S", "Z", "E", "AE", "K", "G", "O"]
 
 # name -> (kind, model). Model ids checked on openrouter.ai/api/v1/models, 2026-11-12.
 ENGINES = {
@@ -123,11 +116,9 @@ SCHEMA = {
         "vat_treatment": {
             "type": ["string", "null"],
             "enum": [*TREATMENTS, None],
-            "description": "standard: VAT of the buyer's country charged; exempt: VAT exempt "
-            "supply; reverse_charge_domestic: same country, VAT shifted to the buyer; "
-            "intra_eu_goods / intra_eu_services: vendor in another EU country, no VAT or "
-            "reverse charge; non_eu: vendor outside the EU, no VAT; foreign_vat: the vendor "
-            "charged its own country's VAT",
+            "description": "EN 16931 VAT category of the bill: S standard rate (any rate above "
+            "0), Z zero rated, E exempt, AE reverse charge, K intra-community supply, G export "
+            "outside the EU, O outside the scope of VAT",
         },
         "lines": {"type": "array", "items": LINE_SCHEMA},
     },

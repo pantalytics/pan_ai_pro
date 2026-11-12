@@ -1,7 +1,8 @@
 # Plan: benchmark Odoo bill digitization against LLM extraction
 
-Status: steps 1 and 2 done 2026-11-12 (harness, Donut set, EU VAT set). Step 3 waits on the database and keys. First customer: Giraffe
-Coffee Roasters.
+Status: step 1 done 2026-11-12 (harness, both public sets). Step 2 waits
+on the OpenRouter key and IAP credits. First customer: Giraffe Coffee
+Roasters.
 
 ## Conclusion
 
@@ -29,91 +30,82 @@ then its own model), so the hypothesis is that an image-in LLM beats it.
 Mistral OCR earns its place on bad scans only, and the test must show
 whether it does.
 
-## The question that matters: is the VAT booked right?
+## The question that matters: is the VAT read right?
 
 Reading the total is the easy part. What costs an accountant time is the
-tax on each line: 21% or 9%, exempt, reverse charged ("btw verlegd"), or
-foreign VAT that is not deductible. No public dataset scores this, so we
-build one (EU VAT set, below).
+VAT on each line: high or low rate, exempt, intra-EU, export, reverse
+charge. We score the VAT rate per line and the bill's EN 16931 VAT
+category (S, Z, E, AE, K, G, O), the vocabulary of EU e-invoices.
 
-In Odoo the reverse charge mostly comes from the vendor's fiscal position,
-not from reading the bill. Reading decides it where the master data cannot:
-mixed 9/21 bills, exempt lines, Dutch domestic reverse charge (an NL vendor
-writing "btw verlegd"), and foreign VAT charged by an EU vendor (a German
-hotel), where the EU fiscal position would wrongly book reverse charge.
-Those are the scenarios that separate the engines.
+## Test data: standard sets only
 
-## Test data
+Only public, standard sets, or the numbers mean nothing to anyone else.
+Finding: **no standard benchmark scores EU VAT treatment.** The public
+invoice benchmarks (Donut, inv-cdip, DocILE, SROIE, CORD) are US or
+receipts and carry no VAT category. The only standard EU material with VAT
+truth is the official EN 16931 sample set, and it is small. That gap is a
+finding for the blog too.
 
-Two sets. The public one makes the blog reproducible, the private one
-answers Giraffe's question.
+1. **Donut synthetic invoices** (`katanaml-org/invoices-donut-data-v1`,
+   MIT, 501 bills): Fraunhofer's "Clean Invoices" set, so our field numbers
+   line up with theirs. A fixed random sample of 100 to stay in budget.
+2. **EN 16931 sample invoices** (FeRD and FNFE Factur-X samples from the
+   ZUGFeRD corpus, Apache-2.0): 23 unique invoices after deduplication, the
+   truth from the XML each PDF carries, which we strip before the engines
+   see the page. VAT mix: 17 standard rate (8 with two rates on one bill:
+   DE 7/19, FR 5.5/20), 3 exempt, 2 intra-EU (K), 1 export (G). No
+   reverse charge (AE) sample exists in the set. Mostly German. Too small
+   for a percentage claim: we report it per invoice.
+3. **Private: 50 real Giraffe vendor bills**, already booked by their
+   accountant: the booking is the truth, VAT code per line included.
+   Giraffe books in Exact Online today, so the entries plus their PDF come
+   out of the Exact API. Lives in `.data/` of `odoo-customer-giraffecoffee`,
+   gitignored, never in the blog. Not a standard set: it answers Giraffe's
+   question, not the public one.
 
-1. **Public: Donut synthetic invoices** (`katanaml-org/invoices-donut-data-v1`,
-   MIT, 501 bills), the "Clean Invoices" set of Fraunhofer, so our numbers
-   line up with theirs. We use a fixed random sample of 100 to stay in budget.
-   - Dropped: inv-cdip (Fraunhofer's scanned set). Its licence is CC BY-NC,
-     and our blog is marketing. Scans are covered by the Giraffe set.
-   - Dropped: SROIE and CORD, those are till receipts, not bills.
-2. **EU VAT set, 150 bills we generate** (`scripts/bench/make_eu_vat.py`).
-   Fictional vendors, born-digital PDFs, NL buyer. Nine scenarios, about
-   17 bills each: NL 21%, NL 9%, NL mixed 9/21, NL exempt, NL domestic
-   reverse charge, EU goods (intra-community, 0%), EU services (reverse
-   charge), non-EU vendor (no VAT), foreign VAT charged (DE, BE, FR rates).
-   Vendors in NL, BE, DE, FR, ES, IT, IE, UK, US, CH; labels, number and
-   date formats in the vendor's language. Truth per line: net amount, VAT
-   rate, treatment. We own it, so we can publish it with the blog.
-   Dropped: scanned versions (the Giraffe set has real scans) and credit
-   notes.
-3. **Private: 50 real Giraffe vendor bills**, already booked and checked by
-   their accountant. The booking is the ground truth. Giraffe books in
-   Exact Online today: the purchase entries plus their attached PDF come
-   out of the Exact API, so nobody has to type a truth file. Mix: green
-   coffee importers (often USD, often foreign), packaging, energy, small
-   Dutch suppliers, at least 10 phone photos or bad scans. Lives in
-   `.data/` of `odoo-customer-giraffecoffee`, gitignored, never in the blog.
+Dropped:
+- inv-cdip (Fraunhofer's scanned set): the UCSF library refuses automated
+  downloads, and it is 1980s US invoices without VAT.
+- DocILE: English US documents, test labels not public.
+- A generated EU VAT set of our own (built, then removed): not standard.
 
 ## Contestants
 
 | Engine | How it runs |
 |---|---|
 | Odoo digitization | Odoo's Extract API (`extract.api.odoo.com`, invoice route), straight from the script with an IAP account token. Same service Odoo calls, no database needed |
-| Gemini 2.5 Pro and Flash, image in | OpenRouter, native PDF |
-| Claude Sonnet, image in | OpenRouter, native PDF |
-| GPT-5, image in | OpenRouter, native PDF |
-| Mistral OCR 4 then Mistral Small | OpenRouter `file-parser` plugin, engine `mistral-ocr` |
-| Mistral Document AI | Mistral's own API, OCR 4 with a JSON schema. The EU-hosted option |
+| Gemini 3.8 Flash, Gemini 3.1 Pro | OpenRouter, native PDF |
+| Gemini 2.5 Pro | OpenRouter, native PDF. Fraunhofer's best, as anchor |
+| Claude Sonnet 5.5 | OpenRouter, native PDF |
+| GPT-5.5 | OpenRouter, native PDF |
+| Mistral OCR then Mistral Medium 3.5 | OpenRouter `file-parser` plugin, engine `mistral-ocr` |
 
 Same JSON schema and prompt for all LLM runs. Temperature 0. We pass
 Odoo's Extract API the same hints Odoo sends (`user_company_vat`,
-`user_lang`, `perspective`), so it is not handicapped.
+`user_lang`, `perspective`), so it is not handicapped. The Extract API
+returns VAT rates but no VAT category: Odoo takes the category from the
+vendor's fiscal position, so the category is not held against it.
 
-## Two levels
+## Booked in Odoo (Giraffe only)
 
-- **A, extraction**: the script reads each bill with every engine and
-  compares fields. Cheap, and the Donut numbers line up with Fraunhofer.
-- **B, booked in Odoo**: the bills go into a temporary Odoo 19 Enterprise
-  database with the Dutch chart of accounts (`l10n_nl`) and the vendors
-  already present with country and VAT number, as in a running company.
-  Odoo's own path: upload, Odoo digitizes, read the draft bill. The LLM
-  path: the script creates the draft bill from the LLM answer and picks
-  each line's purchase tax from rate plus treatment, which is what an AI
-  Pro agent would do. Score: right `account.tax` per line, and the bill
-  total to the cent. Dropped: unknown vendors (creating partners is a
-  separate question).
-  Where: a new database on the Pantalytics Shared Server 19 (Cloudpepper),
-  deleted afterwards. Not our staging: it is a copy of our real books and
-  300 test bills would litter it.
+For Giraffe the real question is whether the bill lands with the right
+purchase tax in their Odoo. Once their vendors are in Giraffe staging, the
+50 bills go in there: Odoo's path is upload and digitize, the LLM path is
+the script creating the draft bill and picking each line's tax from rate
+and category, which is what an AI Pro agent would do. Score: right
+`account.tax` per line and the total to the cent. The public sets cannot
+be booked this way: their buyers are other companies.
 
-AI Pro itself cannot read a PDF yet. The LLM path above uses the same
-models through OpenRouter, so it measures what AI Pro would get. The AI
-Pro feature gets built only if that path wins.
+AI Pro itself cannot read a PDF yet. The LLM path uses the same models
+through OpenRouter, so it measures what AI Pro would get. The AI Pro
+feature gets built only if that path wins.
 
 ## Fields and scoring
 
 Score per field, not per page. The fields are the ones Odoo returns:
 supplier VAT number, supplier name, bill reference, bill date, due date,
 currency, untaxed amount, tax, total, IBAN, and lines (description,
-quantity, unit price, VAT rate) and the bill's VAT treatment. A field
+quantity, unit price, VAT rate) and the bill's VAT category. A field
 counts when it equals the truth after normalising dates, whitespace and
 decimal separators.
 
@@ -129,12 +121,11 @@ no confidence analysis.
 
 ## The harness
 
-`scripts/bench/prepare_donut.py` downloads the Donut set and wraps each
-image in a PDF. `scripts/bench/bench_invoices.py` reads a folder of PDFs
-plus `truth.jsonl`, runs each engine, caches every raw answer (a rerun
-costs nothing), writes `results.csv` and `summary.md`. It stops starting
-calls once the cached spend passes `--max-eur`. Odoo's free integration
-token worked on 2026-11-12 (one bill, 7 seconds).
+`scripts/bench/prepare_donut.py` and `scripts/bench/prepare_zugferd.py`
+build the two public sets as PDFs plus `truth.jsonl`.
+`scripts/bench/bench_invoices.py` runs each engine, caches every raw
+answer (a rerun costs nothing), writes `results.csv` and `summary.md`, and
+stops starting calls once the cached spend passes `--max-eur`.
 
 ## Budget
 
@@ -143,23 +134,20 @@ IAP credits. The script also stops at `--max-eur`.
 
 | Item | Bills | Cost |
 |---|---|---|
-| IAP credits | 100 Donut (level A), 150 EU VAT and 50 Giraffe (level B) | about EUR 45 |
-| Five LLM engines via OpenRouter | 300 each | about EUR 35 |
-
-Mistral Document AI needs its own Mistral key: out unless one appears.
+| IAP credits | 100 Donut, 23 EN 16931, 50 Giraffe | about EUR 25 |
+| Six LLM engines via OpenRouter | 173 each | about EUR 25 |
 
 ## Steps
 
-1. Harness plus the Donut set, tested on the free Odoo token. Done.
-2. Generate the EU VAT set; extend the schema with VAT rate and treatment. Done.
-3. Temporary Odoo database, then level A on 100 Donut bills and level B on
-   the EU VAT set. Numbers for the blog. First run the same 3 EU VAT bills
-   on the paid token: on the free token Odoo returned one summary line
-   per bill and the word "Factuur" as vendor, and we must know whether the
-   free token gives the real service.
-4. Export 50 Giraffe bills from Exact, level B. Numbers for Giraffe.
-5. Blog, forum post, Giraffe advice. Delete the temporary database.
-6. AI Pro PDF reading, only if step 3 or 4 says so.
+1. Harness plus both public sets. Done.
+2. Paid run on the 3 bills that came back odd on Odoo's free test token
+   (one summary line, "Factuur" as vendor), to learn whether the free
+   token gives the real service. Then the full public run. Numbers for the
+   blog.
+3. Export 50 Giraffe bills from Exact; extraction run, then booked in
+   Giraffe staging once their vendors are in. Numbers for Giraffe.
+4. Blog, forum post, Giraffe advice.
+5. AI Pro PDF reading, only if step 2 or 3 says so.
 
 ## Outputs
 
