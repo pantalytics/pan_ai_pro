@@ -1,5 +1,9 @@
 # Plan: benchmark Odoo bill digitization against LLM extraction
 
+Moved 2026-11-12: the study, its code, results and paper now live in the
+public repository pantalytics/odoo-iap-benchmark. This file stays as the
+plan's record here; the public copy has client details redacted.
+
 Status: 2026-11-12, public sets done for all engines (results below).
 Next: blog draft; Giraffe set waits on an Exact export. First customer: Giraffe Coffee
 Roasters.

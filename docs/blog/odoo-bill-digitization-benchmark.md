@@ -73,7 +73,7 @@ better than what the Extract API returns. We are testing that next on 50
 real bills of a Dutch coffee roaster, with their accountant's booking as
 the answer.
 
-The scripts are open: [link to repo]. Run them on your own bills.
+The scripts are open: github.com/pantalytics/odoo-iap-benchmark. Run them on your own bills.
 
 ## Using a model on your bills today
 
