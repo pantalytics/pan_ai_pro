@@ -74,9 +74,10 @@ def _n(desc: str) -> dict:
 LINE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": list(LINE_FIELDS),
+    "required": [*LINE_FIELDS, "net"],
     "properties": {
-        "description": _s("Line description as printed"),
+        # Not nullable: Anthropic allows at most 16 nullable fields in a schema.
+        "description": {"type": "string", "description": "Line description as printed"},
         "quantity": _n("Quantity"),
         "unit_price": _n("Price per unit before tax"),
         "tax_rate": _n("VAT rate of this line in percent, 0 when no VAT is charged"),
@@ -88,9 +89,9 @@ BREAKDOWN_SCHEMA = {
     "additionalProperties": False,
     "required": ["rate", "base", "tax"],
     "properties": {
-        "rate": _n("VAT rate in percent"),
-        "base": _n("Amount before tax at this rate"),
-        "tax": _n("VAT amount at this rate"),
+        "rate": {"type": "number", "description": "VAT rate in percent"},
+        "base": {"type": "number", "description": "Amount before tax at this rate"},
+        "tax": {"type": "number", "description": "VAT amount at this rate"},
     },
 }
 SCHEMA = {
@@ -273,9 +274,9 @@ RUNNERS = {
 }
 
 
-def spent_eur(out: Path, usd_eur: float) -> float:
-    """What every cached answer cost, so the budget holds across runs."""
-    files = (out / "raw").glob("*/*.json") if (out / "raw").exists() else []
+def spent_eur(out: Path, usd_eur: float, engines: list[str]) -> float:
+    """What the cached answers of these engines cost, so the budget holds across runs."""
+    files = [f for e in engines for f in (out / "raw" / e).glob("*.json")]
     return sum(json.loads(f.read_text()).get("cost_usd", 0) for f in files) * usd_eur
 
 
@@ -328,7 +329,7 @@ def main() -> None:
     if not args.score_only:
         cfg = {
             "lock": threading.Lock(),
-            "spent": spent_eur(args.out, args.usd_eur),
+            "spent": spent_eur(args.out, args.usd_eur, engines),
             "max_eur": args.max_eur,
             "usd_eur": args.usd_eur,
             "retry_errors": args.retry_errors,
