@@ -9,14 +9,17 @@ is wrapped in a one-page A4 PDF, since bills arrive as PDFs and every engine
 then gets the same file.
 
 Usage:
-    python scripts/bench/prepare_donut.py OUT_DIR [--limit N]
+    python research/bill-extraction/src/prepare_donut.py OUT_DIR [--limit N]
 
-Writes OUT_DIR/<id>.pdf and OUT_DIR/truth.jsonl. Stdlib only.
+Writes OUT_DIR/<id>.jpg (as downloaded), OUT_DIR/<id>.pdf and
+OUT_DIR/truth.jsonl, each row with the dataset revision and the SHA-256 of
+the source image. Stdlib only.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import struct
@@ -124,6 +127,8 @@ def truth_row(doc_id: str, gt: dict) -> dict:
                 "description": it.get("item_desc"),
                 "quantity": amount(it.get("item_qty")),
                 "unit_price": amount(it.get("item_net_price")),
+                "tax_rate": amount(it.get("item_vat")),
+                "net": amount(it.get("item_net_worth")),
             }
             for it in items
         ],
@@ -158,11 +163,21 @@ def main() -> None:
             for item in page["rows"]:
                 doc_id = f"donut-{split}-{item['row_idx']:03d}"
                 pdf = args.out / f"{doc_id}.pdf"
+                jpg = args.out / f"{doc_id}.jpg"
+                src = item["row"]["image"]["src"]
+                if not jpg.exists():
+                    with urllib.request.urlopen(src, timeout=60) as r:
+                        jpg.write_bytes(r.read())
                 if not pdf.exists():
-                    with urllib.request.urlopen(item["row"]["image"]["src"], timeout=60) as r:
-                        pdf.write_bytes(jpeg_to_pdf(r.read()))
+                    pdf.write_bytes(jpeg_to_pdf(jpg.read_bytes()))
                 gt = json.loads(item["row"]["ground_truth"])["gt_parse"]
-                rows.append(truth_row(doc_id, gt))
+                row = truth_row(doc_id, gt)
+                rev = re.search(r"/--/([0-9a-f]{40})/--/", src)
+                row["source"] = (
+                    f"{DATASET}@{rev[1] if rev else 'unknown'}:{split}/{item['row_idx']}"
+                )
+                row["source_sha256"] = hashlib.sha256(jpg.read_bytes()).hexdigest()
+                rows.append(row)
                 if args.limit and len(rows) >= args.limit:
                     break
             offset += PAGE

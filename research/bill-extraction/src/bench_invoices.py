@@ -14,8 +14,8 @@ Keys come from the environment:
     MISTRAL_API_KEY     for mistral-docai
 
 Usage:
-    python scripts/bench/bench_invoices.py DATA OUT --engines odoo,gemini-flash
-    python scripts/bench/bench_invoices.py DATA OUT --score-only
+    python research/bill-extraction/src/bench_invoices.py DATA OUT --engines odoo,gemini-flash
+    python research/bill-extraction/src/bench_invoices.py DATA OUT --score-only
 Plan: docs/plans/invoice-extraction-benchmark.md. Stdlib only.
 """
 
@@ -80,12 +80,23 @@ LINE_SCHEMA = {
         "quantity": _n("Quantity"),
         "unit_price": _n("Price per unit before tax"),
         "tax_rate": _n("VAT rate of this line in percent, 0 when no VAT is charged"),
+        "net": _n("Line amount before tax, as printed"),
+    },
+}
+BREAKDOWN_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["rate", "base", "tax"],
+    "properties": {
+        "rate": _n("VAT rate in percent"),
+        "base": _n("Amount before tax at this rate"),
+        "tax": _n("VAT amount at this rate"),
     },
 }
 SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": [*FIELDS, "lines"],
+    "required": [*FIELDS, "lines", "vat_breakdown"],
     "properties": {
         "vendor_name": _s("Name of the company that issued the bill, without its address"),
         "vendor_vat": _s("The vendor's VAT number or tax id, as printed"),
@@ -104,6 +115,11 @@ SCHEMA = {
             "outside the EU, O outside the scope of VAT",
         },
         "lines": {"type": "array", "items": LINE_SCHEMA},
+        "vat_breakdown": {
+            "type": "array",
+            "items": BREAKDOWN_SCHEMA,
+            "description": "The VAT summary: one row per VAT rate",
+        },
     },
 }
 
@@ -185,6 +201,7 @@ def run_odoo(path: Path, _model: str, cfg: dict) -> tuple[dict, dict, float]:
             {
                 **{k: line.get(k) for k in LINE_FIELDS if k != "tax_rate"},
                 "tax_rate": (line.get("taxes") or [None])[0],
+                "net": line.get("subtotal"),
             }
             for line in doc.get("invoice_lines") or []
         ],
@@ -294,6 +311,7 @@ def main() -> None:
     ap.add_argument("--max-eur", type=float, default=100, help="stop starting calls past this")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--score-only", action="store_true")
+    ap.add_argument("--strict", action="store_true", help="scoring rules as first written")
     ap.add_argument("--retry-errors", action="store_true")
     ap.add_argument("--usd-eur", type=float, default=0.86)
     ap.add_argument("--odoo-credit-usd", type=float, default=0.12, help="price of 1 IAP credit")
@@ -334,7 +352,7 @@ def main() -> None:
             for (engine, doc), status in done:
                 print(f"{engine:15} {doc['id']:24} {status}")
         print(f"Spent so far: EUR {cfg['spent']:.2f} of {args.max_eur:.2f}")
-    score(args.data, args.out, engines, args.usd_eur)
+    score(args.data, args.out, engines, args.usd_eur, strict=args.strict)
 
 
 if __name__ == "__main__":

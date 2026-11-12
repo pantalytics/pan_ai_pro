@@ -157,9 +157,9 @@ no confidence analysis.
 
 ## The harness
 
-`scripts/bench/prepare_donut.py` and `scripts/bench/prepare_zugferd.py`
+`research/bill-extraction/src/prepare_donut.py` and `research/bill-extraction/src/prepare_zugferd.py`
 build the two public sets as PDFs plus `truth.jsonl`.
-`scripts/bench/bench_invoices.py` runs each engine, caches every raw
+`research/bill-extraction/src/bench_invoices.py` runs each engine, caches every raw
 answer (a rerun costs nothing), writes `results.csv` and `summary.md`, and
 stops starting calls once the cached spend passes `--max-eur`.
 

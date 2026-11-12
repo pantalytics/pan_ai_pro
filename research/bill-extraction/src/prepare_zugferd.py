@@ -12,7 +12,7 @@ need to read the page. Duplicates (same number, same seller) are dropped.
 
 Usage:
     pip install pypdf
-    python scripts/bench/prepare_zugferd.py CORPUS_DIR OUT_DIR
+    python research/bill-extraction/src/prepare_zugferd.py CORPUS_DIR OUT_DIR
 
 Writes OUT_DIR/<id>.pdf and OUT_DIR/truth.jsonl for bench_invoices.py.
 """
@@ -20,9 +20,11 @@ Writes OUT_DIR/<id>.pdf and OUT_DIR/truth.jsonl for bench_invoices.py.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import re
+import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -56,6 +58,13 @@ def cii_date(v: str | None) -> str | None:
     return f"{m[1]}-{m[2]}-{m[3]}" if m else None
 
 
+def header_taxes(root) -> list:
+    settlement = find(root, "ApplicableHeaderTradeSettlement")
+    if settlement is None:
+        return []
+    return [t for t in settlement if local(t.tag) == "ApplicableTradeTax"]
+
+
 def truth_from_xml(xml: bytes, doc_id: str) -> dict | None:
     root = ET.fromstring(xml)
     seller = find(root, "SellerTradeParty")
@@ -84,6 +93,7 @@ def truth_from_xml(xml: bytes, doc_id: str) -> dict | None:
                 "quantity": num(text(item, "SpecifiedLineTradeDelivery", "BilledQuantity")),
                 "unit_price": num(text(item, "NetPriceProductTradePrice", "ChargeAmount")),
                 "tax_rate": num(text(tax, "RateApplicablePercent")) if tax is not None else None,
+                "net": num(text(item, "SpecifiedLineTradeSettlement", "LineTotalAmount")),
                 "vat_category": text(tax, "CategoryCode") if tax is not None else None,
             }
         )
@@ -121,6 +131,14 @@ def truth_from_xml(xml: bytes, doc_id: str) -> dict | None:
         "buyer_vat": vat_of(buyer),
         "buyer_country": text(buyer, "CountryID") if buyer is not None else None,
         "lines": lines,
+        "vat_breakdown": [
+            {
+                "rate": num(text(t, "RateApplicablePercent")),
+                "base": num(text(t, "BasisAmount")),
+                "tax": num(text(t, "CalculatedAmount")),
+            }
+            for t in header_taxes(root)
+        ],
     }
 
 
@@ -140,6 +158,8 @@ def main() -> None:
     ap.add_argument("out", type=Path)
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+    git = ["git", "-C", str(args.corpus), "rev-parse", "HEAD"]
+    commit = subprocess.run(git, capture_output=True, text=True).stdout.strip() or "unknown"
     seen, rows = set(), []
     for path in sorted(args.corpus.rglob("*.pdf")):
         rel = str(path.relative_to(args.corpus))
@@ -156,7 +176,8 @@ def main() -> None:
         if not truth or (truth["invoice_ref"], truth["vendor_name"]) in seen:
             continue
         seen.add((truth["invoice_ref"], truth["vendor_name"]))
-        truth["source"] = rel
+        truth["source"] = f"ZUGFeRD/corpus@{commit}:{rel}"
+        truth["source_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
         (args.out / truth["file"]).write_bytes(strip_pdf(reader))
         rows.append(truth)
     with (args.out / "truth.jsonl").open("w") as f:
