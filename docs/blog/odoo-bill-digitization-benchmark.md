@@ -11,7 +11,7 @@ Odoo does not publish a number, and nobody else has either. So we measured
 it, on public test sets, against six AI models.
 
 **The short answer: Odoo got 52 to 67% of the header fields right. Every
-model we tried got 95 to 100%, at a tenth of the price or less.**
+model we tried got 95 to 100%, at a fifth of the price or less.**
 
 ## The test
 
@@ -47,7 +47,7 @@ Where Odoo goes wrong:
   no", "Beispiel") and found the vendor's VAT number on 2 of 100 Donut
   bills.
 - **Untaxed and tax.** On Donut it returned the total as the untaxed amount
-  with zero tax, on 94 of 100 bills.
+  with zero tax, on 93 of 99 bills.
 - **Lines and VAT.** It merged lines (1.4 per bill, the bills have 2.3)
   and had the VAT rate right on 20 of 53 lines. Every model had all 53.
 
