@@ -1,7 +1,7 @@
 # Plan: benchmark Odoo bill digitization against LLM extraction
 
-Status: 2026-11-12, LLMs run on both public sets (results below). Odoo
-waits on IAP credits. First customer: Giraffe Coffee
+Status: 2026-11-12, public sets done for all engines (results below).
+Next: blog draft; Giraffe set waits on an Exact export. First customer: Giraffe Coffee
 Roasters.
 
 ## Conclusion
@@ -30,34 +30,41 @@ then its own model), so the hypothesis is that an image-in LLM beats it.
 Mistral OCR earns its place on bad scans only, and the test must show
 whether it does.
 
-## Results so far (LLMs only, 2026-11-12)
+## Results (public sets, 2026-11-12)
 
-Odoo not yet run: it waits on IAP credits. Spend so far EUR 9.30.
+Spend: about EUR 9 on LLMs; 246 IAP credits (Odoo ran twice, see below).
 
-| Engine | Donut 100: header fields | Donut: bills fully right | EN 16931 23: header fields | EN 16931: lines (incl. VAT rate) | EN 16931: VAT category | EUR per bill |
+| Engine | Donut 100: header fields | Donut: bills fully right | EN 16931 23: header fields | EN 16931: VAT rate per line | EN 16931: VAT category | EUR per bill |
 |---|---|---|---|---|---|---|
-| Claude Sonnet 5.5 | 99.5% | 96% | 99.1% | 99.5% | 23/23 | 0.008 to 0.013 |
-| Gemini 3.1 Pro | 96.2% | 70% | 100% | 99.5% | 23/23 | 0.023 to 0.026 |
-| GPT-5.5 | 96.1% | 69% | 99.1% | 98.6% | 23/23 | 0.018 to 0.020 |
-| Gemini 2.5 Pro | 96.0% | 68% | 99.1% | 98.6% | 23/23 | 0.015 |
-| Gemini 3.8 Flash | 95.5% | 64% | 100% | 99.5% | 23/23 | 0.004 to 0.006 |
-| Mistral OCR into Medium 3.5 | 94.9% | 60% | 97.4% | 94.3% | 23/23 | 0.005 to 0.008 |
+| **Odoo digitization** | **51.5%** | **0%** | **66.8%** | **20 of 53** | not produced | ~0.13 |
+| Claude Sonnet 5.5 | 99.5% | 96% | 99.1% | 53 of 53 | 23/23 | 0.008 to 0.013 |
+| Gemini 3.1 Pro | 96.2% | 70% | 100% | 53 of 53 | 23/23 | 0.023 to 0.026 |
+| GPT-5.5 | 96.1% | 69% | 99.1% | 53 of 53 | 23/23 | 0.018 to 0.020 |
+| Gemini 2.5 Pro | 96.0% | 68% | 99.1% | 53 of 53 | 23/23 | 0.015 |
+| Gemini 3.8 Flash | 95.5% | 64% | 100% | 53 of 53 | 23/23 | 0.004 to 0.006 |
+| Mistral OCR into Medium 3.5 | 94.9% | 60% | 97.4% | 53 of 53 | 23/23 | 0.005 to 0.008 |
 
 What it says:
+- Odoo's Extract API is far behind every LLM. Where it fails: the vendor
+  name (it takes a heading: "Invoice no", "Beispiel"), the vendor VAT
+  number (2% and 27%), untaxed amount and tax on Donut (it returns the
+  total as untaxed with 0 tax), and lines (1.4 lines per bill against 2.3;
+  the VAT rate right on 20 of 53 lines). Totals and dates it gets.
+- Fairness checks on Odoo: the paid token gives the same answer as the
+  free test token; sending each bill's buyer as the company hint, as an
+  Odoo database does, changed nothing (a second run, byte for byte the
+  same output). Caveat for the blog: this is the raw Extract API. Inside a
+  database Odoo also matches the vendor from its partner list, so the
+  booked bill can be better than the raw read. The Giraffe step tests that.
 - Our Gemini 2.5 Pro score on Donut (96.0%) matches Fraunhofer's 96.5% on
   the same set, so the harness measures what they measured.
-- Almost every Donut miss is the date. Donut prints US dates (09/10/2015);
-  only Claude reads them as US every time, the others take the European
-  order 30% of the time. Same trap on a French sample with a US date.
-- Mistral OCR first, then an LLM, is last on every set: it lost the IBAN
-  on 3 of 10 and line detail. Fraunhofer's "image in beats OCR first"
-  holds.
-- VAT on the EN 16931 samples is no problem for any LLM: every rate per
-  line and every category right, mixed 7/19 and 5.5/20 included. The set
-  is small and has no reverse charge, so the real VAT test is Giraffe's.
+- Almost every LLM miss on Donut is the date: Donut prints US dates
+  (09/10/2015); only Claude reads them as US every time.
+- Mistral OCR first, then an LLM, is last among the LLMs: Fraunhofer's
+  "image in beats OCR first" holds.
 - Fixed in the scoring on the way: Donut's truth has 25 broken IBANs (made
-  by OCR, they fail the checksum; not scored now), credit notes print
-  negative amounts, and names come with or without the legal form.
+  by OCR, they fail the checksum; not scored), credit notes print negative
+  amounts, and names come with or without the legal form.
 
 ## The question that matters: is the VAT read right?
 

@@ -116,6 +116,9 @@ def truth_row(doc_id: str, gt: dict) -> dict:
         "tax": amount(summ.get("total_vat")),
         "total": amount(summ.get("total_gross_worth")),
         "iban": head.get("iban"),
+        # Who received the bill: Odoo sends its own company as a hint, so we do too.
+        "buyer_name": re.split(r"\s\d", head.get("client") or "", maxsplit=1)[0].strip() or None,
+        "buyer_vat": head.get("client_tax_id"),
         "lines": [
             {
                 "description": it.get("item_desc"),

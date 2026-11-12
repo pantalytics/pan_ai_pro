@@ -59,17 +59,22 @@ def cii_date(v: str | None) -> str | None:
 def truth_from_xml(xml: bytes, doc_id: str) -> dict | None:
     root = ET.fromstring(xml)
     seller = find(root, "SellerTradeParty")
+    buyer = find(root, "BuyerTradeParty")
     totals = find(root, "SpecifiedTradeSettlementHeaderMonetarySummation")
     if seller is None or totals is None:
         return None
-    vat = next(
-        (
-            r.text.strip()
-            for r in seller.iter()
-            if local(r.tag) == "ID" and r.get("schemeID") == "VA" and r.text
-        ),
-        None,
-    )
+
+    def vat_of(party) -> str | None:
+        return next(
+            (
+                r.text.strip()
+                for r in (party.iter() if party is not None else ())
+                if local(r.tag) == "ID" and r.get("schemeID") == "VA" and r.text
+            ),
+            None,
+        )
+
+    vat = vat_of(seller)
     lines = []
     for item in (n for n in root.iter() if local(n.tag) == "IncludedSupplyChainTradeLineItem"):
         tax = find(item, "SpecifiedLineTradeSettlement", "ApplicableTradeTax")
@@ -111,6 +116,10 @@ def truth_from_xml(xml: bytes, doc_id: str) -> dict | None:
         "total": num(text(totals, "GrandTotalAmount")),
         "iban": text(root, "IBANID"),
         "vat_treatment": "+".join(cats),
+        # Who received the bill: Odoo sends its own company as a hint, so we do too.
+        "buyer_name": text(buyer, "Name") if buyer is not None else None,
+        "buyer_vat": vat_of(buyer),
+        "buyer_country": text(buyer, "CountryID") if buyer is not None else None,
         "lines": lines,
     }
 
