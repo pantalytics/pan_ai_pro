@@ -1,6 +1,6 @@
 # Plan: benchmark Odoo bill digitization against LLM extraction
 
-Status: plan done 2026-11-12. Nothing run yet, step 1 next. First customer: Giraffe
+Status: step 1 done 2026-11-12 (harness, Donut set). Step 2 waits on keys. First customer: Giraffe
 Coffee Roasters.
 
 ## Conclusion
@@ -34,11 +34,12 @@ whether it does.
 Two sets. The public one makes the blog reproducible, the private one
 answers Giraffe's question.
 
-1. **Public: the Fraunhofer sets**, so our numbers line up with theirs.
-   - Clean Invoices: 500 synthetic invoices from the Donut paper.
-   - Scanned Invoices: inv-cdip, 350 scanned US invoices (tobacco archive).
+1. **Public: Donut synthetic invoices** (`katanaml-org/invoices-donut-data-v1`,
+   MIT, 501 bills), the "Clean Invoices" set of Fraunhofer, so our numbers
+   line up with theirs. We use a fixed random sample of 150 to stay in budget.
+   - Dropped: inv-cdip (Fraunhofer's scanned set). Its licence is CC BY-NC,
+     and our blog is marketing. Scans are covered by the Giraffe set.
    - Dropped: SROIE and CORD, those are till receipts, not bills.
-   Check each licence before we publish numbers on it.
 2. **Private: 50 real Giraffe vendor bills**, already booked and checked by
    their accountant. The booking is the ground truth. Giraffe books in
    Exact Online today: the purchase entries plus their attached PDF come
@@ -76,33 +77,33 @@ own partner lookup inside the database. The raw API and the LLMs both
 return text, so the comparison stays fair.
 
 Report per engine: field accuracy, share of bills with every header field
-right ("post without touching"), cost per bill, seconds per bill. Odoo
-returns a confidence per field: also report its accuracy on the fields it
-is sure of, since Odoo leaves the rest empty.
+right ("post without touching"), line accuracy, cost per bill, seconds per
+bill. The Extract API ranks candidates but returns no confidence score, so
+no confidence analysis.
 
 ## The harness
 
-One script, `scripts/bench_invoices.py` in this repo. It reads a folder of
-PDFs plus `truth.csv`, runs each engine, caches every raw answer to disk
-(a rerun costs nothing), writes `results.csv` and a markdown table.
-Develop against Odoo's free integration token (rate-limited per day),
-then one paid run.
+`scripts/bench/prepare_donut.py` downloads the Donut set and wraps each
+image in a PDF. `scripts/bench/bench_invoices.py` reads a folder of PDFs
+plus `truth.jsonl`, runs each engine, caches every raw answer (a rerun
+costs nothing), writes `results.csv` and `summary.md`. It stops starting
+calls once the cached spend passes `--max-eur`. Odoo's free integration
+token worked on 2026-11-12 (one bill, 7 seconds).
 
 ## Budget
 
-We may spend on this. Estimate for one full run, about 900 documents:
+Hard cap EUR 100 for everything, enforced by `--max-eur 100`.
 
-| Item | Cost |
-|---|---|
-| Odoo IAP credits, 1 per document | about EUR 100 (EUR 0.05 to 0.15 a credit, by pack size) |
-| Six LLM engines via OpenRouter and Mistral | about EUR 100 |
-| Margin for reruns | EUR 100 |
-| **Total** | **under EUR 300** |
+| Item | Bills | Cost |
+|---|---|---|
+| Odoo IAP credits | 200 (150 Donut, 50 Giraffe) | about EUR 25 (EUR 0.10 to 0.15 a credit) |
+| Seven LLM engines | 200 each | about EUR 30, GPT and Gemini Pro the dearest |
+| Reruns and margin | | EUR 45 |
 
 ## Steps
 
-1. Harness plus the public sets, tested on the free Odoo token. No spend.
-2. Paid run on the public sets. Numbers for the blog.
+1. Harness plus the Donut set, tested on the free Odoo token. Done.
+2. Paid run on 150 Donut bills. Numbers for the blog.
 3. Export 50 Giraffe bills from Exact, paid run. Numbers for Giraffe.
 4. Blog, forum post, Giraffe advice.
 5. AI Pro PDF reading, only if step 3 says so.
