@@ -319,6 +319,14 @@ def code(v) -> str:
 CURRENCY_SIGNS = {"$": "USD", "€": "EUR", "£": "GBP"}
 
 
+def iban_ok(v) -> bool:
+    """Mod-97 check. Donut's truth IBANs were partly made by OCR ('GB82D)FU...')."""
+    c = code(v)
+    if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{8,30}", c):
+        return False
+    return int("".join(str(int(ch, 36)) for ch in c[4:] + c[:4])) % 97 == 1
+
+
 def vat(v) -> str:
     """VAT without its country prefix: Odoo returns 'GB958743511' for '958-74-3511'."""
     c = code(v)
@@ -376,6 +384,8 @@ def score(data: Path, out: Path, engines: list[str], usd_eur: float) -> None:
             all_right = True
             for f in FIELDS:
                 if doc.get(f) is None or f in NOT_PRODUCED.get(engine, ()):
+                    continue
+                if f == "iban" and not iban_ok(doc[f]):  # a broken label, not scored
                     continue
                 ok = same(f, doc[f], pred.get(f))
                 all_right &= ok
