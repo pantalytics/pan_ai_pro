@@ -10,70 +10,62 @@ fields fill themselves, at one IAP credit a bill. How often are they right?
 Odoo does not publish a number, and nobody else has either. So we measured
 it, on public test sets, against six AI models.
 
-**The short answer: Odoo got 52 to 67% of the header fields right. Every
-model we tried got 95 to 100%, at a fifth of the price or less.**
+**The short answer: Odoo got 0 to 9% of the documents fully right. Every
+model we tried got 61 to 100%, at a fifth of the price or less.**
 
 ## The test
 
-Two public sets, so anyone can repeat it:
+Three public sets, so anyone can repeat it:
 
-- **Donut invoices**: 100 synthetic invoices (MIT licence). The same set
-  Fraunhofer IAIS used in their 2025 benchmark of AI models on invoices.
+- **Donut invoices**: 100 synthetic invoices, the set Fraunhofer IAIS used in
+  their 2025 benchmark.
 - **The official EN 16931 sample invoices**: the 23 German and French
-  Factur-X examples that ship with the EU e-invoice standard. Each one
-  carries its data as XML, so we know the right answer down to the VAT
-  rate of every line. We removed that XML before anything read the page.
+  Factur-X examples of the EU e-invoice standard. Each carries its data as
+  XML, so we know the right answer down to the VAT rate of every line. We
+  removed that XML before anything read the page.
+- **SROIE receipts**: 100 real scanned till receipts.
 
-We scored every field separately: vendor, VAT number, bill number, dates,
-currency, untaxed amount, tax, total, IBAN, and the lines with their VAT
-rate. Odoo ran through its own Extract API, the service your database
-calls, with the same hints a database sends. The models ran through
-OpenRouter with one prompt and one answer format.
+A document counts when an accountant could book it as read: supplier,
+number, date, currency, amounts and the amount per VAT rate all right.
 
 ## The results
 
-| | Header fields right, Donut | Header fields right, EN 16931 | VAT rate right per line | Cost per bill |
+| Fully right | Donut invoices | EN 16931 invoices | Scanned receipts | Cost per document |
 |---|---|---|---|---|
-| Odoo digitization | 52% | 67% | 20 of 53 | about EUR 0.13 |
-| Claude Sonnet 5.5 | 99.5% | 99% | 53 of 53 | EUR 0.01 |
-| Gemini 3.1 Pro | 96% | 100% | 53 of 53 | EUR 0.02 |
-| GPT-5.5 | 96% | 99% | 53 of 53 | EUR 0.02 |
-| Gemini 3.8 Flash | 95.5% | 100% | 53 of 53 | EUR 0.005 |
-| Mistral OCR, then Mistral Medium | 95% | 97% | 53 of 53 | EUR 0.006 |
+| Odoo digitization | 0% | 9% | 8% | EUR 0.15 |
+| Claude Sonnet 5.5 | 97% | 96% | 91% | EUR 0.01 |
+| Gemini 3.8 Flash | 64% | 100% | 94% | EUR 0.005 |
+| Gemini 3.8 Flash + 4 reading rules | 97% | 100% | 95% | EUR 0.005 |
+| Claude Opus 5.5 | 97% | 100% | 90% | EUR 0.02 |
+| GPT-5.5 | 72% | 100% | 91% | EUR 0.02 |
 
-Where Odoo goes wrong:
+Where Odoo goes wrong: it often takes a heading as the supplier ("Invoice
+no", "Beispiel"), picks a customer or order number as the invoice number,
+returns the total as the untaxed amount with zero tax on simple invoices,
+and on scanned receipts gets the total right only half the time.
 
-- **The vendor.** It often takes a heading as the vendor name ("Invoice
-  no", "Beispiel") and found the vendor's VAT number on 2 of 100 Donut
-  bills.
-- **Untaxed and tax.** On Donut it returned the total as the untaxed amount
-  with zero tax, on 93 of 99 bills.
-- **Lines and VAT.** It merged lines (1.4 per bill, the bills have 2.3)
-  and had the VAT rate right on 20 of 53 lines. Every model had all 53.
+Correcting costs more than reading. Per 100 documents Odoo left about three
+hours of corrections, the best models 10 to 20 minutes.
 
-Totals and dates Odoo reads fine.
+## Three things we learned
 
-## Three things we learned on the way
-
-1. **There is no public benchmark for European VAT.** The invoice test sets
-   people use are American or are till receipts. The EU sample invoices are
-   the only public material with VAT categories, and there are 23 of them,
-   none with reverse charge. If you know of a better set, tell us.
-2. **Reading the image beats OCR first.** Mistral's OCR followed by a model
-   came last among the models, as Fraunhofer found too. Odoo works that way
-   (Google Vision OCR, then its own model).
-3. **Test sets have errors too.** 25 of the IBANs in the Donut answers fail
-   their own checksum: they were made by OCR. We left those out.
+1. **There is no public benchmark for European VAT.** The EU sample invoices
+   are the only public material with VAT categories, 23 of them, none with
+   reverse charge. If you know a better set, tell us.
+2. **One sentence of instruction can beat a bigger model.** Telling the
+   model to read dates in the supplier's own convention lifted the cheapest
+   model from 64% to 97% on US-style invoices.
+3. **Learning from mistakes needs context.** Rules a model wrote from its
+   own errors did not help, and one made it worse: "the total is the amount
+   due" is right for receipts and wrong for invoices with a prepayment.
 
 ## What this does not say
 
-This is the raw read. Inside a database Odoo also looks up the vendor in
-your contacts and applies your fiscal positions, so the booked bill can be
-better than what the Extract API returns. We are testing that next on 50
-real bills of a Dutch coffee roaster, with their accountant's booking as
-the answer.
+This is the raw read. Inside a database Odoo also looks up the supplier in
+your contacts, so the booked bill can be better. We test that next on real
+Dutch bills.
 
-The scripts are open: github.com/pantalytics/odoo-iap-benchmark. Run them on your own bills.
+The paper, the code and every raw answer: github.com/pantalytics/odoo-iap-benchmark
 
 ## Using a model on your bills today
 
@@ -86,12 +78,12 @@ key. Reading bills is the next thing we are building on it.
 
 **Title:** We benchmarked Odoo's bill digitization against AI models on public test sets
 
-We could not find any published accuracy figure for Odoo's document
-digitization, so we measured it: 123 invoices from two public sets (the
-Donut invoices and the official EN 16931 Factur-X samples), every field
-scored on its own. Odoo's Extract API got 52% and 67% of the header fields
-right. Gemini, Claude, GPT and Mistral all got 95 to 100%, and the VAT rate
-on all 53 lines, where Odoo had 20. The method, the scripts and the caveats
-are here: [link to blog]. We would like to hear from anyone who sees
-different results inside a real database, where Odoo also matches the
-vendor from your contacts.
+We could not find a published accuracy figure for Odoo's document
+digitization, so we measured it on 223 public documents (Donut invoices, the
+official EN 16931 Factur-X samples, SROIE receipts), every field scored. A
+document counted when it could be booked as read. Odoo's Extract API got 0
+to 9% fully right; eight AI models got 61 to 100%, the best at EUR 0.01 a
+document. Paper, scripts, raw answers and caveats:
+github.com/pantalytics/odoo-iap-benchmark. We would like to hear from anyone
+who sees different results inside a real database, where Odoo also matches
+the supplier from your contacts.
