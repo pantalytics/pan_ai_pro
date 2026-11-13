@@ -1,5 +1,6 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
+from . import _dotenv  # noqa: I001  first: before anything imports pydantic_ai
 from . import controllers, models
 
 
