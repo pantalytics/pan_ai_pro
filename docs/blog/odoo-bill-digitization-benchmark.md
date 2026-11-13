@@ -1,17 +1,21 @@
 # How accurate is Odoo's bill digitization? We measured it
 
-Draft, 2026-11-12. For pantalytics.com, then a short post on the Odoo forum
-linking here. Numbers from `docs/plans/invoice-extraction-benchmark.md`.
+Draft, 2026-11-13. Live as a draft on Directus (blog_posts 127, NL and EN,
+with figures from the benchmark repo). Then a short post on the Odoo forum
+linking there. Numbers from `docs/plans/invoice-extraction-benchmark.md`.
 
 ---
 
 Odoo reads your vendor bills for you: drop a PDF in Accounting and the
-fields fill themselves, at one IAP credit a bill. How often are they right?
+fields fill themselves, with nothing to set up, at one IAP credit a bill
+(EUR 0.05 to 0.15, by credit pack). How often are they right?
 Odoo does not publish a number, and nobody else has either. So we measured
 it, on public test sets, against six AI models.
 
 **The short answer: Odoo got 0 to 9% of the documents fully right. Every
-model we tried got 61 to 100%, at a fifth of the price or less.**
+model we tried got 61 to 100%, each for less per document than Odoo's cheapest credit.**
+
+![Bookable without correction against AI cost per document](https://raw.githubusercontent.com/pantalytics/odoo-iap-benchmark/claude/eager-faraday-u72rsm/figures/fig0_overview.png)
 
 ## The test
 
@@ -32,7 +36,7 @@ number, date, currency, amounts and the amount per VAT rate all right.
 
 | Fully right | Donut invoices | EN 16931 invoices | Scanned receipts | Cost per document |
 |---|---|---|---|---|
-| Odoo digitization | 0% | 9% | 8% | EUR 0.15 |
+| Odoo digitization | 0% | 9% | 8% | EUR 0.05 to 0.15 |
 | Claude Sonnet 5.5 | 97% | 96% | 91% | EUR 0.01 |
 | Gemini 3.8 Flash | 64% | 100% | 94% | EUR 0.005 |
 | Gemini 3.8 Flash + 4 reading rules | 97% | 100% | 95% | EUR 0.005 |
@@ -46,6 +50,11 @@ and on scanned receipts gets the total right only half the time.
 
 Correcting costs more than reading. Per 100 documents Odoo left about three
 hours of corrections, the best models 10 to 20 minutes.
+
+Odoo has one real advantage: setup. Its reader is on by default, with no
+module, no API key and no instructions to maintain. A language model needs
+all three once; at three hours saved per hundred bills, that pays back after
+a few hundred bills.
 
 ## Three things we learned
 
