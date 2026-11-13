@@ -26,6 +26,7 @@ from odoo.tools.sql import table_exists
 
 from ..compat import params
 from ..defaults import RUNS_PER_USER_PER_HOUR
+from ..hosts import host_of
 from ..tools import commit
 
 _logger = logging.getLogger(__name__)
@@ -200,8 +201,9 @@ class Run(models.Model):
         the administrator's settings, not the person's doing, and never
         refused here: a rule must not fail somebody's save."""
         self.env["pan_ai.license"].require_entitled()
-        if not params(self.env).get_str("pan_ai.openrouter_key"):
-            raise UserError(_("No OpenRouter key. Add one in Settings > AI Pro."))
+        host = host_of(agent.model_id)
+        if not params(self.env).get_str(host.key):
+            raise UserError(_("No %s key. Add one in Settings > AI Pro.", host.label))
         if not agent.may_use(caller):
             raise UserError(_("You may not use the agent %s.", agent.name))
         if not (kind == "chat" if by_hand is None else by_hand):

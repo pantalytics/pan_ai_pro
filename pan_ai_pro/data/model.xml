@@ -2,7 +2,7 @@
 <!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
 <!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo noupdate="1">
-    <!-- A shortlist, not OpenRouter's catalogue: four providers, Claude,
+    <!-- A shortlist, not a host's catalogue. On OpenRouter: four providers, Claude,
          Gemini, GPT and Mistral, each with its families. The
          `~vendor/family-latest` ids are OpenRouter's own aliases: each always
          answers as the newest model in its family, so an agent on "Claude
@@ -81,6 +81,70 @@
         <field name="name">Mistral Large</field>
         <field name="model_name">mistralai/mistral-large-4-0</field>
         <field name="sequence">12</field>
+        <field name="recommended" eval="True"/>
+    </record>
+
+    <!-- EUrouter (eurouter.ai): the same families, served by EU-hosted
+         providers only. EUrouter has no family aliases, so every row is the
+         newest id of its family, and the daily sync moves it to a newer one
+         when EUrouter lists it (`pan_ai.model._follow_families`). The ids are
+         EUrouter's vendor/model slugs (its catalogue's canonical_slug), the
+         form the runtime needs. Mistral first:
+         a European model on European hardware. -->
+    <record id="model_eu_mistral_large" model="pan_ai.model">
+        <field name="name">Mistral Large</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">mistral/mistral-large-4</field>
+        <field name="sequence">20</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_eu_mistral_medium" model="pan_ai.model">
+        <field name="name">Mistral Medium</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">mistral/mistral-medium-3.5</field>
+        <field name="sequence">21</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_eu_mistral_small" model="pan_ai.model">
+        <field name="name">Mistral Small</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">mistral/mistral-small-4</field>
+        <field name="sequence">22</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_eu_claude_sonnet" model="pan_ai.model">
+        <field name="name">Claude Sonnet</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">anthropic/claude-sonnet-5-5</field>
+        <field name="sequence">23</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_eu_claude_haiku" model="pan_ai.model">
+        <field name="name">Claude Haiku</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">anthropic/claude-haiku-5-5</field>
+        <field name="sequence">24</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_eu_claude_opus" model="pan_ai.model">
+        <field name="name">Claude Opus</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">anthropic/claude-opus-5-5</field>
+        <field name="sequence">25</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_eu_gpt_sol" model="pan_ai.model">
+        <field name="name">GPT Sol</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">openai/gpt-6.1-sol</field>
+        <field name="sequence">26</field>
+        <field name="recommended" eval="True"/>
+    </record>
+    <record id="model_eu_gpt_luna" model="pan_ai.model">
+        <field name="name">GPT Luna</field>
+        <field name="host">eurouter</field>
+        <field name="model_name">openai/gpt-6-luna</field>
+        <field name="sequence">27</field>
         <field name="recommended" eval="True"/>
     </record>
 </odoo>

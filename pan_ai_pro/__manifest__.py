@@ -9,7 +9,8 @@ AI Pro for Odoo
 
 AI agents in Odoo, with you in control.
 
-- Your key: bring your own OpenRouter key and pick any model per agent.
+- Your key: bring your own OpenRouter key, or an EUrouter key for models
+  hosted in the EU only, and pick any model per agent.
 - Your tools: Odoo's records, your own server actions and any MCP server.
 - Your rules: each agent runs with an Odoo user's rights, asks before it
   creates or changes a record, and logs what every run did and cost.
@@ -65,7 +66,7 @@ Requires a connection to Pantalytics
     "website": "https://github.com/pantalytics/pan_ai_pro",
     "support": "rutger@pantalytics.com",
     "category": "Productivity",
-    "version": "2.14.0",
+    "version": "2.15.1",
     "license": "Other proprietary",
     "external_dependencies": {
         "python": ["pydantic-ai-slim", "markdown2", "cryptography", "requests"]

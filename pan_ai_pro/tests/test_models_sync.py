@@ -1,11 +1,12 @@
 # Copyright 2025-2026 Pantalytics B.V. All rights reserved.
 # SPDX-License-Identifier: Elastic-2.0
-"""The model list is a shortlist; the daily sync only retires what OpenRouter dropped."""
+"""The model list is a shortlist per host; the daily sync only retires what a host dropped."""
 
 from unittest.mock import MagicMock, patch
 
 import requests
 
+from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
 
 
@@ -18,7 +19,8 @@ def _answer(*ids):
 @tagged("post_install", "-at_install")
 class TestModelsSeed(TransactionCase):
     def test_shortlist_of_four_providers_sonnet_first(self):
-        rows = self.env["pan_ai.model"].search([])
+        self.assertEqual(self.env["pan_ai.model"].search([])[0].host, "openrouter")
+        rows = self.env["pan_ai.model"].search([("host", "=", "openrouter")])
         self.assertEqual(rows[0].model_name, "~anthropic/claude-sonnet-latest")
         self.assertEqual(self.env["pan_ai.model"].first(), rows[0])
         vendors = {m.lstrip("~").split("/")[0] for m in rows.mapped("model_name")}
@@ -30,6 +32,29 @@ class TestModelsSeed(TransactionCase):
                 self.assertTrue(model_name.startswith("~") and model_name.endswith("-latest"))
         self.assertLess(len(rows), 15)
         self.assertTrue(all(rows.mapped("recommended")))
+
+    def test_eurouter_shortlist_is_pinned_mistral_first(self):
+        rows = self.env["pan_ai.model"].search([("host", "=", "eurouter")])
+        self.assertEqual(rows[0].model_name, "mistral/mistral-large-4")
+        self.assertEqual(rows[0].display_name, "Mistral Large (EUrouter)")
+        self.assertTrue(all(rows.mapped("recommended")))
+        self.assertFalse([m for m in rows.mapped("model_name") if m.startswith("~")])
+        # The same id may sit on both hosts; twice on one host it may not.
+        self.env["pan_ai.model"].create({"name": "Twin", "model_name": "mistral/mistral-large-4"})
+        with self.assertRaises(ValidationError):
+            self.env["pan_ai.model"].create({"name": "Bare", "model_name": "mistral-large-4"})
+
+    def test_first_is_on_a_host_with_a_key(self):
+        from ..compat import params
+
+        Model = self.env["pan_ai.model"]
+        params(self.env).set_str("pan_ai.openrouter_key", "")
+        params(self.env).set_str("pan_ai.eurouter_key", "eu-test")
+        self.assertEqual(Model.first(), self.env.ref("pan_ai_pro.model_eu_mistral_large"))
+        action = self.env.ref("pan_ai_pro.agent_assistant").action_edit_model()
+        self.assertEqual(action["params"]["hosts"], ["eurouter"])
+        params(self.env).set_str("pan_ai.eurouter_key", "")
+        self.assertEqual(Model.first().model_name, "~anthropic/claude-sonnet-latest")
 
     def test_first_prefers_a_recommended_row(self):
         Model = self.env["pan_ai.model"]
@@ -72,8 +97,101 @@ class TestModelsSync(TransactionCase):
         found = self.env["pan_ai.model"].search([("display_name", "ilike", "anthropic/son")])
         self.assertEqual(found, self.kept)
 
+    def test_each_host_is_checked_against_its_own_list(self):
+        eu = self.Model.create({"name": "EU", "host": "eurouter", "model_name": "anthropic/sonnet"})
+        eu_dropped = self.Model.create(
+            {"name": "EU old", "host": "eurouter", "model_name": "x/old"}
+        )
+        eu_slug = self.Model.create(
+            {"name": "EU slug", "host": "eurouter", "model_name": "mistral/large"}
+        )
+
+        def answer(url, timeout):
+            if "eurouter" in url:
+                response = _answer("anthropic/sonnet", "large")
+                response.json.return_value["data"][1]["canonical_slug"] = "mistral/large"
+                return response
+            raise requests.ConnectionError("OpenRouter down")
+
+        self._sync(side_effect=answer)
+        self.assertTrue(eu.active)
+        self.assertTrue(eu_slug.active)
+        self.assertFalse(eu_dropped.active)
+        self.assertTrue(self.dropped.active)  # OpenRouter's outage changes nothing
+
     def test_outage_or_empty_list_changes_nothing(self):
         self._sync(side_effect=requests.ConnectionError("down"))
         self._sync(return_value=_answer())
         self.assertTrue(self.dropped.active)
         self.assertEqual(self.env["pan_ai.model"].search([]), self.kept | self.dropped)
+
+
+def _entry(slug, tools=True):
+    return {
+        "id": slug.split("/")[1],
+        "canonical_slug": slug,
+        "supported_parameters": ["tools"] if tools else [],
+        "supported_api_endpoints": ["chat.completions"],
+    }
+
+
+@tagged("post_install", "-at_install")
+class TestEurouterFamilies(TransactionCase):
+    """EUrouter has no `-latest` aliases; the sync moves its seeded rows."""
+
+    def test_the_family_and_version_are_read_from_the_name(self):
+        from ..models.ai_model import family, newest
+
+        self.assertEqual(family("anthropic/claude-sonnet-5-5"), ("anthropic/claude-sonnet", (5, 5)))
+        self.assertEqual(family("openai/gpt-6.1-sol"), ("openai/gpt-sol", (6, 1)))
+        self.assertEqual(family("mistral/mistral-small-3.2-24b")[0], "mistral/mistral-small-24b")
+        catalogue = [
+            _entry("anthropic/claude-sonnet-5"),
+            _entry("anthropic/claude-sonnet-5-5"),
+            _entry("anthropic/claude-sonnet-4-6"),
+            _entry("anthropic/claude-sonnet-6", tools=False),  # no tools: no agent model
+            _entry("anthropic/claude-opus-6"),  # another family
+        ]
+        self.assertEqual(
+            newest("anthropic/claude-sonnet-5", catalogue), "anthropic/claude-sonnet-5-5"
+        )
+        self.assertEqual(
+            newest("anthropic/claude-sonnet-5-5", catalogue), "anthropic/claude-sonnet-5-5"
+        )
+        self.assertEqual(newest("x/unknown-1", catalogue), "x/unknown-1")
+
+    def test_the_sync_moves_seeded_rows_and_their_agents_only(self):
+        Model = self.env["pan_ai.model"]
+        sonnet = self.env.ref("pan_ai_pro.model_eu_claude_sonnet")
+        opus = self.env.ref("pan_ai_pro.model_eu_claude_opus")
+        mine = Model.create(
+            {"name": "Mine", "host": "eurouter", "model_name": "openai/gpt-6-luna-x"}
+        )
+        taken = Model.create(
+            {"name": "Taken", "host": "eurouter", "model_name": "anthropic/claude-opus-5-6"}
+        )
+        agent = self.env.ref("pan_ai_pro.agent_assistant")
+        agent.model_id = sonnet
+        catalogue = [
+            _entry(slug)
+            for slug in (
+                *Model.search([("host", "=", "eurouter")]).mapped("model_name"),
+                "anthropic/claude-sonnet-5-6",
+                "openai/gpt-6.5-luna-x",
+            )
+        ]
+
+        def answer(url, timeout):
+            if "eurouter" not in url:
+                raise requests.ConnectionError("OpenRouter down")
+            response = MagicMock()
+            response.json.return_value = {"data": catalogue}
+            return response
+
+        with patch("odoo.addons.pan_ai_pro.models.ai_model.requests.get", side_effect=answer):
+            Model._cron_sync()
+        self.assertEqual(sonnet.model_name, "anthropic/claude-sonnet-5-6")
+        self.assertEqual(agent.model_id, sonnet)  # the agent follows its row
+        self.assertEqual(mine.model_name, "openai/gpt-6-luna-x")  # typed by hand: pinned
+        self.assertEqual(opus.model_name, "anthropic/claude-opus-5-5")  # 5-6 is a row already
+        self.assertTrue(sonnet.active and opus.active and taken.active)

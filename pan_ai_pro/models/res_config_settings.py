@@ -3,14 +3,14 @@
 """Settings > AI Pro: the setup checklist, and the version under About.
 
 Three steps, in the order a person has to take them: connect to Pantalytics,
-save an OpenRouter key, have a first chat. Until the first is done nothing
+save a model key (OpenRouter, EUrouter or both), have a first chat. Until the first is done nothing
 else is on the page (or in the menu, `ir_ui_menu.py`).
 
-The OpenRouter key is stored in `ir.config_parameter` (`pan_ai.openrouter_key`),
+Each host's key is stored in `ir.config_parameter` (`hosts.py` names it),
 readable by `base.group_system` only, never shown back: the page says
-the last four. It is typed in a dialog of its own, like Mail Pro's provider:
+the last four. Both are typed in one dialog, like Mail Pro's provider:
 this same transient model in a small form (`action_pan_ai_openrouter`), with
-Remove key beside Save. The 19.0 module kept its key the same way; there was
+a Remove button per key beside Save. The 19.0 module kept its key the same way; there was
 no encryption helper to inherit.
 """
 
@@ -18,6 +18,7 @@ from odoo import _, fields, models, release
 from odoo.exceptions import AccessError
 
 from ..compat import params
+from ..hosts import HOSTS
 from .license import STATUS_SELECTION
 
 STATE_SELECTION = [
@@ -48,7 +49,9 @@ class ResConfigSettings(models.TransientModel):
     # Model
     pan_ai_has_key = fields.Boolean(compute="_compute_pan_ai_key")
     pan_ai_key_last4 = fields.Char(compute="_compute_pan_ai_key")
+    pan_ai_eu_key_last4 = fields.Char(compute="_compute_pan_ai_key")
     pan_ai_new_key = fields.Char(string="OpenRouter key")
+    pan_ai_new_eu_key = fields.Char(string="EUrouter key")
     # Connection
     pan_ai_state = fields.Selection(STATE_SELECTION, compute="_compute_pan_ai_link")
     pan_ai_link_status = fields.Selection(STATUS_SELECTION, compute="_compute_pan_ai_link")
@@ -75,12 +78,14 @@ class ResConfigSettings(models.TransientModel):
             record.pan_ai_version = version
 
     def _compute_pan_ai_key(self):
-        key = params(self.env).get_str("pan_ai.openrouter_key", "")
+        key = params(self.env).get_str(HOSTS["openrouter"].key, "")
+        eu_key = params(self.env).get_str(HOSTS["eurouter"].key, "")
         chatted = bool(self.env["pan_ai.run"].sudo().search_count([("status", "=", "ok")], limit=1))
         for record in self:
             record.pan_ai_has_chatted = chatted
-            record.pan_ai_has_key = bool(key)
+            record.pan_ai_has_key = bool(key or eu_key)
             record.pan_ai_key_last4 = key[-4:] if key else ""
+            record.pan_ai_eu_key_last4 = eu_key[-4:] if eu_key else ""
 
     def _compute_pan_ai_link(self):
         link = self.env["pan_ai.license"].current()
@@ -113,9 +118,12 @@ class ResConfigSettings(models.TransientModel):
 
     def set_values(self):
         super().set_values()
-        if self.pan_ai_new_key:
-            key = self.pan_ai_new_key.strip()
-            params(self.env).set_str("pan_ai.openrouter_key", key)
+        for code, new in (
+            ("openrouter", self.pan_ai_new_key),
+            ("eurouter", self.pan_ai_new_eu_key),
+        ):
+            if new and new.strip():
+                params(self.env).set_str(HOSTS[code].key, new.strip())
 
     def _reload(self):
         return {"type": "ir.actions.client", "tag": "reload"}
@@ -127,11 +135,11 @@ class ResConfigSettings(models.TransientModel):
             raise AccessError(_("Only a Settings administrator can do this."))
 
     def action_pan_ai_openrouter(self):
-        """Step 2's arrow: the key, in a dialog."""
+        """Step 2's arrow: the keys, in a dialog."""
         self._pan_ai_check_admin()
         return {
             "type": "ir.actions.act_window",
-            "name": _("OpenRouter key"),
+            "name": _("Model keys"),
             "res_model": "res.config.settings",
             "view_mode": "form",
             "views": [(self.env.ref("pan_ai_pro.res_config_settings_view_openrouter").id, "form")],
@@ -151,9 +159,11 @@ class ResConfigSettings(models.TransientModel):
         }
 
     def action_pan_ai_remove_key(self):
-        """The kill switch: every new run refuses at once."""
+        """The kill switch: every new run on that host refuses at once. The
+        button names the host in its context; OpenRouter when it names none."""
         self._pan_ai_check_admin()
-        params(self.env).set_str("pan_ai.openrouter_key", "")
+        host = HOSTS.get(self.env.context.get("pan_ai_host"), HOSTS["openrouter"])
+        params(self.env).set_str(host.key, "")
         return self._reload()
 
     def action_pan_ai_connect(self):

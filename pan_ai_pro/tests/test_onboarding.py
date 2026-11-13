@@ -55,6 +55,19 @@ class TestOnboarding(AiProCase):
         self.disconnect()
         self.assertFalse(self.ready(self.user))
 
+    def test_an_eurouter_key_alone_is_enough(self):
+        params(self.env).set_str("pan_ai.openrouter_key", "")
+        settings = self.env["res.config.settings"].create({"pan_ai_new_eu_key": " eu-key-1234 "})
+        settings.execute()
+        self.assertEqual(params(self.env).get_str("pan_ai.eurouter_key"), "eu-key-1234")
+        settings = self.env["res.config.settings"].create({})
+        self.assertTrue(settings.pan_ai_has_key)
+        self.assertEqual((settings.pan_ai_key_last4, settings.pan_ai_eu_key_last4), ("", "1234"))
+        self.assertTrue(self.ready(self.user))
+        settings.with_context(pan_ai_host="eurouter").action_pan_ai_remove_key()
+        self.assertFalse(params(self.env).get_str("pan_ai.eurouter_key"))
+        self.assertFalse(self.ready(self.user))
+
     def test_checklist(self):
         settings = self.env["res.config.settings"].create({})
         self.assertTrue(settings.pan_ai_entitled)

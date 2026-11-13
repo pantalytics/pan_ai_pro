@@ -2,7 +2,7 @@
 <!-- Copyright 2025-2026 Pantalytics B.V. All rights reserved. -->
 <!-- SPDX-License-Identifier: Elastic-2.0 -->
 <odoo>
-    <!-- Two columns, edited in the list: a form would be a page for two fields. -->
+    <!-- Edited in the list: a form would be a page for three fields. -->
     <record id="view_model_list" model="ir.ui.view">
         <field name="name">pan_ai.model.list</field>
         <field name="model">pan_ai.model</field>
@@ -10,6 +10,7 @@
             <list editable="bottom" default_order="sequence, name">
                 <field name="sequence" widget="handle"/>
                 <field name="name" placeholder="Claude Sonnet"/>
+                <field name="host"/>
                 <field name="model_name" placeholder="~anthropic/claude-sonnet-latest"/>
                 <field name="agent_count"/>
                 <field name="recommended" widget="boolean_toggle"/>
@@ -28,6 +29,7 @@
         <field name="arch" type="xml">
             <list default_order="sequence, name">
                 <field name="name"/>
+                <field name="host"/>
                 <field name="model_name"/>
             </list>
         </field>
@@ -40,6 +42,12 @@
                 <field name="name"/>
                 <field name="model_name"/>
                 <filter name="recommended" string="Recommended" domain="[('recommended', '=', True)]"/>
+                <separator/>
+                <filter name="openrouter" string="OpenRouter" domain="[('host', '=', 'openrouter')]"/>
+                <filter name="eurouter" string="EUrouter" domain="[('host', '=', 'eurouter')]"/>
+                <group>
+                    <filter name="group_host" string="Host" context="{'group_by': 'host'}"/>
+                </group>
             </search>
         </field>
     </record>
@@ -49,7 +57,7 @@
         <field name="res_model">pan_ai.model</field>
         <field name="view_mode">list</field>
         <field name="help" type="html">
-            <p>No models yet. Add one by its OpenRouter id; the ids are on <a href="https://openrouter.ai/models" target="_blank" rel="noopener">openrouter.ai/models</a>.</p>
+            <p>No models yet. Add one by its host's id; the ids are on <a href="https://openrouter.ai/models" target="_blank" rel="noopener">openrouter.ai/models</a> and <a href="https://www.eurouter.ai/models" target="_blank" rel="noopener">eurouter.ai/models</a>.</p>
         </field>
     </record>
 </odoo>
