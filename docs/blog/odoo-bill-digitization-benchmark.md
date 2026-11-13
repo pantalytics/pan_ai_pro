@@ -47,6 +47,19 @@ no", "Beispiel"), picks a customer or order number as the invoice number,
 returns the total as the untaxed amount with zero tax on simple invoices,
 and on scanned receipts gets the total right only half the time.
 
+## Is it the OCR?
+
+No. Odoo's answer includes the text its OCR read and, for every field, the
+candidates it considered. We gave that same OCR text to Claude Sonnet 5.5:
+it booked 94%, 100% and 88% of the documents, against Odoo's 0%, 9% and 8%.
+And the right supplier was in Odoo's own candidate list on 99% of the Donut
+invoices and 97% of the receipts; Odoo picked it on 0% and 20%. Odoo's OCR
+sees what a booking needs. The step that chooses the fields gets it wrong.
+
+That step may lean on the database: in a live Odoo the supplier is matched
+on VAT number, IBAN or e-mail against your contacts. This test does not
+cover that.
+
 Correcting costs more than reading. Per 100 documents Odoo left about three
 hours of corrections, the best models 10 to 20 minutes.
 
