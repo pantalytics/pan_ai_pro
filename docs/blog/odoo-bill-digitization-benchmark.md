@@ -1,8 +1,7 @@
 # How accurate is Odoo's bill digitization? We measured it
 
-Draft, 2026-11-13. Live as a draft on Directus (blog_posts 127, NL and EN,
-with figures from the benchmark repo). Then a short post on the Odoo forum
-linking there. Numbers from `docs/plans/invoice-extraction-benchmark.md`.
+Published 2026-11-13 on pantalytics.com/post/odoo-bill-digitization-benchmark
+(Directus blog_posts 127, NL and EN). The forum post below links there. Numbers from `docs/plans/invoice-extraction-benchmark.md`.
 
 ---
 
@@ -15,7 +14,7 @@ it, on public test sets, against six AI models.
 **The short answer: Odoo got 0 to 9% of the documents fully right. Every
 model we tried got 61 to 100%, each for less per document than Odoo's cheapest credit.**
 
-![Bookable without correction against AI cost per document](https://raw.githubusercontent.com/pantalytics/odoo-iap-benchmark/claude/eager-faraday-u72rsm/figures/fig0_overview.png)
+![Bookable without correction against AI cost per document](https://raw.githubusercontent.com/pantalytics/odoo-iap-benchmark/main/figures/fig0_overview.png)
 
 ## The test
 
