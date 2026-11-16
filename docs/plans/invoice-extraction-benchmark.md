@@ -103,7 +103,31 @@ finding for the blog too.
    gitignored, never in the blog. Not a standard set: it answers Giraffe's
    question, not the public one.
 
+### Scale-up (searched 2026-11-16)
+
+No public or buyable set of real EU invoices with VAT truth exists.
+Whoever holds them (accounting software, OCR vendors) cannot publish them
+under the AVG and keeps them as a moat. That gap is the blog's finding.
+
+4. **Woo publications (proposed)**: Dutch public bodies publish real
+   invoices and receipts (declaraties, bestuurskosten) as PDF under the
+   Woo, e.g. Montferland, Rekenkamer, Rijksoverheid. Real administration,
+   legally public, personal data already redacted. Scattered across
+   sites, mostly scans, no labels: we key the truth ourselves. Few
+   reverse-charge B2B bills; mostly receipts, hotels, travel.
+
 Dropped:
+- EuroDocBench and other synthetic sets (Kaggle, Hugging Face): generated
+  layouts say nothing about real bills.
+- Kaggle: searched 2026-11-16, only synthetic, US, or a handful of files.
+- Buying a company for its archive: cost far above the benchmark's value.
+- Old company archives (NEHA/IISG, regional archives): real, but mostly
+  pre-2000 paper, no modern EU VAT, rarely digitized. Dissolved firms'
+  books are destroyed after the 7-year retention, not sold.
+- Buying an image set (Shaip: 45k DE/UK, 15.9k EN/FR/ES/IT/NL): real
+  but no field labels, so the truth would be ours, not standard.
+- Bankrupt-company archives: the trustee must keep them, and reselling
+  supplier personal data for another purpose fails the AVG.
 - inv-cdip (Fraunhofer's scanned set): the UCSF library refuses automated
   downloads, and it is 1980s US invoices without VAT.
 - DocILE: English US documents, test labels not public.
