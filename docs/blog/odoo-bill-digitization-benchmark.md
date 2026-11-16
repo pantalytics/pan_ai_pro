@@ -72,13 +72,38 @@ a few hundred bills.
 
 1. **There is no public benchmark for European VAT.** The EU sample invoices
    are the only public material with VAT categories, 23 of them, none with
-   reverse charge. If you know a better set, tell us.
+   reverse charge. More on that below.
 2. **One sentence of instruction can beat a bigger model.** Telling the
    model to read dates in the supplier's own convention lifted the cheapest
    model from 64% to 97% on US-style invoices.
 3. **Learning from mistakes needs context.** Rules a model wrote from its
    own errors did not help, and one made it worse: "the total is the amount
    due" is right for receipts and wrong for invoices with a prepayment.
+
+## Why only 223 documents
+
+We wanted thousands of real European bills: mixed VAT rates, reverse
+charge, foreign currencies, business and consumer side by side. Ten years
+old would have been fine. We did not find them.
+
+- **Public sets** (Hugging Face, Kaggle, GitHub): synthetic or American.
+  A generated layout says nothing about a real supplier's bill.
+- **Buying**: vendors sell tens of thousands of real German and UK invoice
+  images, but without the answers. Someone still has to key every field.
+- **Bankrupt or dissolved companies**: the trustee keeps the books for the
+  creditors and the tax office. After seven years they are destroyed, not
+  sold.
+- **Old company archives**: real, but paper from before 2000, before
+  today's EU VAT rules.
+
+The one source of real bills we found that anyone can check: Dutch public
+bodies publish expense claims and invoices under the Open Government Act
+(Woo), receipts included. Scattered, scanned, and nobody has keyed the
+answers yet.
+
+The cause is simple. Every bookkeeping package reads millions of bills a
+day, and none may publish one. Whoever has the data cannot share it. If
+you know a better set, tell us.
 
 ## What this does not say
 
