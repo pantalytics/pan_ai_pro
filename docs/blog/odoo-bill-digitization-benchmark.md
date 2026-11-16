@@ -80,17 +80,17 @@ a few hundred bills.
    own errors did not help, and one made it worse: "the total is the amount
    due" is right for receipts and wrong for invoices with a prepayment.
 
-## Why only 223 documents
+## Why only 223 documents?
 
 We wanted thousands of real European bills: mixed VAT rates, reverse
 charge, foreign currencies, business and consumer side by side. Ten years
 old would have been fine. We did not find them.
 
-- **Public sets** (Hugging Face, Kaggle, GitHub): synthetic or American.
-  A generated layout says nothing about a real supplier's bill.
+- **Public sets**: Hugging Face, Kaggle and GitHub offer synthetic or
+  American sets. A generated layout says nothing about a real supplier's bill.
 - **Buying**: vendors sell tens of thousands of real German and UK invoice
   images, but without the answers. Someone still has to key every field.
-- **Bankrupt or dissolved companies**: the trustee keeps the books for the
+- **Bankrupt or dissolved companies**: the trustee or liquidator keeps the books for the
   creditors and the tax office. After seven years they are destroyed, not
   sold.
 - **Old company archives**: real, but paper from before 2000, before
