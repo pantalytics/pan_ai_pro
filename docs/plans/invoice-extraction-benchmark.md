@@ -109,13 +109,18 @@ No public or buyable set of real EU invoices with VAT truth exists.
 Whoever holds them (accounting software, OCR vendors) cannot publish them
 under the AVG and keeps them as a moat. That gap is the blog's finding.
 
-4. **EuroDocBench** (`sinceaihq/eurodocbench`, CC BY 4.0): 1,200 test
-   invoices, 12 EU locales (NL, DE, FR, IT, ES, PL, CZ, ...), several VAT
-   rates per bill. Synthetic, 5 layouts, header fields only (no VAT
-   category per line, no reverse charge). Gives the scale for header
-   fields; VAT treatment stays scored on sets 2 and 3.
+4. **Woo publications (proposed)**: Dutch public bodies publish real
+   invoices and receipts (declaraties, bestuurskosten) as PDF under the
+   Woo, e.g. Montferland, Rekenkamer, Rijksoverheid. Real administration,
+   legally public, personal data already redacted. Scattered across
+   sites, mostly scans, no labels: we key the truth ourselves. Few
+   reverse-charge B2B bills; mostly receipts, hotels, travel.
 
 Dropped:
+- EuroDocBench and other synthetic sets (Kaggle, Hugging Face): generated
+  layouts say nothing about real bills.
+- Kaggle: searched 2026-11-16, only synthetic, US, or a handful of files.
+- Buying a company for its archive: cost far above the benchmark's value.
 - Buying an image set (Shaip: 45k DE/UK, 15.9k EN/FR/ES/IT/NL): real
   but no field labels, so the truth would be ours, not standard.
 - Bankrupt-company archives: the trustee must keep them, and reselling
