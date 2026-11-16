@@ -103,7 +103,27 @@ finding for the blog too.
    gitignored, never in the blog. Not a standard set: it answers Giraffe's
    question, not the public one.
 
+### Scale-up to thousands of real EU bills (proposed 2026-11-16)
+
+Searched for a public or buyable labeled EU invoice set: none exists.
+Vendors (Shaip: 45k DE/UK, 15.9k EN/FR/ES/IT/NL) sell images without
+field labels, so VAT truth would still need an accountant per bill.
+
+Route: the same XML trick as set 2, on real mail. Belgian B2B invoices
+travel over Peppol since 2026-01-01 (UBL, usually with the PDF embedded);
+German suppliers increasingly send ZUGFeRD/XRechnung. Each such invoice
+carries its own truth: VAT category per line (AE included), currency,
+B2B/B2C. Collect 12 months of incoming e-invoices from 5 to 10 consenting
+clients, strip the XML, cap bills per supplier so no layout dominates.
+Publish method and scores, never documents.
+
+Dropped case: scanned and photographed paper bills. Suppliers that send
+e-invoices are the more digital ones; set 3 keeps covering paper.
+
 Dropped:
+- Buying an image set: no labels, labeling cost dominates.
+- Bankrupt-company archives: the trustee must keep them, and reselling
+  supplier personal data for another purpose fails the AVG.
 - inv-cdip (Fraunhofer's scanned set): the UCSF library refuses automated
   downloads, and it is 1980s US invoices without VAT.
 - DocILE: English US documents, test labels not public.
