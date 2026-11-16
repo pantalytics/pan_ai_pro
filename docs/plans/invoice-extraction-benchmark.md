@@ -121,6 +121,9 @@ Dropped:
   layouts say nothing about real bills.
 - Kaggle: searched 2026-11-16, only synthetic, US, or a handful of files.
 - Buying a company for its archive: cost far above the benchmark's value.
+- Old company archives (NEHA/IISG, regional archives): real, but mostly
+  pre-2000 paper, no modern EU VAT, rarely digitized. Dissolved firms'
+  books are destroyed after the 7-year retention, not sold.
 - Buying an image set (Shaip: 45k DE/UK, 15.9k EN/FR/ES/IT/NL): real
   but no field labels, so the truth would be ours, not standard.
 - Bankrupt-company archives: the trustee must keep them, and reselling
