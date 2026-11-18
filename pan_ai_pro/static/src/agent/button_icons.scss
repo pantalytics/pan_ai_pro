@@ -1,0 +1,21 @@
+// Odoo 20 ships no Font Awesome. A view button written as icon="fa-stop"
+// renders there as <i class="oi" data-icon="fa-stop">, a Material Symbols
+// ligature that does not exist, so the button shows no icon. These rules draw
+// the Material symbol from Odoo 20's own subset instead
+// (addons/web/tooling/icons/icons_wishlist.txt).
+//
+// They only match Odoo 20's markup: on 19 the same button renders
+// <i class="fa fa-stop"> and Font Awesome draws it, so the views keep one
+// icon name for both series. A new icon="fa-..." in a view needs a line here.
+$pan-ai-button-icons: (
+    "fa-stop": "stop",
+    "fa-comments": "forum",
+    "fa-play": "play_arrow",
+    "fa-magic": "wand_stars",
+);
+
+@each $fa, $symbol in $pan-ai-button-icons {
+    i.oi[data-icon="#{$fa}"]::before {
+        content: "#{$symbol}";
+    }
+}
