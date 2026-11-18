@@ -5,7 +5,7 @@ import { Message } from "@mail/core/common/message";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
 import { user } from "@web/core/user";
-import { useLive } from "@pan_ai_pro/chat/compat";
+import { actionIcon, useLive } from "@pan_ai_pro/chat/compat";
 
 patch(Message.prototype, {
     setup() {
@@ -13,6 +13,12 @@ patch(Message.prototype, {
         this.panAi = useService("pan_ai_pro.run_events");
         this.panAiStreams = useLive(this.panAi.streams);
     },
+    /** The tool-call icon: a Material symbol on 20, Font Awesome on 19. */
+    get panAiToolIcon() {
+        const icon = actionIcon("build", "fa fa-wrench");
+        return icon.startsWith("fa ") ? { class: icon, name: false } : { class: "oi", name: icon };
+    },
+
     get panAiStream() {
         return this.panAiStreams[this.message.id];
     },

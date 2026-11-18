@@ -37,9 +37,8 @@
                             <field name="description" class="text-muted"/>
                             <div class="d-flex align-items-center gap-2 mt-2">
                                 <field name="status" widget="badge" decoration-success="status == 'ready'" decoration-warning="status == 'no_tools'"/>
-                                <button name="action_chat" type="object" class="btn btn-link btn-sm ms-auto p-0">
-                                    <i class="fa fa-comments me-1" aria-hidden="true"/>Chat
-                                </button>
+                                <button name="action_chat" type="object" string="Chat" icon="fa-comments"
+                                        class="btn btn-link btn-sm ms-auto p-0"/>
                             </div>
                         </main>
                     </t>
